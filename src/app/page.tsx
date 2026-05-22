@@ -703,8 +703,8 @@ const result = calculatePoints(
         game.team_b,
         game.official_score_a?.toString() ?? "",
         game.official_score_b?.toString() ?? "",
-        result.points,
-        result.exact,
+        result.points.toString(),
+        result.exact.toString(),
       ]);
     });
   });
