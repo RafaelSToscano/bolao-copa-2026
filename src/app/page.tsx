@@ -22,12 +22,86 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const COLORS = {
+  green: "#3CAC3B",
+  blue: "#2A398D",
+  red: "#E61D25",
+  lightGray: "#D1D4D1",
+  darkGray: "#474A4A",
+};
+function getFlagCode(team: string) {
+  const flags: Record<string, string> = {
+    "México": "mx",
+    "África do Sul": "za",
+    "Coreia do Sul": "kr",
+    "Rep. Checa": "cz",
+    "Canadá": "ca",
+    "Catar": "qa",
+    "Suíça": "ch",
+    "Bósnia": "ba",
+    "Brasil": "br",
+    "Marrocos": "ma",
+    "Haiti": "ht",
+    "Escócia": "gb-sct",
+    "EUA": "us",
+    "Paraguai": "py",
+    "Austrália": "au",
+    "Turquia": "tr",
+    "Alemanha": "de",
+    "Curaçau": "cw",
+    "Costa do Marfim": "ci",
+    "Equador": "ec",
+    "Holanda": "nl",
+    "Japão": "jp",
+    "Suécia": "se",
+    "Tunísia": "tn",
+    "Portugal": "pt",
+    "Egito": "eg",
+    "Irã": "ir",
+    "Cabo Verde": "cv",
+    "Bélgica": "be",
+    "Argélia": "dz",
+    "Arábia Saudita": "sa",
+    "Iraque": "iq",
+    "Argentina": "ar",
+    "Jordânia": "jo",
+    "Croácia": "hr",
+    "Nigéria": "ng",
+    "França": "fr",
+    "Chile": "cl",
+    "Senegal": "sn",
+    "Costa Rica": "cr",
+    "Inglaterra": "gb-eng",
+    "Camarões": "cm",
+    "Uruguai": "uy",
+    "Emirados Árabes": "ae",
+    "Espanha": "es",
+    "Gana": "gh",
+    "Colômbia": "co",
+    "Nova Zelândia": "nz",
+  };
 
+  return flags[team] || "";
+}
+function Flag({ team }: { team: string }) {
+  const code = getFlagCode(team);
+
+  if (!code) return null;
+
+  return (
+    <img
+      src={`https://flagcdn.com/w40/${code}.png`}
+      alt={team}
+      className="inline-block h-4 w-6 rounded-sm object-cover mr-2"
+    />
+  );
+}
 type Player = {
   id: string;
   name: string;
   access_code: string;
   is_admin: boolean;
+  approved: boolean;
 };
 
 type Game = {
@@ -392,12 +466,12 @@ const groupsLocked = isGroupsLocked();
         p.access_code === loginCode
     );
 
-    if (found) {
+    if (found && found.approved) {
       setCurrentUser(found);
       localStorage.setItem("bolao_user", JSON.stringify(found));
       setMessage("");
     } else {
-      setMessage("Nome ou código inválido.");
+      setMessage("Usuário não encontrado ou aguardando aprovação do administrador.");
     }
   }
 
@@ -430,6 +504,63 @@ const groupsLocked = isGroupsLocked();
       });
   }, [players, predictions, games]);
 
+  const totalPlayers = players.filter(
+  (p) => !p.is_admin
+).length;
+
+const playersWithPredictions =
+  players.filter((player) =>
+    predictions.some(
+      (prediction) =>
+        prediction.player_id === player.id
+    )
+  ).length;
+
+const totalPredictions =
+  predictions.length;
+const expectedPredictions =
+  totalPlayers * games.length;
+
+const currentUserPredictions = currentUser
+  ? predictions.filter(
+      (prediction) =>
+        prediction.player_id === currentUser.id &&
+        prediction.predicted_score_a !== null &&
+        prediction.predicted_score_b !== null
+    )
+  : [];
+
+const totalUserGames = games.length;
+
+const userPredictedGames =
+  currentUserPredictions.length;
+
+const userPendingGames =
+  totalUserGames - userPredictedGames;
+
+const userCompletion =
+  totalUserGames > 0
+    ? Math.round((userPredictedGames / totalUserGames) * 100)
+    : 0;
+    const approvedPlayers =
+  players.filter(
+    (p) => !p.is_admin && p.approved
+  ).length;
+
+const pendingPlayers =
+  players.filter(
+    (p) => !p.is_admin && !p.approved
+  ).length;
+
+const activePlayers =
+  players.filter(
+    (player) =>
+      !player.is_admin &&
+      predictions.some(
+        (prediction) =>
+          prediction.player_id === player.id
+      )
+  ).length;
   async function savePredictions() {
     if (!currentUser) return;
 
@@ -534,7 +665,71 @@ async function saveSinglePrediction(
       )
     );
   }
+function exportAuditCsv() {
+  const rows = [
+    [
+      "Participante",
+      "Celular",
+      "Grupo",
+      "Jogo",
+      "Time A",
+      "Palpite A",
+      "Palpite B",
+      "Time B",
+      "Resultado Oficial A",
+      "Resultado Oficial B",
+      "Pontos",
+      "Placar Exato"
+    ],
+  ];
 
+  players.forEach((player) => {
+    games.forEach((game) => {
+      const prediction = predictions.find(
+        (p) => p.player_id === player.id && p.game_id === game.id
+      );
+const result = calculatePoints(
+  prediction,
+  game
+);
+      rows.push([
+        player.name,
+        player.access_code,
+        game.group_name || "",
+        String(game.match_order || ""),
+        game.team_a,
+        prediction?.predicted_score_a?.toString() ?? "",
+        prediction?.predicted_score_b?.toString() ?? "",
+        game.team_b,
+        game.official_score_a?.toString() ?? "",
+        game.official_score_b?.toString() ?? "",
+        result.points,
+        result.exact,
+      ]);
+    });
+  });
+
+  const csvContent = rows
+    .map((row) =>
+      row
+        .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+        .join(";")
+    )
+    .join("\n");
+
+  const blob = new Blob(["\uFEFF" + csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = "auditoria-bolao-copa-2026.csv";
+  link.click();
+
+  URL.revokeObjectURL(url);
+}
   if (checkingLogin) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
@@ -551,9 +746,11 @@ async function saveSinglePrediction(
         <Card className="w-full max-w-md bg-slate-900 border-slate-800 text-white rounded-3xl shadow-2xl">
           <CardContent className="p-8 space-y-6">
             <div className="text-center space-y-4">
-              <div className="mx-auto h-20 w-20 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-xl">
-                <Trophy className="text-slate-900" size={36} />
-              </div>
+             <img
+  src="/brand/bolao-logo.jpg"
+  alt="Bolão Copa 2026"
+  className="mx-auto h-24 w-24 rounded-2xl object-cover shadow-xl"
+/>
 
               <div>
                 <h1 className="text-4xl font-black">
@@ -575,7 +772,7 @@ async function saveSinglePrediction(
               />
 
               <Input
-                placeholder="Código"
+  placeholder="51999999999"
                 value={loginCode}
                 onChange={(e) => setLoginCode(e.target.value)}
                 className="bg-slate-800 border-slate-700 text-white h-12"
@@ -589,14 +786,15 @@ async function saveSinglePrediction(
               </Button>
 
               <Button
-                variant="outline"
-                onClick={loadData}
-                className="w-full border-slate-700 text-white"
-              >
+  variant="outline"
+  onClick={loadData}
+  className="w-full border-slate-700 bg-slate-800 text-white hover:bg-slate-700"
+>
                 <RefreshCw className="mr-2" size={16} />
                 Atualizar
               </Button>
             </div>
+
 
             {message && (
               <div className="text-center text-sm text-red-400">
@@ -605,8 +803,8 @@ async function saveSinglePrediction(
             )}
 
             <div className="text-xs text-slate-500 text-center">
-              Exemplo: Rafael / 1234
-            </div>
+  Exemplo: Rafael / 51999999999
+</div>
           </CardContent>
         </Card>
       </div>
@@ -618,9 +816,11 @@ async function saveSinglePrediction(
         <div className="max-w-7xl mx-auto p-4 md:p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-2xl bg-yellow-500 flex items-center justify-center shadow-lg">
-                <Trophy className="text-slate-950" size={26} />
-              </div>
+              <img
+  src="/brand/bolao-logo.jpg"
+  alt="Bolão Copa 2026"
+  className="h-14 w-14 rounded-2xl object-cover shadow-lg"
+/>
 
               <div>
                 <h1 className="text-2xl md:text-4xl font-black tracking-tight">
@@ -717,26 +917,67 @@ async function saveSinglePrediction(
             </Button>
           )}
         </div>
+{tab === "palpites" && (
+<div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
+    <CardContent className="p-4">
+      <div className="text-sm text-slate-400">Jogos</div>
+      <div className="text-3xl font-black text-yellow-400">
+        {totalUserGames}
+      </div>
+    </CardContent>
+  </Card>
 
-        {message && (
-          <div className="rounded-2xl bg-slate-900 border border-slate-800 p-4 text-sm text-yellow-400">
-            {message}
-          </div>
-        )}
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
+    <CardContent className="p-4">
+      <div className="text-sm text-slate-400">Jogos palpitados</div>
+      <div className="text-3xl font-black text-emerald-400">
+        {userPredictedGames}
+      </div>
+    </CardContent>
+  </Card>
+
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
+    <CardContent className="p-4">
+      <div className="text-sm text-slate-400">Jogos não palpitados</div>
+      <div className="text-3xl font-black text-red-400">
+        {userPendingGames}
+      </div>
+    </CardContent>
+  </Card>
+
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
+    <CardContent className="p-4">
+      <div className="text-sm text-slate-400">% concluído</div>
+      <div className="text-3xl font-black text-blue-400">
+        {userCompletion}%
+      </div>
+    </CardContent>
+  </Card>
+</div>
+)}
+{message && (
+  <div className="rounded-2xl bg-slate-900 border border-slate-800 p-4 text-sm text-yellow-400">
+    {message}
+  </div>
+)}
 
         {tab === "palpites" && (
           <div className="space-y-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
                 <h2 className="text-2xl font-black">Meus Palpites</h2>
-                <p className="text-slate-400 text-sm">
-                  Preencha os placares. O salvamento é automático.
-                  {groupsLocked && (
-  <p className="text-red-400 text-sm font-semibold">
-    Palpites encerrados para a fase de grupos.
+               <div>
+  <p className="text-slate-400 text-sm">
+    Preencha os placares. O salvamento é automático.
   </p>
-)}
-                </p>
+
+  {groupsLocked && (
+    <p className="text-red-400 text-sm font-semibold mt-1">
+      Palpites encerrados para a fase de grupos.
+    </p>
+  )}
+</div>
               </div>
 
               
@@ -773,85 +1014,11 @@ async function saveSinglePrediction(
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3">
-        {(() => {
-  const standings =
-  calculateGroupStandingsFromPredictions(
-    groupGames,
-    predictions,
-    currentUser.id
-  );
+      <div className="border-2 border-[#2A398D] bg-white overflow-hidden rounded-md">
+  <div className="bg-[#2A398D] text-white text-center font-black text-sm py-1">
+    GRUPO {group}
+  </div>
 
-  if (standings.length === 0) {
-    return null;
-  }
-
-  return (
-    <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl overflow-hidden">
-      <CardContent className="p-0">
-        <div className="grid grid-cols-12 bg-slate-800 text-xs uppercase tracking-wide text-slate-400 p-3 font-bold">
-          <div className="col-span-5">Seleção</div>
-          <div className="col-span-1 text-center">P</div>
-          <div className="col-span-1 text-center">J</div>
-          <div className="col-span-1 text-center">V</div>
-          <div className="col-span-1 text-center">E</div>
-          <div className="col-span-1 text-center">D</div>
-          <div className="col-span-1 text-center">SG</div>
-          <div className="col-span-1 text-center">GP</div>
-        </div>
-
-        {standings.map(
-          (team: any, index: number) => (
-            <div
-              key={team.team}
-              className={`grid grid-cols-12 p-3 border-t border-slate-800 items-center ${
-                index < 2
-                  ? "bg-emerald-900/20"
-                  : ""
-              }`}
-            >
-              <div className="col-span-5 font-semibold flex items-center gap-2">
-                <span className="text-yellow-400 font-black">
-                  {index + 1}º
-                </span>
-
-                {team.team}
-              </div>
-
-              <div className="col-span-1 text-center font-bold">
-                {team.points}
-              </div>
-
-              <div className="col-span-1 text-center">
-                {team.played}
-              </div>
-
-              <div className="col-span-1 text-center">
-                {team.wins}
-              </div>
-
-              <div className="col-span-1 text-center">
-                {team.draws}
-              </div>
-
-              <div className="col-span-1 text-center">
-                {team.losses}
-              </div>
-
-              <div className="col-span-1 text-center">
-                {team.goalDiff}
-              </div>
-
-              <div className="col-span-1 text-center">
-                {team.goalsFor}
-              </div>
-            </div>
-          )
-        )}
-      </CardContent>
-    </Card>
-  );
-})()}
         {groupGames.map((game: Game) => {
                 const existing = predictions.find(
                   (p) =>
@@ -866,85 +1033,90 @@ async function saveSinglePrediction(
                     existing?.predicted_score_b?.toString() ?? "",
                 };
 
-                return (
-                  <Card
-                    key={game.id}
-                    className="bg-slate-900 border-slate-800 text-white rounded-2xl overflow-hidden"
-                  >
-                    <CardContent className="p-4">
-                      <div className="grid grid-cols-12 items-center gap-2">
-                        <div className="col-span-12 md:col-span-2 text-xs text-slate-400">
-                          <span className="bg-blue-900/50 px-3 py-1 rounded-full">
-                            Grupo {game.group_name || "-"}
-                          </span>
-                          <div className="mt-2">{formatDate(game.match_date)}</div>
-                        </div>
+               return (
+  <div
+    key={game.id}
+    className="grid grid-cols-[120px_160px_34px_34px_24px_34px_34px_160px] items-center justify-center bg-[#F1F1F1] border-b border-white text-[#111] text-[12px] min-h-[28px]"
+  >
+    <div className="px-2 text-[11px] whitespace-nowrap text-right">
+      {formatDate(game.match_date)}
+    </div>
 
-                        <div className="col-span-4 md:col-span-3 text-right font-bold">
-                          {game.team_a}
-                        </div>
+    <div className="px-1 text-right font-semibold truncate">
+      {game.team_a}
+    </div>
 
-                        <div className="col-span-1">
-                          <Input
-  type="number"
-  min="0"
-  disabled={groupsLocked || game.locked}
-  value={draft.predicted_score_a}
-                            onChange={(e) => {
-  const value = e.target.value;
+    <div className="flex justify-center">
+      <Flag team={game.team_a} />
+    </div>
 
-  setDrafts((prev) => ({
-    ...prev,
-    [game.id]: {
-      ...draft,
-      predicted_score_a: value,
-    },
-  }));
+    <div className="flex justify-center">
+      <Input
+        type="number"
+        min="0"
+        disabled={groupsLocked || game.locked}
+        value={draft.predicted_score_a}
+        onChange={(e) => {
+          const value = e.target.value;
 
-  saveSinglePrediction(game.id, "predicted_score_a", value);
-}}
-                            className="bg-slate-800 border-slate-700 text-white text-center"
-                          />
-                        </div>
+          setDrafts((prev) => ({
+            ...prev,
+            [game.id]: {
+              ...draft,
+              predicted_score_a: value,
+            },
+          }));
 
-                        <div className="col-span-2 text-center text-slate-400 font-black">
-                          X
-                        </div>
+          saveSinglePrediction(
+            game.id,
+            "predicted_score_a",
+            value
+          );
+        }}
+        className="h-6 w-8 rounded-none border border-[#2A398D] bg-white text-center text-xs text-[#111] p-0"
+      />
+    </div>
 
-                        <div className="col-span-1">
-                          <Input
-  type="number"
-  min="0"
-  disabled={groupsLocked || game.locked}
-  value={draft.predicted_score_b}
-                            onChange={(e) => {
-  const value = e.target.value;
+    <div className="text-center text-xs font-bold text-[#2A398D]">
+      x
+    </div>
 
-  setDrafts((prev) => ({
-    ...prev,
-    [game.id]: {
-      ...draft,
-      predicted_score_b: value,
-    },
-  }));
+    <div className="flex justify-center">
+      <Input
+        type="number"
+        min="0"
+        disabled={groupsLocked || game.locked}
+        value={draft.predicted_score_b}
+        onChange={(e) => {
+          const value = e.target.value;
 
-  saveSinglePrediction(game.id, "predicted_score_b", value);
-}}
-                            className="bg-slate-800 border-slate-700 text-white text-center"
-                          />
-                        </div>
+          setDrafts((prev) => ({
+            ...prev,
+            [game.id]: {
+              ...draft,
+              predicted_score_b: value,
+            },
+          }));
 
-                        <div className="col-span-4 md:col-span-3 font-bold">
-                          {game.team_b}
-                        </div>
+          saveSinglePrediction(
+            game.id,
+            "predicted_score_b",
+            value
+          );
+        }}
+        className="h-6 w-8 rounded-none border border-[#2A398D] bg-white text-center text-xs text-[#111] p-0"
+      />
+    </div>
 
-                        <div className="col-span-12 md:col-span-1 text-xs text-slate-500 text-center">
-                          {game.locked ? "Fechado" : "Aberto"}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
+    <div className="flex justify-center">
+      <Flag team={game.team_b} />
+    </div>
+
+    <div className="px-1 font-semibold truncate">
+      {game.team_b}
+    </div>
+  </div>
+);
                })}
       </div>
     </div>
@@ -1238,13 +1410,11 @@ async function saveSinglePrediction(
                   className="bg-slate-900 border-slate-800 text-white rounded-3xl"
                 >
                   <CardContent className="p-5 text-center space-y-3">
-                    <div className="mx-auto h-14 w-14 rounded-full bg-yellow-500 flex items-center justify-center">
-                      {index === 0 ? (
-                        <Crown className="text-slate-950" />
-                      ) : (
-                        <Medal className="text-slate-950" />
-                      )}
-                    </div>
+                    <img
+  src="/brand/bolao-logo.jpg"
+  alt="Ranking"
+  className="mx-auto h-16 w-16 rounded-2xl object-cover shadow-lg"
+/>
 
                     <div className="text-3xl font-black">{index + 1}º</div>
                     <div className="font-bold">{player.name}</div>
@@ -1292,6 +1462,49 @@ async function saveSinglePrediction(
               <p className="text-slate-400 text-sm">
                 Lance os resultados oficiais dos jogos.
               </p>
+              <Button
+  onClick={exportAuditCsv}
+  className="mt-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold"
+>
+  Exportar auditoria CSV
+</Button>
+<div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4">
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
+    <CardContent className="p-4">
+      <div className="text-sm text-slate-400">Participantes</div>
+      <div className="text-3xl font-black text-yellow-400">
+        {totalPlayers}
+      </div>
+    </CardContent>
+  </Card>
+
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
+    <CardContent className="p-4">
+      <div className="text-sm text-slate-400">Aprovados</div>
+      <div className="text-3xl font-black text-emerald-400">
+        {approvedPlayers}
+      </div>
+    </CardContent>
+  </Card>
+
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
+    <CardContent className="p-4">
+      <div className="text-sm text-slate-400">Pendentes</div>
+      <div className="text-3xl font-black text-red-400">
+        {pendingPlayers}
+      </div>
+    </CardContent>
+  </Card>
+
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
+    <CardContent className="p-4">
+      <div className="text-sm text-slate-400">Já palpitou</div>
+      <div className="text-3xl font-black text-blue-400">
+        {activePlayers}
+      </div>
+    </CardContent>
+  </Card>
+</div>
             </div>
 
             <div className="space-y-3">
@@ -1300,58 +1513,67 @@ async function saveSinglePrediction(
                   key={game.id}
                   className="bg-slate-900 border-slate-800 text-white rounded-2xl"
                 >
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-12 items-center gap-2">
-                      <div className="col-span-12 md:col-span-2 text-xs text-slate-400">
-                        Grupo {game.group_name || "-"}
-                        <div>{formatDate(game.match_date)}</div>
-                      </div>
+                    <CardContent className="p-0">
+  <div className="grid grid-cols-[120px_160px_34px_34px_24px_34px_34px_160px] items-center justify-center bg-[#F1F1F1] border-b border-white text-[#111] text-[12px] min-h-[28px]">
+    
+    <div className="px-2 text-[11px] whitespace-nowrap text-right">
+      {formatDate(game.match_date)}
+    </div>
 
-                      <div className="col-span-4 md:col-span-3 text-right font-bold">
-                        {game.team_a}
-                      </div>
+    <div className="px-1 text-right font-semibold truncate">
+      {game.team_a}
+    </div>
 
-                      <div className="col-span-1">
-                        <Input
-                          type="number"
-                          min="0"
-                          value={game.official_score_a ?? ""}
-                          onChange={(e) =>
-                            updateOfficialResult(
-                              game.id,
-                              "official_score_a",
-                              e.target.value
-                            )
-                          }
-                          className="bg-slate-800 border-slate-700 text-white text-center"
-                        />
-                      </div>
+    <div className="flex justify-center">
+      <Flag team={game.team_a} />
+    </div>
 
-                      <div className="col-span-2 text-center font-black text-slate-400">
-                        X
-                      </div>
+    <div className="flex justify-center">
+      <Input
+        type="number"
+        min="0"
+        value={game.official_score_a ?? ""}
+        onChange={(e) =>
+          updateOfficialResult(
+            game.id,
+            "official_score_a",
+            e.target.value
+          )
+        }
+        className="h-6 w-7 rounded-none border border-[#2A398D] bg-white text-center text-[12px] font-semibold text-[#111] p-0"
+      />
+    </div>
 
-                      <div className="col-span-1">
-                        <Input
-                          type="number"
-                          min="0"
-                          value={game.official_score_b ?? ""}
-                          onChange={(e) =>
-                            updateOfficialResult(
-                              game.id,
-                              "official_score_b",
-                              e.target.value
-                            )
-                          }
-                          className="bg-slate-800 border-slate-700 text-white text-center"
-                        />
-                      </div>
+    <div className="text-center text-xs font-bold text-[#2A398D]">
+      x
+    </div>
 
-                      <div className="col-span-4 md:col-span-3 font-bold">
-                        {game.team_b}
-                      </div>
-                    </div>
-                  </CardContent>
+    <div className="flex justify-center">
+      <Input
+        type="number"
+        min="0"
+        value={game.official_score_b ?? ""}
+        onChange={(e) =>
+          updateOfficialResult(
+            game.id,
+            "official_score_b",
+            e.target.value
+          )
+        }
+        className="h-6 w-7 rounded-none border border-[#2A398D] bg-white text-center text-[12px] font-semibold text-[#111] p-0"
+      />
+    </div>
+
+    <div className="flex justify-center">
+      <Flag team={game.team_b} />
+    </div>
+
+    <div className="px-1 font-semibold truncate">
+      {game.team_b}
+    </div>
+
+  </div>
+</CardContent>
                 </Card>
               ))}
             </div>
