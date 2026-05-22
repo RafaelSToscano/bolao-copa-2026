@@ -1014,110 +1014,140 @@ const result = calculatePoints(
         </div>
       </div>
 
-      <div className="border-2 border-[#2A398D] bg-white overflow-hidden rounded-md">
-  <div className="bg-[#2A398D] text-white text-center font-black text-sm py-1">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+  <div className="bg-[#2A398D] text-white text-center font-black text-xs py-2 tracking-wide">
     GRUPO {group}
   </div>
 
-        {groupGames.map((game: Game) => {
-                const existing = predictions.find(
-                  (p) =>
-                    p.player_id === currentUser.id &&
-                    p.game_id === game.id
-                );
-
-                const draft = drafts[game.id] || {
-                  predicted_score_a:
-                    existing?.predicted_score_a?.toString() ?? "",
-                  predicted_score_b:
-                    existing?.predicted_score_b?.toString() ?? "",
-                };
-
-               return (
-  <div
-    key={game.id}
-    className="grid grid-cols-[120px_160px_34px_34px_24px_34px_34px_160px] items-center justify-center bg-[#F1F1F1] border-b border-white text-[#111] text-[12px] min-h-[28px]"
-  >
-    <div className="px-2 text-[11px] whitespace-nowrap text-right">
-      {formatDate(game.match_date)}
+<div className="space-y-4">
+  <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-xl">
+    <div className="bg-[#2A398D] text-white text-center font-black text-sm md:text-base py-3 tracking-wide">
+      CLASSIFICAÇÃO - GRUPO {group}
     </div>
 
-    <div className="px-1 text-right font-semibold truncate">
-      {game.team_a}
+    <div className="grid grid-cols-12 bg-slate-950 text-slate-400 text-xs md:text-sm uppercase font-bold px-4 py-3 border-b border-slate-800">
+      <div className="col-span-1">#</div>
+      <div className="col-span-4">Seleção</div>
+      <div className="col-span-1 text-center">P</div>
+      <div className="col-span-1 text-center">J</div>
+      <div className="col-span-1 text-center">V</div>
+      <div className="col-span-1 text-center">E</div>
+      <div className="col-span-1 text-center">D</div>
+      <div className="col-span-1 text-center">SG</div>
+      <div className="col-span-1 text-center">GP</div>
     </div>
 
-    <div className="flex justify-center">
-      <Flag team={game.team_a} />
-    </div>
+    {calculateGroupStandingsFromPredictions(
+      groupGames,
+      predictions,
+      currentUser.id
+    ).map((team: any, index: number) => (
+      <div
+        key={team.team}
+        className={`grid grid-cols-12 items-center px-4 py-4 border-b border-slate-800 text-sm md:text-base ${
+          index < 2 ? "bg-slate-800/70" : "bg-slate-900"
+        }`}
+      >
+        <div className="col-span-1 text-yellow-400 font-black">{index + 1}º</div>
 
-    <div className="flex justify-center">
-      <Input
-        type="number"
-        min="0"
-        disabled={groupsLocked || game.locked}
-        value={draft.predicted_score_a}
-        onChange={(e) => {
-          const value = e.target.value;
+        <div className="col-span-4 font-bold flex items-center gap-3">
+          <Flag team={team.team} />
+          {team.team}
+        </div>
 
-          setDrafts((prev) => ({
-            ...prev,
-            [game.id]: {
-              ...draft,
-              predicted_score_a: value,
-            },
-          }));
-
-          saveSinglePrediction(
-            game.id,
-            "predicted_score_a",
-            value
-          );
-        }}
-        className="h-6 w-8 rounded-none border border-[#2A398D] bg-white text-center text-xs text-[#111] p-0"
-      />
-    </div>
-
-    <div className="text-center text-xs font-bold text-[#2A398D]">
-      x
-    </div>
-
-    <div className="flex justify-center">
-      <Input
-        type="number"
-        min="0"
-        disabled={groupsLocked || game.locked}
-        value={draft.predicted_score_b}
-        onChange={(e) => {
-          const value = e.target.value;
-
-          setDrafts((prev) => ({
-            ...prev,
-            [game.id]: {
-              ...draft,
-              predicted_score_b: value,
-            },
-          }));
-
-          saveSinglePrediction(
-            game.id,
-            "predicted_score_b",
-            value
-          );
-        }}
-        className="h-6 w-8 rounded-none border border-[#2A398D] bg-white text-center text-xs text-[#111] p-0"
-      />
-    </div>
-
-    <div className="flex justify-center">
-      <Flag team={game.team_b} />
-    </div>
-
-    <div className="px-1 font-semibold truncate">
-      {game.team_b}
-    </div>
+        <div className="col-span-1 text-center font-bold">{team.points}</div>
+        <div className="col-span-1 text-center">{team.played}</div>
+        <div className="col-span-1 text-center">{team.wins}</div>
+        <div className="col-span-1 text-center">{team.draws}</div>
+        <div className="col-span-1 text-center">{team.losses}</div>
+        <div className="col-span-1 text-center">{team.goalDiff}</div>
+        <div className="col-span-1 text-center">{team.goalsFor}</div>
+      </div>
+    ))}
   </div>
-);
-               })}
+
+  <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-xl">
+    <div className="bg-[#2A398D] text-white text-center font-black text-sm md:text-base py-3 tracking-wide">
+      JOGOS - GRUPO {group}
+    </div>
+
+    {groupGames.map((game: Game) => {
+      const existing = predictions.find(
+        (p) => p.player_id === currentUser.id && p.game_id === game.id
+      );
+
+      const draft = drafts[game.id] || {
+        predicted_score_a: existing?.predicted_score_a?.toString() ?? "",
+        predicted_score_b: existing?.predicted_score_b?.toString() ?? "",
+      };
+
+      return (
+        <div
+          key={game.id}
+          className="grid grid-cols-[58px_minmax(70px,1fr)_24px_36px_16px_36px_24px_minmax(70px,1fr)] items-center"
+        >
+          <div className="text-slate-300 text-sm whitespace-nowrap">
+            {formatDate(game.match_date)}
+          </div>
+
+          <div className="text-right font-semibold truncate pr-2">
+            {game.team_a}
+          </div>
+
+          <div className="flex justify-center">
+            <Flag team={game.team_a} />
+          </div>
+
+          <div className="flex justify-center">
+            <Input
+              type="number"
+              min="0"
+              disabled={groupsLocked || game.locked}
+              value={draft.predicted_score_a}
+              onChange={(e) => {
+                const value = e.target.value;
+                setDrafts((prev) => ({
+                  ...prev,
+                  [game.id]: { ...draft, predicted_score_a: value },
+                }));
+                saveSinglePrediction(game.id, "predicted_score_a", value);
+              }}
+              className="h-8 w-9 rounded-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white p-0"
+            />
+          </div>
+
+          <div className="text-center font-bold text-slate-300">x</div>
+
+          <div className="flex justify-center">
+            <Input
+              type="number"
+              min="0"
+              disabled={groupsLocked || game.locked}
+              value={draft.predicted_score_b}
+              onChange={(e) => {
+                const value = e.target.value;
+                setDrafts((prev) => ({
+                  ...prev,
+                  [game.id]: { ...draft, predicted_score_b: value },
+                }));
+                saveSinglePrediction(game.id, "predicted_score_b", value);
+              }}
+              className="h-8 w-9 rounded-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white p-0"
+            />
+          </div>
+
+          <div className="flex justify-center">
+            <Flag team={game.team_b} />
+          </div>
+
+          <div className="font-semibold truncate pl-2">
+            {game.team_b}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
       </div>
     </div>
   ))}
@@ -1514,13 +1544,13 @@ const result = calculatePoints(
                   className="bg-slate-900 border-slate-800 text-white rounded-2xl"
                 >
                     <CardContent className="p-0">
-  <div className="grid grid-cols-[120px_160px_34px_34px_24px_34px_34px_160px] items-center justify-center bg-[#F1F1F1] border-b border-white text-[#111] text-[12px] min-h-[28px]">
+  <div className="grid grid-cols-[120px_160px_34px_34px_24px_34px_34px_160px] items-center justify-center bg-[#F1F1F1] border-b border-white text-[#111] text-[12px] min-h-[24px]">
     
-    <div className="px-2 text-[11px] whitespace-nowrap text-right">
+    <div className="px-1 text-[10px] whitespace-nowrap text-center text-slate-400">
       {formatDate(game.match_date)}
     </div>
 
-    <div className="px-1 text-right font-semibold truncate">
+    <div className="pr-1 text-right font-semibold truncate text-[12px]">
       {game.team_a}
     </div>
 
@@ -1568,7 +1598,7 @@ const result = calculatePoints(
       <Flag team={game.team_b} />
     </div>
 
-    <div className="px-1 font-semibold truncate">
+    <div className="pl-1 font-semibold truncate text-[12px]">
       {game.team_b}
     </div>
 
