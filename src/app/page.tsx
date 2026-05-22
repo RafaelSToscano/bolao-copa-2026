@@ -9,7 +9,6 @@ import {
   Lock,
   LogOut,
   RefreshCw,
-  Save,
   Medal,
   Crown,
 } from "lucide-react";
@@ -107,6 +106,10 @@ function formatDate(value: string | null) {
     return "Data a definir";
   }
 }
+function isGroupsLocked() {
+  const deadline = new Date("2026-06-10T23:59:00-03:00");
+  return new Date() > deadline;
+}
 function calculateGroupStandings(groupGames: Game[]) {
   const table: Record<string, any> = {};
 
@@ -180,7 +183,42 @@ function calculateGroupStandings(groupGames: Game[]) {
       return a.team.localeCompare(b.team);
     });
 }
+function calculateGroupStandingsFromPredictions(
+  groupGames: Game[],
+  playerPredictions: Prediction[],
+  playerId: string
+) {
+  const simulatedGames = groupGames.map((game) => {
+    const prediction = playerPredictions.find(
+      (p) => p.player_id === playerId && p.game_id === game.id
+    );
 
+    return {
+      ...game,
+      official_score_a: prediction?.predicted_score_a ?? null,
+      official_score_b: prediction?.predicted_score_b ?? null,
+    };
+  });
+
+  return calculateGroupStandings(simulatedGames);
+}
+function buildGamesFromPredictions(
+  games: Game[],
+  playerPredictions: Prediction[],
+  playerId: string
+) {
+  return games.map((game) => {
+    const prediction = playerPredictions.find(
+      (p) => p.player_id === playerId && p.game_id === game.id
+    );
+
+    return {
+      ...game,
+      official_score_a: prediction?.predicted_score_a ?? null,
+      official_score_b: prediction?.predicted_score_b ?? null,
+    };
+  });
+}
 function calculateBestThirds(games: Game[]) {
   const grouped = games.reduce((acc: Record<string, Game[]>, game) => {
     const group = game.group_name || "Outros";
@@ -309,7 +347,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [checkingLogin, setCheckingLogin] = useState(true);
   const [message, setMessage] = useState("");
-
+const groupsLocked = isGroupsLocked();
   async function loadData() {
     setLoading(true);
     setMessage("");
@@ -433,7 +471,44 @@ export default function Home() {
     setMessage("Palpites salvos com sucesso.");
     setLoading(false);
   }
+async function saveSinglePrediction(
+  gameId: string,
+  field: "predicted_score_a" | "predicted_score_b",
+  value: string
+) {
+  if (!currentUser) return;
 
+  const parsedValue = value === "" ? null : Number(value);
+
+  const existing = predictions.find(
+    (p) => p.player_id === currentUser.id && p.game_id === gameId
+  );
+
+  const updatedPrediction = {
+    player_id: currentUser.id,
+    game_id: gameId,
+    predicted_score_a:
+      field === "predicted_score_a"
+        ? parsedValue
+        : existing?.predicted_score_a ?? null,
+    predicted_score_b:
+      field === "predicted_score_b"
+        ? parsedValue
+        : existing?.predicted_score_b ?? null,
+  };
+
+  setPredictions((prev) => {
+    const filtered = prev.filter(
+      (p) => !(p.player_id === currentUser.id && p.game_id === gameId)
+    );
+
+    return [...filtered, updatedPrediction];
+  });
+
+  await supabase.from("predictions").upsert(updatedPrediction, {
+    onConflict: "player_id,game_id",
+  });
+}
   async function updateOfficialResult(
     gameId: string,
     field: "official_score_a" | "official_score_b",
@@ -575,7 +650,10 @@ export default function Home() {
       <main className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           <Button
-  onClick={() => setTab("palpites")}
+  onClick={() => {
+  setTab("palpites");
+  loadData();
+}}
   className={
     tab === "palpites"
       ? "bg-yellow-500 text-slate-950 hover:bg-yellow-400 font-bold"
@@ -587,7 +665,10 @@ export default function Home() {
 </Button>
 
 <Button
-  onClick={() => setTab("classificacao")}
+  onClick={() => {
+  setTab("classificacao");
+  loadData();
+}}
   className={
     tab === "classificacao"
       ? "bg-yellow-500 text-slate-950 hover:bg-yellow-400 font-bold"
@@ -598,7 +679,10 @@ export default function Home() {
   Classificação
 </Button>
 <Button
-  onClick={() => setTab("matamata")}
+  onClick={() => {
+  setTab("matamata");
+  loadData();
+}}
   className={
     tab === "matamata"
       ? "bg-yellow-500 text-slate-950 hover:bg-yellow-400 font-bold"
@@ -646,18 +730,16 @@ export default function Home() {
               <div>
                 <h2 className="text-2xl font-black">Meus Palpites</h2>
                 <p className="text-slate-400 text-sm">
-                  Preencha os placares e clique em salvar.
+                  Preencha os placares. O salvamento é automático.
+                  {groupsLocked && (
+  <p className="text-red-400 text-sm font-semibold">
+    Palpites encerrados para a fase de grupos.
+  </p>
+)}
                 </p>
               </div>
 
-              <Button
-                onClick={savePredictions}
-                disabled={loading}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold"
-              >
-                <Save className="mr-2" size={16} />
-                {loading ? "Salvando..." : "Salvar palpites"}
-              </Button>
+              
             </div>
 
             <div className="space-y-8">
@@ -694,7 +776,11 @@ export default function Home() {
       <div className="grid grid-cols-1 gap-3">
         {(() => {
   const standings =
-    calculateGroupStandings(groupGames);
+  calculateGroupStandingsFromPredictions(
+    groupGames,
+    predictions,
+    currentUser.id
+  );
 
   if (standings.length === 0) {
     return null;
@@ -800,18 +886,23 @@ export default function Home() {
 
                         <div className="col-span-1">
                           <Input
-                            type="number"
-                            min="0"
-                            value={draft.predicted_score_a}
-                            onChange={(e) =>
-                              setDrafts((prev) => ({
-                                ...prev,
-                                [game.id]: {
-                                  ...draft,
-                                  predicted_score_a: e.target.value,
-                                },
-                              }))
-                            }
+  type="number"
+  min="0"
+  disabled={groupsLocked || game.locked}
+  value={draft.predicted_score_a}
+                            onChange={(e) => {
+  const value = e.target.value;
+
+  setDrafts((prev) => ({
+    ...prev,
+    [game.id]: {
+      ...draft,
+      predicted_score_a: value,
+    },
+  }));
+
+  saveSinglePrediction(game.id, "predicted_score_a", value);
+}}
                             className="bg-slate-800 border-slate-700 text-white text-center"
                           />
                         </div>
@@ -822,18 +913,23 @@ export default function Home() {
 
                         <div className="col-span-1">
                           <Input
-                            type="number"
-                            min="0"
-                            value={draft.predicted_score_b}
-                            onChange={(e) =>
-                              setDrafts((prev) => ({
-                                ...prev,
-                                [game.id]: {
-                                  ...draft,
-                                  predicted_score_b: e.target.value,
-                                },
-                              }))
-                            }
+  type="number"
+  min="0"
+  disabled={groupsLocked || game.locked}
+  value={draft.predicted_score_b}
+                            onChange={(e) => {
+  const value = e.target.value;
+
+  setDrafts((prev) => ({
+    ...prev,
+    [game.id]: {
+      ...draft,
+      predicted_score_b: value,
+    },
+  }));
+
+  saveSinglePrediction(game.id, "predicted_score_b", value);
+}}
                             className="bg-slate-800 border-slate-700 text-white text-center"
                           />
                         </div>
@@ -1005,6 +1101,52 @@ export default function Home() {
     <Card className="bg-slate-900 border-slate-800 text-white rounded-3xl">
       <CardContent className="p-5 space-y-4">
         <h3 className="text-xl font-black text-yellow-400">
+  1ª fase eliminatória
+</h3>
+
+<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+  {generateRound32(
+  buildGamesFromPredictions(games, predictions, currentUser.id)
+).map((match: any, index: number) => (
+    <Card
+      key={index}
+      className="bg-slate-950 border border-slate-800 text-white rounded-2xl"
+    >
+      <CardContent className="p-4 space-y-3">
+        <div className="text-xs text-slate-500 uppercase tracking-wide">
+          Jogo {index + 1}
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <div className="text-xs text-slate-500">
+              {match.home
+                ? `${match.home.position}º Grupo ${match.home.group}`
+                : "A definir"}
+            </div>
+            <div className="font-bold">
+              {match.home?.team || "---"}
+            </div>
+          </div>
+
+          <div className="text-yellow-400 font-black">x</div>
+
+          <div className="flex-1 text-right">
+            <div className="text-xs text-slate-500">
+              {match.away
+                ? `${match.away.position}º Grupo ${match.away.group}`
+                : "A definir"}
+            </div>
+            <div className="font-bold">
+              {match.away?.team || "---"}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  ))}
+</div>
+        <h3 className="text-xl font-black text-yellow-400">
           Classificados diretos
         </h3>
 <div className="space-y-3">
@@ -1056,7 +1198,9 @@ export default function Home() {
   </div>
 </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {calculateQualifiedTeams(games).map((team: any) => (
+         {calculateQualifiedTeams(
+  buildGamesFromPredictions(games, predictions, currentUser.id)
+).map((team: any) => (
             <div
               key={`${team.position}-${team.group}-${team.team}`}
               className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex justify-between"
