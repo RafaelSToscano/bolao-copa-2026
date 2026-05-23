@@ -918,37 +918,37 @@ const result = calculatePoints(
           )}
         </div>
 {tab === "palpites" && (
-<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-3 md:p-4">
-      <div className="text-sm text-slate-400">Jogos</div>
+<div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[105px] md:min-h-0 flex items-center justify-center">
+    <CardContent className="p-3 md:p-4 text-center">
+      <div className="text-xs md:text-sm text-slate-400">Jogos</div>
       <div className="text-2xl md:text-3xl font-black text-yellow-400">
         {totalUserGames}
       </div>
     </CardContent>
   </Card>
 
-  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-3 md:p-4">
-      <div className="text-sm text-slate-400">Jogos palpitados</div>
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[105px] md:min-h-0 flex items-center justify-center">
+    <CardContent className="p-3 md:p-4 text-center">
+      <div className="text-xs md:text-sm text-slate-400">Jogos palpitados</div>
       <div className="text-2xl md:text-3xl font-black text-emerald-400">
         {userPredictedGames}
       </div>
     </CardContent>
   </Card>
 
-  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-3 md:p-4">
-      <div className="text-sm text-slate-400">Jogos não palpitados</div>
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[105px] md:min-h-0 flex items-center justify-center">
+    <CardContent className="p-3 md:p-4 text-center">
+      <div className="text-xs md:text-sm text-slate-400">Jogos não palpitados</div>
       <div className="text-2xl md:text-3xl font-black text-red-400">
         {userPendingGames}
       </div>
     </CardContent>
   </Card>
 
-  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-3 md:p-4">
-      <div className="text-sm text-slate-400">% concluído</div>
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[105px] md:min-h-0 flex items-center justify-center">
+    <CardContent className="p-3 md:p-4 text-center">
+      <div className="text-xs md:text-sm text-slate-400">% concluído</div>
       <div className="text-2xl md:text-3xl font-black text-blue-400">
         {userCompletion}%
       </div>
@@ -1499,36 +1499,36 @@ const result = calculatePoints(
   Exportar auditoria CSV
 </Button>
 <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4">
-  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-3 md:p-4">
-      <div className="text-sm text-slate-400">Participantes</div>
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[105px] md:min-h-0 flex items-center justify-center">
+    <CardContent className="p-3 md:p-4 text-center">
+      <div className="text-xs md:text-sm text-slate-400">Participantes</div>
       <div className="text-2xl md:text-3xl font-black text-yellow-400">
         {totalPlayers}
       </div>
     </CardContent>
   </Card>
 
-  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-3 md:p-4">
-      <div className="text-sm text-slate-400">Aprovados</div>
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[105px] md:min-h-0 flex items-center justify-center">
+    <CardContent className="p-3 md:p-4 text-center">
+      <div className="text-xs md:text-sm text-slate-400">Aprovados</div>
       <div className="text-2xl md:text-3xl font-black text-emerald-400">
         {approvedPlayers}
       </div>
     </CardContent>
   </Card>
 
-  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-3 md:p-4">
-      <div className="text-sm text-slate-400">Pendentes</div>
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[105px] md:min-h-0 flex items-center justify-center">
+    <CardContent className="p-3 md:p-4 text-center">
+      <div className="text-xs md:text-sm text-slate-400">Pendentes</div>
       <div className="text-2xl md:text-3xl font-black text-red-400">
         {pendingPlayers}
       </div>
     </CardContent>
   </Card>
 
-  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-3 md:p-4">
-      <div className="text-sm text-slate-400">Já palpitou</div>
+  <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[105px] md:min-h-0 flex items-center justify-center">
+    <CardContent className="p-3 md:p-4 text-center">
+      <div className="text-xs md:text-sm text-slate-400">Já palpitou</div>
       <div className="text-2xl md:text-3xl font-black text-blue-400">
         {activePlayers}
       </div>
