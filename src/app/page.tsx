@@ -918,38 +918,38 @@ const result = calculatePoints(
           )}
         </div>
 {tab === "palpites" && (
-<div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
   <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-4">
+    <CardContent className="p-3 md:p-4">
       <div className="text-sm text-slate-400">Jogos</div>
-      <div className="text-3xl font-black text-yellow-400">
+      <div className="text-2xl md:text-3xl font-black text-yellow-400">
         {totalUserGames}
       </div>
     </CardContent>
   </Card>
 
   <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-4">
+    <CardContent className="p-3 md:p-4">
       <div className="text-sm text-slate-400">Jogos palpitados</div>
-      <div className="text-3xl font-black text-emerald-400">
+      <div className="text-2xl md:text-3xl font-black text-emerald-400">
         {userPredictedGames}
       </div>
     </CardContent>
   </Card>
 
   <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-4">
+    <CardContent className="p-3 md:p-4">
       <div className="text-sm text-slate-400">Jogos não palpitados</div>
-      <div className="text-3xl font-black text-red-400">
+      <div className="text-2xl md:text-3xl font-black text-red-400">
         {userPendingGames}
       </div>
     </CardContent>
   </Card>
 
   <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-4">
+    <CardContent className="p-3 md:p-4">
       <div className="text-sm text-slate-400">% concluído</div>
-      <div className="text-3xl font-black text-blue-400">
+      <div className="text-2xl md:text-3xl font-black text-blue-400">
         {userCompletion}%
       </div>
     </CardContent>
@@ -1086,11 +1086,11 @@ const result = calculatePoints(
           key={game.id}
           className="grid grid-cols-[58px_minmax(70px,1fr)_24px_36px_16px_36px_24px_minmax(70px,1fr)] items-center"
         >
-          <div className="text-slate-300 text-sm whitespace-nowrap">
+          <div className="text-slate-300 text-[10px] md:text-sm whitespace-nowrap">
             {formatDate(game.match_date)}
           </div>
 
-          <div className="text-right font-semibold truncate pr-2">
+          <div className="text-right font-semibold truncate pr-1 text-xs md:text-base">
             {game.team_a}
           </div>
 
@@ -1140,7 +1140,7 @@ const result = calculatePoints(
             <Flag team={game.team_b} />
           </div>
 
-          <div className="font-semibold truncate pl-2">
+          <div className="font-semibold truncate pl-1 text-xs md:text-base">
             {game.team_b}
           </div>
         </div>
@@ -1446,7 +1446,7 @@ const result = calculatePoints(
   className="mx-auto h-16 w-16 rounded-2xl object-cover shadow-lg"
 />
 
-                    <div className="text-3xl font-black">{index + 1}º</div>
+                    <div className="text-2xl md:text-3xl font-black">{index + 1}º</div>
                     <div className="font-bold">{player.name}</div>
                     <div className="text-yellow-400 font-black text-xl">
                       {player.total} pts
@@ -1500,36 +1500,36 @@ const result = calculatePoints(
 </Button>
 <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-4">
   <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-4">
+    <CardContent className="p-3 md:p-4">
       <div className="text-sm text-slate-400">Participantes</div>
-      <div className="text-3xl font-black text-yellow-400">
+      <div className="text-2xl md:text-3xl font-black text-yellow-400">
         {totalPlayers}
       </div>
     </CardContent>
   </Card>
 
   <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-4">
+    <CardContent className="p-3 md:p-4">
       <div className="text-sm text-slate-400">Aprovados</div>
-      <div className="text-3xl font-black text-emerald-400">
+      <div className="text-2xl md:text-3xl font-black text-emerald-400">
         {approvedPlayers}
       </div>
     </CardContent>
   </Card>
 
   <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-4">
+    <CardContent className="p-3 md:p-4">
       <div className="text-sm text-slate-400">Pendentes</div>
-      <div className="text-3xl font-black text-red-400">
+      <div className="text-2xl md:text-3xl font-black text-red-400">
         {pendingPlayers}
       </div>
     </CardContent>
   </Card>
 
   <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl">
-    <CardContent className="p-4">
+    <CardContent className="p-3 md:p-4">
       <div className="text-sm text-slate-400">Já palpitou</div>
-      <div className="text-3xl font-black text-blue-400">
+      <div className="text-2xl md:text-3xl font-black text-blue-400">
         {activePlayers}
       </div>
     </CardContent>
