@@ -146,13 +146,33 @@ export function SingleGameRandomPredictor({
   };
 
   return (
-    <button
-      onClick={handleGeneratePrediction}
-      disabled={disabled || isGenerating}
-      className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-300 hover:text-yellow-400 transition-colors"
-      title="Gerar palpite aleatório para este jogo"
-    >
-      <Dice5 size={16} />
-    </button>
-  );
+  <button
+    onClick={handleGeneratePrediction}
+    disabled={disabled || isGenerating}
+    className="
+      flex items-center gap-2
+      px-3 py-2
+      rounded-xl
+      bg-slate-900/80
+      border border-slate-700
+      hover:border-yellow-500
+      hover:bg-slate-800
+      disabled:opacity-50
+      disabled:cursor-not-allowed
+      text-slate-300
+      hover:text-yellow-400
+      transition-all
+      text-xs
+      font-bold
+      shadow-lg
+    "
+    title="Gerar palpite aleatório para este jogo"
+  >
+    <Dice5 size={15} />
+
+    <span className="hidden xl:inline">
+      Aleatório
+    </span>
+  </button>
+);
 }

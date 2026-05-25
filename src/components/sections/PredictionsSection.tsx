@@ -54,38 +54,38 @@ export function PredictionsSection({
   return (
     <div className="space-y-4">
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
-        <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[120px] md:min-h-[90px] flex items-center justify-center">
-          <CardContent className="p-4 text-center flex flex-col items-center justify-center">
-            <div className="text-4xl md:text-3xl text-slate-400">Jogos</div>
-            <div className="text-4xl md:text-3xl font-black text-yellow-400">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
+        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[120px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
+          <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
+            <div className="text-sm lg:text-lg font-bold text-slate-300">Jogos</div>
+            <div className="text-4xl lg:text-5xl font-black text-yellow-400">
               {userStats.totalUserGames}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[120px] md:min-h-[90px] flex items-center justify-center">
-          <CardContent className="p-4 text-center flex flex-col items-center justify-center">
-            <div className="text-4xl md:text-3xl text-slate-400">Palpitados</div>
-            <div className="text-4xl md:text-3xl font-black text-emerald-400">
+        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[120px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
+          <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
+            <div className="text-sm lg:text-lg font-bold text-slate-300">Palpitados</div>
+            <div className="text-4xl lg:text-5xl font-black text-emerald-400">
               {userStats.userPredictedGames}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[120px] md:min-h-[90px] flex items-center justify-center">
-          <CardContent className="p-4 text-center flex flex-col items-center justify-center">
-            <div className="text-4xl md:text-3xl text-slate-400">Pendentes</div>
-            <div className="text-4xl md:text-3xl font-black text-red-400">
+        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[120px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
+          <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
+            <div className="text-sm lg:text-lg font-bold text-slate-300">Pendentes</div>
+            <div className="text-4xl lg:text-5xl font-black text-red-400">
               {userStats.userPendingGames}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[120px] md:min-h-[90px] flex items-center justify-center">
-          <CardContent className="p-4 text-center flex flex-col items-center justify-center">
-            <div className="text-4xl md:text-3xl text-slate-400">% concluído</div>
-            <div className="text-4xl md:text-3xl font-black text-blue-400">
+        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[120px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
+          <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
+            <div className="text-sm lg:text-lg font-bold text-slate-300">% concluído</div>
+            <div className="text-4xl lg:text-5xl font-black text-blue-400">
               {userStats.userCompletion}%
             </div>
           </CardContent>
@@ -93,11 +93,13 @@ export function PredictionsSection({
       </div>
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div className="bg-gradient-to-r from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black">Meus Palpites</h2>
+          <h2 className="text-3xl lg:text-4xl font-black tracking-tight">
+          Meus Palpites
+          </h2>
           <div>
-            <p className="text-slate-400 text-sm">
+            <p className="text-slate-400 text-base mt-1">
               Preencha os placares. O salvamento é automático.
             </p>
             {groupsLocked && (
@@ -107,42 +109,53 @@ export function PredictionsSection({
             )}
           </div>
         </div>
+        </div>
 
-        <RandomPredictor
-          games={games.filter((g) => !groupsLocked && !g.locked)}
-          onGeneratePredictions={onRandomPredictions}
-          disabled={groupsLocked}
-          buttonLabel="Palpites Aleatórios"
-        />
-      </div>
-
-      {/* Groups */}
-      <div className="space-y-8">
+        {/* Desktop Dashboard Layout */}
+        <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-6 items-start">
+        {/* Main Content */}
+        <div className="space-y-8">
         {Object.entries(groupedGames).map(([group, groupGames]) => (
           <div
             key={group}
-            className="space-y-4 bg-slate-900/70 border border-slate-800 rounded-3xl p-3"
+            className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl"
           >
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-yellow-500 text-slate-950 flex items-center justify-center font-black">
-                {group}
-              </div>
-              <div>
-                <h3 className="text-2xl font-black">Grupo {group}</h3>
-                <p className="text-slate-400 text-sm">Fase de grupos</p>
-              </div>
-            </div>
+            <div className="flex items-center justify-between">
+  <div className="flex items-center gap-4">
+    <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-yellow-400 to-yellow-600 text-slate-950 flex items-center justify-center font-black text-2xl shadow-xl">
+      {group}
+    </div>
+
+    <div>
+      <h3 className="text-3xl font-black leading-tight">
+        Grupo {group}
+      </h3>
+
+      <p className="text-slate-400 text-sm">
+        Fase de grupos
+      </p>
+    </div>
+  </div>
+
+  <div className="hidden lg:flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2">
+    <div className="h-2 w-2 rounded-full bg-emerald-400" />
+
+    <span className="text-sm text-slate-300 font-medium">
+      {groupGames.length} jogos
+    </span>
+  </div>
+</div>
 
             {/* Standings Table */}
             {(() => {
               const standings = calculateGroupStandingsFromPredictions(groupGames, predictions, currentUserId);
               if (standings.length === 0) return null;
               return (
-                <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-xl">
-                  <div className="bg-[#2A398D] text-white text-center font-black text-sm md:text-base py-3 tracking-wide">
+                <div className="bg-slate-950/80 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+                  <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide">
                     CLASSIFICAÇÃO - GRUPO {group}
                   </div>
-                  <div className="grid grid-cols-12 text-xs uppercase tracking-wide text-slate-400 px-3 py-2 font-bold border-b border-slate-800">
+                  <div className="grid grid-cols-12 text-xs lg:text-sm uppercase tracking-wide text-slate-300 px-4 py-3 font-black border-b border-slate-800 bg-slate-950">
                     <div className="col-span-1 text-center">#</div>
                     <div className="col-span-4">Seleção</div>
                     <div className="col-span-1 text-center">P</div>
@@ -156,14 +169,14 @@ export function PredictionsSection({
                   {standings.map((team: TeamStanding, index: number) => (
                     <div
                       key={team.team}
-                      className={`grid grid-cols-12 px-3 py-3 border-t border-slate-800 items-center ${
+                      className={`grid grid-cols-12 px-4 py-4 border-t border-slate-800 items-center text-base ${
                         index < 2 ? "bg-emerald-900/20" : ""
                       }`}
                     >
                       <div className="col-span-1 text-center font-black text-yellow-400 text-sm">
                         {index + 1}º
                       </div>
-                      <div className="col-span-4 font-semibold text-sm flex items-center gap-1">
+                      <div className="col-span-4 font-black text-base lg:text-lg flex items-center gap-4">
                         <Flag team={team.team} />
                         {team.team}
                       </div>
@@ -180,11 +193,11 @@ export function PredictionsSection({
               );
             })()}
 
-            {/* Games Grid */}
-            <div className="space-y-4 bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-xl">
-              <div className="bg-[#2A398D] text-white text-center font-black text-sm md:text-base py-3 tracking-wide">
-                JOGOS - GRUPO {group}
-              </div>
+           {/* Games Grid */}
+            <div className="space-y-0 bg-slate-950/80 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+            <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide">
+            JOGOS - GRUPO {group}
+            </div>
 
               {groupGames.map((game: Game) => {
                 const existing = predictions.find(
@@ -201,13 +214,13 @@ export function PredictionsSection({
                 return (
                   <div
                     key={game.id}
-                    className="grid grid-cols-[76px_minmax(76px,1fr)_32px_38px_18px_38px_32px_minmax(76px,1fr)_32px] md:grid-cols-[90px_minmax(100px,1fr)_34px_48px_24px_48px_34px_minmax(100px,1fr)_40px] items-center bg-slate-900 border-b border-slate-800 text-white text-sm md:text-base min-h-[48px] md:min-h-[58px] px-2 md:px-3"
+                    className="grid grid-cols-[64px_minmax(70px,1fr)_28px_36px_16px_36px_28px_minmax(70px,1fr)_26px] md:grid-cols-[120px_minmax(150px,1fr)_40px_48px_24px_48px_40px_minmax(150px,1fr)_90px] items-center bg-slate-950/40 border-b border-slate-800 hover:bg-slate-900/70 transition text-white text-sm md:text-lg min-h-[48px] md:min-h-[54px] px-2 md:px-4"
                   >
-                    <div className="text-slate-300 text-[10px] md:text-sm whitespace-nowrap">
+                    <div className="text-slate-300 text-[10px] md:text-base whitespace-nowrap">
                       {formatDate(game.match_date)}
                     </div>
 
-                    <div className="text-right font-semibold truncate pr-4 text-sm md:text-base">
+                    <div className="text-right font-bold truncate pr-3 md:pr-5 text-sm md:text-lg">
                       {game.team_a}
                     </div>
 
@@ -233,7 +246,7 @@ export function PredictionsSection({
                             value
                           );
                         }}
-                        className="h-9 w-10 md:h-10 md:w-12 rounded-lg border border-[#2A398D] bg-slate-950 text-center text-base md:text-lg font-bold text-white p-0"
+                        className="h-10 w-11 md:h-10 md:w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-base md:text-lg font-bold text-white p-0"
                       />
                     </div>
 
@@ -257,7 +270,7 @@ export function PredictionsSection({
                             value
                           );
                         }}
-                        className="h-8 w-9 rounded-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white p-0"
+                        className="h-10 w-11 md:h-10 md:w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-base md:text-lg font-bold text-white p-0"
                       />
                     </div>
 
@@ -265,12 +278,13 @@ export function PredictionsSection({
                       <Flag team={game.team_b} />
                     </div>
 
-                    <div className="font-semibold truncate pl-4 text-sm md:text-base">
+                    <div className="font-bold truncate pl-3 md:pl-5 text-sm md:text-lg">
                       {game.team_b}
                     </div>
 
-                    <div className="flex justify-center items-center">
-                      <SingleGameRandomPredictor
+                    <div className="flex justify-center items-center scale-90 opacity-80 hover:opacity-100 transition pr-2">
+                    <SingleGameRandomPredictor
+                      
                         gameId={game.id}
                         onGeneratePrediction={onSingleRandomPrediction}
                         disabled={groupsLocked || game.locked}
@@ -281,8 +295,102 @@ export function PredictionsSection({
               })}
             </div>
           </div>
-        ))}
+              ))}
       </div>
+
+      {/* Desktop Right Sidebar */}
+      <aside className="hidden lg:flex flex-col gap-6 sticky top-8">
+
+        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 rounded-3xl text-white shadow-2xl">
+          <CardContent className="p-6 space-y-4">
+            <div>
+              <h3 className="text-2xl font-black">
+              Resumo do Bolão
+              </h3>
+
+              <p className="text-slate-400 text-sm">
+                Seus palpites na Copa 2026
+              </p>
+            </div>
+
+            <div className="space-y-3">
+
+              <div className="bg-slate-900/80 rounded-2xl p-5 border border-slate-800 shadow-lg">
+                <div className="text-slate-400 text-sm">
+                  Jogos preenchidos
+                </div>
+
+                <div className="text-3xl font-black text-emerald-400">
+                  {userStats.userPredictedGames}
+                </div>
+              </div>
+
+              <div className="bg-slate-900/80 rounded-2xl p-5 border border-slate-800 shadow-lg">
+                <div className="text-slate-400 text-sm">
+                  Pendentes
+                </div>
+
+                <div className="text-3xl font-black text-red-400">
+                  {userStats.userPendingGames}
+                </div>
+              </div>
+
+              <div className="bg-slate-900/80 rounded-2xl p-5 border border-slate-800 shadow-lg">
+                <div className="text-slate-400 text-sm">
+                  Conclusão
+                </div>
+
+                <div className="text-3xl font-black text-blue-400">
+                  {userStats.userCompletion}%
+                </div>
+              </div>
+
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-[#2A398D] via-slate-900 to-[#3CAC3B] border border-slate-700 rounded-3xl text-white overflow-hidden shadow-2xl">
+          <CardContent className="p-6 space-y-4">
+            <div>
+              <h3 className="text-2xl font-black leading-tight">
+                Palpites Aleatórios
+              </h3>
+
+              <p className="text-white/80 text-sm mt-2">
+                Gere palpites automáticos para acelerar seu preenchimento.
+              </p>
+            </div>
+            
+            <p className="text-white/70 text-xs">
+            Esta ação preenche aleatoriamente apenas os jogos que ainda estão sem palpite.
+          </p>
+            <RandomPredictor
+            games={games.filter((game) => {
+            if (groupsLocked || game.locked) return false;
+
+            const prediction = predictions.find(
+            (p) => p.player_id === currentUserId && p.game_id === game.id
+            );
+
+            return (
+            !prediction ||
+            prediction.predicted_score_a === null ||
+            prediction.predicted_score_b === null
+            );
+            })}
+            onGeneratePredictions={onRandomPredictions}
+            disabled={groupsLocked || userStats.userPendingGames === 0}
+            buttonLabel={
+            userStats.userPendingGames === 0
+           ? "Tudo preenchido"
+           : "Gerar Pendentes"
+            }
+            />
+          </CardContent>
+        </Card>
+
+            </aside>
     </div>
+  </div>
   );
 }
