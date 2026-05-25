@@ -16,6 +16,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { RandomPredictor, SingleGameRandomPredictor, type RandomPrediction } from "@/components/ui/random-predictor";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 
@@ -640,6 +641,86 @@ async function saveSinglePrediction(
     onConflict: "player_id,game_id",
   });
 }
+
+async function handleApplyRandomPredictions(
+  randomPredictions: RandomPrediction[]
+) {
+  if (!currentUser) return;
+
+  setMessage("");
+
+  // Update drafts with random predictions
+  const updatedDrafts: Record<string, DraftPrediction> = { ...drafts };
+  for (const pred of randomPredictions) {
+    updatedDrafts[pred.game_id] = {
+      predicted_score_a: String(pred.predicted_score_a),
+      predicted_score_b: String(pred.predicted_score_b),
+    };
+  }
+  setDrafts(updatedDrafts);
+
+  // Save all predictions to Supabase
+  for (const pred of randomPredictions) {
+    const existing = predictions.find(
+      (p) => p.player_id === currentUser.id && p.game_id === pred.game_id
+    );
+
+    const updatedPrediction = {
+      player_id: currentUser.id,
+      game_id: pred.game_id,
+      predicted_score_a: pred.predicted_score_a,
+      predicted_score_b: pred.predicted_score_b,
+    };
+
+    setPredictions((prev) => {
+      const filtered = prev.filter(
+        (p) => !(p.player_id === currentUser.id && p.game_id === pred.game_id)
+      );
+      return [...filtered, updatedPrediction];
+    });
+
+    await supabase.from("predictions").upsert(updatedPrediction, {
+      onConflict: "player_id,game_id",
+    });
+  }
+
+  setMessage("Palpites aleatórios aplicados com sucesso!");
+}
+
+async function handleApplySingleRandomPrediction(
+  randomPrediction: RandomPrediction
+) {
+  if (!currentUser) return;
+
+  const updatedPrediction = {
+    player_id: currentUser.id,
+    game_id: randomPrediction.game_id,
+    predicted_score_a: randomPrediction.predicted_score_a,
+    predicted_score_b: randomPrediction.predicted_score_b,
+  };
+
+  // Update drafts
+  setDrafts((prev) => ({
+    ...prev,
+    [randomPrediction.game_id]: {
+      predicted_score_a: String(randomPrediction.predicted_score_a),
+      predicted_score_b: String(randomPrediction.predicted_score_b),
+    },
+  }));
+
+  // Update predictions state
+  setPredictions((prev) => {
+    const filtered = prev.filter(
+      (p) => !(p.player_id === currentUser.id && p.game_id === randomPrediction.game_id)
+    );
+    return [...filtered, updatedPrediction];
+  });
+
+  // Save to Supabase
+  await supabase.from("predictions").upsert(updatedPrediction, {
+    onConflict: "player_id,game_id",
+  });
+}
   async function updateOfficialResult(
     gameId: string,
     field: "official_score_a" | "official_score_b",
@@ -980,7 +1061,12 @@ const result = calculatePoints(
 </div>
               </div>
 
-              
+              <RandomPredictor
+                games={games.filter((g) => !groupsLocked && !g.locked)}
+                onGeneratePredictions={handleApplyRandomPredictions}
+                disabled={groupsLocked}
+                buttonLabel="Palpites Aleatórios"
+              />
             </div>
 
             <div className="space-y-8">
@@ -1079,7 +1165,7 @@ const result = calculatePoints(
       return (
         <div
           key={game.id}
-          className="grid grid-cols-[76px_minmax(76px,1fr)_32px_38px_18px_38px_32px_minmax(76px,1fr)] md:grid-cols-[90px_minmax(100px,1fr)_34px_48px_24px_48px_34px_minmax(100px,1fr)] items-center bg-slate-900 border-b border-slate-800 text-white text-sm md:text-base min-h-[48px] md:min-h-[58px] px-2 md:px-3"
+          className="grid grid-cols-[76px_minmax(76px,1fr)_32px_38px_18px_38px_32px_minmax(76px,1fr)_32px] md:grid-cols-[90px_minmax(100px,1fr)_34px_48px_24px_48px_34px_minmax(100px,1fr)_40px] items-center bg-slate-900 border-b border-slate-800 text-white text-sm md:text-base min-h-[48px] md:min-h-[58px] px-2 md:px-3"
         >
           <div className="text-slate-300 text-[10px] md:text-sm whitespace-nowrap">
             {formatDate(game.match_date)}
@@ -1137,6 +1223,14 @@ const result = calculatePoints(
 
           <div className="font-semibold truncate pl-4 text-sm md:text-base">
             {game.team_b}
+          </div>
+
+          <div className="flex justify-center items-center">
+            <SingleGameRandomPredictor
+              gameId={game.id}
+              onGeneratePrediction={handleApplySingleRandomPrediction}
+              disabled={groupsLocked || game.locked}
+            />
           </div>
         </div>
       );
