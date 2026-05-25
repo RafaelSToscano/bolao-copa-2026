@@ -55,36 +55,36 @@ export function PredictionsSection({
     <div className="space-y-4">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
-        <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[135px] md:min-h-0 flex items-center justify-center">
+        <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[120px] md:min-h-[90px] flex items-center justify-center">
           <CardContent className="p-4 text-center flex flex-col items-center justify-center">
-            <div className="text-base md:text-sm text-slate-400">Jogos</div>
+            <div className="text-4xl md:text-3xl text-slate-400">Jogos</div>
             <div className="text-4xl md:text-3xl font-black text-yellow-400">
               {userStats.totalUserGames}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[135px] md:min-h-0 flex items-center justify-center">
+        <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[120px] md:min-h-[90px] flex items-center justify-center">
           <CardContent className="p-4 text-center flex flex-col items-center justify-center">
-            <div className="text-base md:text-sm text-slate-400">Palpitados</div>
+            <div className="text-4xl md:text-3xl text-slate-400">Palpitados</div>
             <div className="text-4xl md:text-3xl font-black text-emerald-400">
               {userStats.userPredictedGames}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[135px] md:min-h-0 flex items-center justify-center">
+        <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[120px] md:min-h-[90px] flex items-center justify-center">
           <CardContent className="p-4 text-center flex flex-col items-center justify-center">
-            <div className="text-base md:text-sm text-slate-400">Pendentes</div>
+            <div className="text-4xl md:text-3xl text-slate-400">Pendentes</div>
             <div className="text-4xl md:text-3xl font-black text-red-400">
               {userStats.userPendingGames}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[135px] md:min-h-0 flex items-center justify-center">
+        <Card className="bg-slate-900 border-slate-800 text-white rounded-2xl min-h-[120px] md:min-h-[90px] flex items-center justify-center">
           <CardContent className="p-4 text-center flex flex-col items-center justify-center">
-            <div className="text-base md:text-sm text-slate-400">% concluído</div>
+            <div className="text-4xl md:text-3xl text-slate-400">% concluído</div>
             <div className="text-4xl md:text-3xl font-black text-blue-400">
               {userStats.userCompletion}%
             </div>
