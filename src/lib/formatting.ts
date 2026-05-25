@@ -1,0 +1,98 @@
+import { TEAM_FLAG_CODES } from "@/config/scoring";
+
+/**
+ * Gets the flag country code for a team name
+ */
+export function getFlagCode(team: string): string {
+  return TEAM_FLAG_CODES[team] || "";
+}
+
+/**
+ * Formats a date string for display
+ */
+export function formatDate(value: string | null): string {
+  if (!value) return "Data a definir";
+
+  try {
+    return new Date(value).toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "Data a definir";
+  }
+}
+
+/**
+ * Exports audit CSV with all predictions and results
+ */
+export function exportAuditCsv(
+  players: any[],
+  games: any[],
+  predictions: any[],
+  calculatePoints: (pred: any, game: any) => any
+): void {
+  const rows: (string | number)[][] = [
+    [
+      "Participante",
+      "Celular",
+      "Grupo",
+      "Jogo",
+      "Time A",
+      "Palpite A",
+      "Palpite B",
+      "Time B",
+      "Resultado Oficial A",
+      "Resultado Oficial B",
+      "Pontos",
+      "Placar Exato",
+    ],
+  ];
+
+  players.forEach((player) => {
+    games.forEach((game) => {
+      const prediction = predictions.find(
+        (p: any) => p.player_id === player.id && p.game_id === game.id
+      );
+
+      const result = calculatePoints(prediction, game);
+
+      rows.push([
+        player.name,
+        player.access_code,
+        game.group_name || "",
+        String(game.match_order || ""),
+        game.team_a,
+        prediction?.predicted_score_a?.toString() ?? "",
+        prediction?.predicted_score_b?.toString() ?? "",
+        game.team_b,
+        game.official_score_a?.toString() ?? "",
+        game.official_score_b?.toString() ?? "",
+        result.points.toString(),
+        result.exact.toString(),
+      ]);
+    });
+  });
+
+  const csvContent = rows
+    .map((row) =>
+      row
+        .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+        .join(";")
+    )
+    .join("\n");
+
+  const blob = new Blob(["\uFEFF" + csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "auditoria-bolao-copa-2026.csv";
+  link.click();
+
+  URL.revokeObjectURL(url);
+}
