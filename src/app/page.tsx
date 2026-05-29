@@ -95,7 +95,7 @@ export default function Home() {
   name: string,
   accessCode: string,
   password: string
-) => {
+): Promise<void> => {
   await requestAccess(name, accessCode, password);
 };
   

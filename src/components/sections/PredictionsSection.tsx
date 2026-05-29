@@ -149,14 +149,16 @@ export function PredictionsSection({
       }
     />
 
-    <Button
-      type="button"
-      onClick={onClearPredictions}
-      disabled={groupsLocked || userStats.userPredictedGames === 0}
-      className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold rounded-xl"
-    >
-      Limpar palpites
-    </Button>
+   <div className="pt-1">
+  <button
+    type="button"
+    onClick={onClearPredictions}
+    disabled={groupsLocked || userStats.userPredictedGames === 0}
+    className="text-xs text-white/60 hover:text-white/90 underline underline-offset-4 disabled:opacity-40 disabled:cursor-not-allowed"
+  >
+    Limpar meus palpites
+  </button>
+</div>
   </CardContent>
 </Card>
         {/* Desktop Dashboard Layout */}
@@ -203,38 +205,38 @@ export function PredictionsSection({
                   <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide">
                     CLASSIFICAÇÃO - GRUPO {group}
                   </div>
-                  <div className="grid grid-cols-12 text-xs lg:text-sm uppercase tracking-wide text-slate-300 px-4 py-3 font-black border-b border-slate-800 bg-slate-950">
-                    <div className="col-span-1 text-center">#</div>
-                    <div className="col-span-4">Seleção</div>
-                    <div className="col-span-1 text-center">P</div>
-                    <div className="col-span-1 text-center">J</div>
-                    <div className="col-span-1 text-center">V</div>
-                    <div className="col-span-1 text-center">E</div>
-                    <div className="col-span-1 text-center">D</div>
-                    <div className="col-span-1 text-center">SG</div>
-                    <div className="col-span-1 text-center">GP</div>
+                  <div className="grid grid-cols-[34px_minmax(130px,1fr)_34px_28px_28px_28px_28px_36px_36px] lg:grid-cols-12 text-[11px] lg:text-sm uppercase tracking-wide text-slate-300 px-2 lg:px-4 py-3 font-black border-b border-slate-800 bg-slate-950">
+                    <div className="text-center">#</div>
+                    <div>Seleção</div>
+                   <div className="text-center">P</div>
+                   <div className="text-center">J</div>
+                   <div className="text-center">V</div>
+                   <div className="text-center">E</div>
+                   <div className="text-center">D</div>
+                   <div className="text-center">SG</div>
+                   <div className="text-center">GP</div>
                   </div>
                   {standings.map((team: TeamStanding, index: number) => (
                     <div
                       key={team.team}
-                      className={`grid grid-cols-12 px-4 py-4 border-t border-slate-800 items-center text-base ${
+                      className={`grid grid-cols-[34px_minmax(130px,1fr)_34px_28px_28px_28px_28px_36px_36px] lg:grid-cols-12 px-2 lg:px-4 py-3 lg:py-4 border-t border-slate-800 items-center text-sm lg:text-base ${
                         index < 2 ? "bg-emerald-900/20" : ""
                       }`}
                     >
-                      <div className="col-span-1 text-center font-black text-yellow-400 text-sm">
+                      <div className="text-center font-black text-yellow-400 text-sm">
                         {index + 1}º
                       </div>
-                      <div className="col-span-4 font-black text-base lg:text-lg flex items-center gap-4">
+                      <div className="font-black text-sm lg:text-lg flex items-center gap-2 lg:gap-4 min-w-0">
                         <Flag team={team.team} />
                         {team.team}
                       </div>
-                      <div className="col-span-1 text-center font-bold">{team.points}</div>
-                      <div className="col-span-1 text-center">{team.played}</div>
-                      <div className="col-span-1 text-center">{team.wins}</div>
-                      <div className="col-span-1 text-center">{team.draws}</div>
-                      <div className="col-span-1 text-center">{team.losses}</div>
-                      <div className="col-span-1 text-center">{team.goalDiff}</div>
-                      <div className="col-span-1 text-center">{team.goalsFor}</div>
+                      <div className="text-center font-bold">{team.points}</div>
+                      <div className="text-center">{team.played}</div>
+                      <div className="text-center">{team.wins}</div>
+                      <div className="text-center">{team.draws}</div>
+                      <div className="text-center">{team.losses}</div>
+                      <div className="text-center">{team.goalDiff}</div>
+                      <div className="text-center">{team.goalsFor}</div>
                     </div>
                   ))}
                 </div>
@@ -259,87 +261,146 @@ export function PredictionsSection({
                   predicted_score_b: existing?.predicted_score_b?.toString() ?? "",
                 };
 
-                return (
-                  <div
-                    key={game.id}
-                    className="grid grid-cols-[72px_minmax(92px,1fr)_26px_40px_16px_40px_26px_minmax(92px,1fr)] md:grid-cols-[120px_minmax(150px,1fr)_40px_48px_24px_48px_40px_minmax(150px,1fr)_90px] items-center bg-slate-950/40 border-b border-slate-800 hover:bg-slate-900/70 transition text-white text-xs md:text-lg min-h-[56px] md:min-h-[54px] px-2 md:px-4"
-                  >
-                    <div className="text-slate-300 text-[10px] md:text-base whitespace-nowrap">
-                      {formatDate(game.match_date)}
-                    </div>
+               return (
+  <div
+    key={game.id}
+    className="border-b border-slate-800 bg-slate-950/40 hover:bg-slate-900/70 transition"
+  >
+    {/* Mobile */}
+    <div className="md:hidden p-3 space-y-3">
+      <div className="flex items-center justify-between text-slate-300 text-xs">
+        <span>{formatDate(game.match_date)}</span>
 
-                    <div className="text-right font-bold truncate pr-3 md:pr-5 text-sm md:text-lg">
-                      {game.team_a}
-                    </div>
+        <SingleGameRandomPredictor
+          gameId={game.id}
+          onGeneratePrediction={onSingleRandomPrediction}
+          disabled={groupsLocked || game.locked}
+        />
+      </div>
 
-                    <div className="flex justify-center">
-                      <Flag team={game.team_a} />
-                    </div>
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <div className="flex items-center justify-end gap-2 min-w-0">
+          <span className="font-bold text-sm text-right truncate">
+            {game.team_a}
+          </span>
+          <Flag team={game.team_a} />
+        </div>
 
-                    <div className="flex justify-center">
-                      <Input
-                        type="number"
-                        min="0"
-                        disabled={groupsLocked || game.locked}
-                        value={draft.predicted_score_a}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          onDraftChange(game.id, {
-                            ...draft,
-                            predicted_score_a: value,
-                          });
-                          onSinglePrediction(
-                            game.id,
-                            "predicted_score_a",
-                            value
-                          );
-                        }}
-                        className="h-10 w-11 md:h-10 md:w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-base md:text-lg font-bold text-white p-0"
-                      />
-                    </div>
+        <div className="flex items-center justify-center gap-2">
+          <Input
+            type="number"
+            min="0"
+            disabled={groupsLocked || game.locked}
+            value={draft.predicted_score_a}
+            onChange={(e) => {
+              const value = e.target.value;
+              onDraftChange(game.id, {
+                ...draft,
+                predicted_score_a: value,
+              });
+              onSinglePrediction(game.id, "predicted_score_a", value);
+            }}
+            className="h-11 w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white p-0"
+          />
 
-                    <div className="text-center font-bold text-slate-300">x</div>
+          <span className="font-black text-slate-300">x</span>
 
-                    <div className="flex justify-center">
-                      <Input
-                        type="number"
-                        min="0"
-                        disabled={groupsLocked || game.locked}
-                        value={draft.predicted_score_b}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          onDraftChange(game.id, {
-                            ...draft,
-                            predicted_score_b: value,
-                          });
-                          onSinglePrediction(
-                            game.id,
-                            "predicted_score_b",
-                            value
-                          );
-                        }}
-                        className="h-10 w-11 md:h-10 md:w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-base md:text-lg font-bold text-white p-0"
-                      />
-                    </div>
+          <Input
+            type="number"
+            min="0"
+            disabled={groupsLocked || game.locked}
+            value={draft.predicted_score_b}
+            onChange={(e) => {
+              const value = e.target.value;
+              onDraftChange(game.id, {
+                ...draft,
+                predicted_score_b: value,
+              });
+              onSinglePrediction(game.id, "predicted_score_b", value);
+            }}
+            className="h-11 w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white p-0"
+          />
+        </div>
 
-                    <div className="flex justify-center">
-                      <Flag team={game.team_b} />
-                    </div>
+        <div className="flex items-center justify-start gap-2 min-w-0">
+          <Flag team={game.team_b} />
+          <span className="font-bold text-sm truncate">
+            {game.team_b}
+          </span>
+        </div>
+      </div>
+    </div>
 
-                    <div className="font-bold truncate pl-3 md:pl-5 text-sm md:text-lg">
-                      {game.team_b}
-                    </div>
+    {/* Desktop */}
+    <div className="hidden md:grid md:grid-cols-[120px_minmax(150px,1fr)_40px_48px_24px_48px_40px_minmax(150px,1fr)_90px] items-center text-white text-lg min-h-[54px] px-4">
+      <div className="text-slate-300 text-base whitespace-nowrap">
+        {formatDate(game.match_date)}
+      </div>
 
-                    <div className="hidden md:flex justify-center items-center scale-90 opacity-80 hover:opacity-100 transition pr-2">
-                    <SingleGameRandomPredictor
-                      
-                        gameId={game.id}
-                        onGeneratePrediction={onSingleRandomPrediction}
-                        disabled={groupsLocked || game.locked}
-                      />
-                    </div>
-                  </div>
-                );
+      <div className="text-right font-bold truncate pr-5 text-lg">
+        {game.team_a}
+      </div>
+
+      <div className="flex justify-center">
+        <Flag team={game.team_a} />
+      </div>
+
+      <div className="flex justify-center">
+        <Input
+          type="number"
+          min="0"
+          disabled={groupsLocked || game.locked}
+          value={draft.predicted_score_a}
+          onChange={(e) => {
+            const value = e.target.value;
+            onDraftChange(game.id, {
+              ...draft,
+              predicted_score_a: value,
+            });
+            onSinglePrediction(game.id, "predicted_score_a", value);
+          }}
+          className="h-10 w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white p-0"
+        />
+      </div>
+
+      <div className="text-center font-bold text-slate-300">x</div>
+
+      <div className="flex justify-center">
+        <Input
+          type="number"
+          min="0"
+          disabled={groupsLocked || game.locked}
+          value={draft.predicted_score_b}
+          onChange={(e) => {
+            const value = e.target.value;
+            onDraftChange(game.id, {
+              ...draft,
+              predicted_score_b: value,
+            });
+            onSinglePrediction(game.id, "predicted_score_b", value);
+          }}
+          className="h-10 w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white p-0"
+        />
+      </div>
+
+      <div className="flex justify-center">
+        <Flag team={game.team_b} />
+      </div>
+
+      <div className="font-bold truncate pl-5 text-lg">
+        {game.team_b}
+      </div>
+
+      <div className="flex justify-center items-center scale-90 opacity-80 hover:opacity-100 transition pr-2">
+        <SingleGameRandomPredictor
+          gameId={game.id}
+          onGeneratePrediction={onSingleRandomPrediction}
+          disabled={groupsLocked || game.locked}
+        />
+      </div>
+    </div>
+    </div>
+);
               })}
             </div>
           </div>
