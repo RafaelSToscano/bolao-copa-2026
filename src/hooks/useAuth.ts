@@ -22,10 +22,16 @@ export function useAuth() {
     setIsChecking(false);
   }, []);
 
-  const login = async (name: string, accessCode: string): Promise<boolean> => {
+  const login = async (
+  name: string,
+  password: string
+): Promise<boolean> => {
     setError(null);
     try {
-      const user = await playersService.findPlayerByCredentials(name, accessCode);
+      const user = await playersService.findPlayerByCredentials(
+      name,
+     password
+);
 
       if (!user || !user.approved) {
         setError(
@@ -45,17 +51,60 @@ export function useAuth() {
       return false;
     }
   };
+const requestAccess = async (
+  name: string,
+  accessCode: string,
+  password: string
+): Promise<boolean> => {
+  setError(null);
 
+  try {
+    const existingUser = await playersService.findPlayerByCredentials(
+  name,
+  password
+);
+
+    if (existingUser) {
+      setError(
+        existingUser.approved
+          ? "Usuário já cadastrado. Faça login."
+          : "Solicitação já enviada. Aguarde aprovação do administrador."
+      );
+      return false;
+    }
+
+    await playersService.createPendingPlayer(
+    name,
+    accessCode,
+    password
+);
+
+    setError(
+      "Solicitação enviada com sucesso. Aguarde aprovação do administrador."
+    );
+
+    return true;
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Erro ao solicitar acesso.";
+
+    setError(message);
+    return false;
+  }
+};
   const logout = () => {
     setCurrentUser(null);
     localStorage.removeItem(LOCAL_STORAGE_KEY);
   };
 
   return {
-    currentUser,
-    isChecking,
-    error,
-    login,
-    logout,
-  };
+  currentUser,
+  isChecking,
+  error,
+  login,
+  requestAccess,
+  logout,
+};
 }

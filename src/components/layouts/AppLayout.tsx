@@ -78,9 +78,9 @@ export function AppLayout({
           <Button
             variant="secondary"
             onClick={onLogout}
-            className="bg-white/10 text-white hover:bg-white/20 border border-white/10"
+            className="w-full bg-slate-900 border border-slate-800 text-white hover:bg-slate-800 rounded-2xl h-14 font-bold shadow-lg"
           >
-            <LogOut className="mr-2" size={16} />
+            <LogOut className="mr-2" size={18} />
             Sair
           </Button>
         </div>
@@ -133,9 +133,9 @@ export function AppLayout({
           <Button
             variant="secondary"
             onClick={onLogout}
-            className="bg-slate-900 text-white hover:bg-slate-800 border border-slate-800"
+            className="w-full bg-slate-900 border border-slate-800 text-white hover:bg-slate-800 rounded-2xl h-14 font-bold shadow-lg"
           >
-            <LogOut className="mr-2" size={16} />
+            <LogOut className="mr-2" size={18} />
             Sair
           </Button>
         </aside>

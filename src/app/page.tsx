@@ -22,12 +22,20 @@ import { gamesService } from "@/services/supabase/gamesService";
 import { calculateGroupStandingsFromPredictions, buildGamesFromPredictions } from "@/services/standings/predictionSimulation";
 import { calculateBestThirdPlace, calculateQualifiedTeams } from "@/services/standings/standingsCalculations";
 import type { RandomPrediction } from "@/components/ui/random-predictor";
+import { playersService } from "@/services/supabase/playersService";
 
 type TabType = "palpites" | "classificacao" | "matamata" | "ranking" | "admin";
 
 export default function Home() {
   // Auth state
-  const { currentUser, isChecking, login, logout, error: authError } = useAuth();
+  const {
+  currentUser,
+  isChecking,
+  login,
+  requestAccess,
+  logout,
+  error: authError,
+} = useAuth();
 
   // Data loading
   const {
@@ -77,8 +85,16 @@ export default function Home() {
       await loadData();
     }
   };
-
-  const handleTabChange = async (newTab: TabType) => {
+    
+  const handleRequestAccess = async (
+  name: string,
+  accessCode: string,
+  password: string
+) => {
+  await requestAccess(name, accessCode, password);
+};
+  
+    const handleTabChange = async (newTab: TabType) => {
     setTab(newTab);
     await loadData();
   };
@@ -179,6 +195,10 @@ export default function Home() {
       console.error("Failed to apply single random prediction:", err);
     }
   };
+    const handleApprovePlayer = async (playerId: string) => {
+    await playersService.approvePlayer(playerId);
+    await loadData();
+    };
 
   if (isChecking) {
     return (
@@ -194,6 +214,7 @@ export default function Home() {
     return (
       <AuthForm
         onLogin={handleLogin}
+        onRequestAccess={handleRequestAccess}
         onRefresh={loadData}
         error={authError}
         isLoading={dataLoading}
@@ -278,6 +299,7 @@ export default function Home() {
           predictions={predictions}
           players={players}
           onUpdateResult={handleUpdateOfficialResult}
+          onApprovePlayer={handleApprovePlayer}
           stats={{
             totalPlayers: stats.totalPlayers,
             approvedPlayers: stats.approvedPlayers,
