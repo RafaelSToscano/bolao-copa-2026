@@ -212,48 +212,85 @@ export function PredictionsSection({
         CLASSIFICAÇÃO - GRUPO {group}
       </div>
 
-      <div className="grid grid-cols-[52px_280px_260px] items-center justify-center text-xs lg:text-sm uppercase tracking-wide text-slate-300 px-4 py-3 font-black border-b border-slate-800 bg-slate-950">
-        <div className="text-center">#</div>
-        <div>Seleção</div>
+      {/* Desktop */}
+      <div className="hidden md:block">
+        <div className="grid grid-cols-[52px_280px_260px] items-center justify-center text-xs lg:text-sm uppercase tracking-wide text-slate-300 px-4 py-3 font-black border-b border-slate-800 bg-slate-950">
+          <div className="text-center">#</div>
+          <div>Seleção</div>
 
-        <div className="grid grid-cols-7 gap-2 text-center">
-          <div>P</div>
-          <div>J</div>
-          <div>V</div>
-          <div>E</div>
-          <div>D</div>
-          <div>SG</div>
-          <div>GP</div>
+          <div className="grid grid-cols-7 gap-2 text-center">
+            <div>P</div>
+            <div>J</div>
+            <div>V</div>
+            <div>E</div>
+            <div>D</div>
+            <div>SG</div>
+            <div>GP</div>
+          </div>
         </div>
+
+        {standings.map((team: TeamStanding, index: number) => (
+          <div
+            key={team.team}
+            className={`grid grid-cols-[52px_280px_260px] items-center justify-center px-4 py-4 border-t border-slate-800 text-sm lg:text-base ${
+              index < 2 ? "bg-emerald-900/20" : ""
+            }`}
+          >
+            <div className="text-center font-black text-yellow-400">
+              {index + 1}º
+            </div>
+
+            <div className="font-black text-base lg:text-lg flex items-center gap-3 min-w-0">
+              <Flag team={team.team} />
+              <span className="truncate">{team.team}</span>
+            </div>
+
+            <div className="grid grid-cols-7 gap-2 text-center font-semibold">
+              <div>{team.points}</div>
+              <div>{team.played}</div>
+              <div>{team.wins}</div>
+              <div>{team.draws}</div>
+              <div>{team.losses}</div>
+              <div>{team.goalDiff}</div>
+              <div>{team.goalsFor}</div>
+            </div>
+          </div>
+        ))}
       </div>
 
-      {standings.map((team: TeamStanding, index: number) => (
-        <div
-          key={team.team}
-          className={`grid grid-cols-[52px_280px_260px] items-center justify-center px-4 py-4 border-t border-slate-800 text-sm lg:text-base ${
-            index < 2 ? "bg-emerald-900/20" : ""
-          }`}
-        >
-          <div className="text-center font-black text-yellow-400">
-            {index + 1}º
-          </div>
+      {/* Mobile */}
+      <div className="md:hidden divide-y divide-slate-800">
+        {standings.map((team: TeamStanding, index: number) => (
+          <div
+            key={team.team}
+            className={`flex items-center justify-between px-4 py-4 ${
+              index < 2 ? "bg-emerald-900/20" : ""
+            }`}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="text-yellow-400 font-black w-8 shrink-0">
+                {index + 1}º
+              </span>
 
-          <div className="font-black text-base lg:text-lg flex items-center gap-3 min-w-0">
-            <Flag team={team.team} />
-            <span className="truncate">{team.team}</span>
-          </div>
+              <Flag team={team.team} />
 
-          <div className="grid grid-cols-7 gap-2 text-center font-semibold">
-            <div>{team.points}</div>
-            <div>{team.played}</div>
-            <div>{team.wins}</div>
-            <div>{team.draws}</div>
-            <div>{team.losses}</div>
-            <div>{team.goalDiff}</div>
-            <div>{team.goalsFor}</div>
+              <span className="font-black text-base truncate">
+                {team.team}
+              </span>
+            </div>
+
+            <div className="text-right shrink-0 ml-3">
+              <div className="text-yellow-400 font-black text-lg">
+                {team.points} pts
+              </div>
+
+              <div className="text-[11px] text-slate-400">
+                J:{team.played} V:{team.wins} SG:{team.goalDiff}
+              </div>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 })()}
