@@ -205,7 +205,7 @@ export function PredictionsSection({
                   <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide">
                     CLASSIFICAÇÃO - GRUPO {group}
                   </div>
-                  <div className="grid-cols-[34px_minmax(170px,1fr)_28px_26px_26px_26px_26px_32px_32px] lg:grid-cols-12 text-[11px] lg:text-sm uppercase tracking-wide text-slate-300 px-2 lg:px-4 py-3 font-black border-b border-slate-800 bg-slate-950">
+                  <div className="grid grid-cols-[34px_minmax(170px,1fr)_28px_26px_26px_26px_26px_32px_32px] lg:grid-cols-12 text-[11px] lg:text-sm uppercase tracking-wide text-slate-300 px-2 lg:px-4 py-3 font-black border-b border-slate-800 bg-slate-950">
                     <div className="text-center">#</div>
                     <div>Seleção</div>
                    <div className="text-center">P</div>
@@ -219,7 +219,7 @@ export function PredictionsSection({
                   {standings.map((team: TeamStanding, index: number) => (
                     <div
                       key={team.team}
-                      className={`grid-cols-[34px_minmax(170px,1fr)_28px_26px_26px_26px_26px_32px_32px] lg:grid-cols-12 px-2 lg:px-4 py-3 lg:py-4 border-t border-slate-800 items-center text-sm lg:text-base ${
+                      className={`grid grid-cols-[34px_minmax(170px,1fr)_28px_26px_26px_26px_26px_32px_32px] lg:grid-cols-12 px-2 lg:px-4 py-3 lg:py-4 border-t border-slate-800 items-center text-sm lg:text-base ${
                         index < 2 ? "bg-emerald-900/20" : ""
                       }`}
                     >
