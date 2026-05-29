@@ -18,15 +18,15 @@ export const playersService = {
   },
 
   async findPlayerByCredentials(
-    name: string,
-    password: string
-  ): Promise<Player | null> {
+  accessCode: string,
+  password: string
+): Promise<Player | null> {
     const supabase = getSupabaseClient();
 
-    const { data, error } = await supabase.rpc("login_player", {
-      p_name: name,
-      p_password: password,
-    });
+   const { data, error } = await supabase.rpc("login_player", {
+  p_access_code: accessCode,
+  p_password: password,
+});
 
     if (error) {
       throw new Error(`Failed to login player: ${error.message}`);

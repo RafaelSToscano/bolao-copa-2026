@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { RefreshCw } from "lucide-react";
 
 interface AuthFormProps {
-  onLogin: (name: string, password: string) => Promise<void>;
+  onLogin: (accessCode: string, password: string) => Promise<void>;
   onRequestAccess: (
   name: string,
   accessCode: string,
@@ -25,7 +25,7 @@ export function AuthForm({
   error,
   isLoading = false,
 }: AuthFormProps) {
-  const [name, setName] = useState("");
+  const [accessCode, setAccessCode] = useState("");
   const [password, setPassword] = useState("");
 
   const [registerName, setRegisterName] = useState("");
@@ -37,7 +37,7 @@ export function AuthForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onLogin(name, password);
+    await onLogin(accessCode, password);
   };
 
   const handleRequestAccess = async () => {
@@ -71,12 +71,12 @@ export function AuthForm({
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <label className="text-lg font-bold text-slate-200">
-                  Nome do jogador
+                  Celular com DDD
                 </label>
                 <Input
-                  placeholder="Exemplo: Rafael Toscano ou apelido (evitar  nomes iguais)"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Exemplo: 51999999999"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value)}
                   disabled={isLoading}
                   className="bg-slate-800 border-slate-700 text-white h-14 text-lg"
                 />
@@ -98,7 +98,7 @@ export function AuthForm({
 
               <Button
                 type="submit"
-                disabled={isLoading || !name || !password}
+                disabled={isLoading || !accessCode || !password}
                 className="w-full h-12 text-lg bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold"
               >
                 {isLoading ? "Entrando..." : "Entrar"}
@@ -130,7 +130,7 @@ export function AuthForm({
                   Nome do jogador
                 </label>
                 <Input
-                  placeholder="Exemplo: Rafael Toscano ou apelido (evitar nomes iguais)"
+                  placeholder="Exemplo: Rafael Toscano ou apelido"
                   value={registerName}
                   onChange={(e) => setRegisterName(e.target.value)}
                   disabled={isLoading}
@@ -224,7 +224,7 @@ export function AuthForm({
     setRegisterName("");
     setRegisterPhone("");
     setRegisterPassword("");
-    setName("");
+    setAccessCode("");
     setPassword("");
   }}
   className="mt-6 w-full h-12 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold"

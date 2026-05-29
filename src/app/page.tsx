@@ -82,10 +82,10 @@ export default function Home() {
     loadData();
   }, []);
 
-  const handleLogin = async (name: string, code: string) => {
-    setLoginName("");
-    setLoginCode("");
-    const success = await login(name, code);
+  const handleLogin = async (accessCode: string, password: string) => {
+  setLoginName("");
+  setLoginCode("");
+  const success = await login(accessCode, password);
     if (success) {
       await loadData();
     }

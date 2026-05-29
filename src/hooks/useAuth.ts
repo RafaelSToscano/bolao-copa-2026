@@ -23,15 +23,15 @@ export function useAuth() {
   }, []);
 
   const login = async (
-  name: string,
+  accessCode: string,
   password: string
 ): Promise<boolean> => {
     setError(null);
     try {
       console.log("LOGIN DEBUG:", { name, password });
       const user = await playersService.findPlayerByCredentials(
-      name,
-     password
+  accessCode,
+  password
 );
 
       if (!user || !user.approved) {
