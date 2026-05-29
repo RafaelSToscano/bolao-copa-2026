@@ -57,8 +57,8 @@ export function PredictionsSection({
     <div className="space-y-4">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
-        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[120px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
-          <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
+        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[92px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
+          <CardContent className="p-3 lg:p-5 text-center flex flex-col items-center justify-center gap-1 lg:gap-2">
             <div className="text-sm lg:text-lg font-bold text-slate-300">Jogos</div>
             <div className="text-4xl lg:text-5xl font-black text-yellow-400">
               {userStats.totalUserGames}
@@ -66,8 +66,8 @@ export function PredictionsSection({
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[120px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
-          <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
+        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[92px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
+          <CardContent className="p-3 lg:p-5 text-center flex flex-col items-center justify-center gap-1 lg:gap-2">
             <div className="text-sm lg:text-lg font-bold text-slate-300">Palpitados</div>
             <div className="text-4xl lg:text-5xl font-black text-emerald-400">
               {userStats.userPredictedGames}
@@ -75,8 +75,8 @@ export function PredictionsSection({
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[120px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
-          <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
+        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[92px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
+          <CardContent className="p-3 lg:p-5 text-center flex flex-col items-center justify-center gap-1 lg:gap-2">
             <div className="text-sm lg:text-lg font-bold text-slate-300">Pendentes</div>
             <div className="text-4xl lg:text-5xl font-black text-red-400">
               {userStats.userPendingGames}
@@ -84,8 +84,8 @@ export function PredictionsSection({
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[120px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
-          <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
+        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[92px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
+          <CardContent className="p-3 lg:p-5 text-center flex flex-col items-center justify-center gap-1 lg:gap-2">
             <div className="text-sm lg:text-lg font-bold text-slate-300">% concluído</div>
             <div className="text-4xl lg:text-5xl font-black text-blue-400">
               {userStats.userCompletion}%
