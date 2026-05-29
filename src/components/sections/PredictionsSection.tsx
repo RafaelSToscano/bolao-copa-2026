@@ -197,51 +197,66 @@ export function PredictionsSection({
 </div>
 
             {/* Standings Table */}
-            {(() => {
-              const standings = calculateGroupStandingsFromPredictions(groupGames, predictions, currentUserId);
-              if (standings.length === 0) return null;
-              return (
-                <div className="bg-slate-950/80 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
-                  <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide">
-                    CLASSIFICAÇÃO - GRUPO {group}
-                  </div>
-                  <div className="grid grid-cols-[34px_minmax(170px,1fr)_28px_26px_26px_26px_26px_32px_32px] lg:grid-cols-12 text-[11px] lg:text-sm uppercase tracking-wide text-slate-300 px-2 lg:px-4 py-3 font-black border-b border-slate-800 bg-slate-950">
-                    <div className="text-center">#</div>
-                    <div>Seleção</div>
-                   <div className="text-center">P</div>
-                   <div className="text-center">J</div>
-                   <div className="text-center">V</div>
-                   <div className="text-center">E</div>
-                   <div className="text-center">D</div>
-                   <div className="text-center">SG</div>
-                   <div className="text-center">GP</div>
-                  </div>
-                  {standings.map((team: TeamStanding, index: number) => (
-                    <div
-                      key={team.team}
-                      className={`grid grid-cols-[34px_minmax(170px,1fr)_28px_26px_26px_26px_26px_32px_32px] lg:grid-cols-12 px-2 lg:px-4 py-3 lg:py-4 border-t border-slate-800 items-center text-sm lg:text-base ${
-                        index < 2 ? "bg-emerald-900/20" : ""
-                      }`}
-                    >
-                      <div className="text-center font-black text-yellow-400 text-sm">
-                        {index + 1}º
-                      </div>
-                      <div className="font-black text-sm lg:text-lg flex items-center gap-2 lg:gap-4 min-w-0">
-                        <Flag team={team.team} />
-                        {team.team}
-                      </div>
-                      <div className="text-center font-bold">{team.points}</div>
-                      <div className="text-center">{team.played}</div>
-                      <div className="text-center">{team.wins}</div>
-                      <div className="text-center">{team.draws}</div>
-                      <div className="text-center">{team.losses}</div>
-                      <div className="text-center">{team.goalDiff}</div>
-                      <div className="text-center">{team.goalsFor}</div>
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
+{(() => {
+  const standings = calculateGroupStandingsFromPredictions(
+    groupGames,
+    predictions,
+    currentUserId
+  );
+
+  if (standings.length === 0) return null;
+
+  return (
+    <div className="bg-slate-950/80 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+      <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide">
+        CLASSIFICAÇÃO - GRUPO {group}
+      </div>
+
+      <div className="grid grid-cols-[52px_280px_260px] items-center justify-center text-xs lg:text-sm uppercase tracking-wide text-slate-300 px-4 py-3 font-black border-b border-slate-800 bg-slate-950">
+        <div className="text-center">#</div>
+        <div>Seleção</div>
+
+        <div className="grid grid-cols-7 gap-2 text-center">
+          <div>P</div>
+          <div>J</div>
+          <div>V</div>
+          <div>E</div>
+          <div>D</div>
+          <div>SG</div>
+          <div>GP</div>
+        </div>
+      </div>
+
+      {standings.map((team: TeamStanding, index: number) => (
+        <div
+          key={team.team}
+          className={`grid grid-cols-[52px_280px_260px] items-center justify-center px-4 py-4 border-t border-slate-800 text-sm lg:text-base ${
+            index < 2 ? "bg-emerald-900/20" : ""
+          }`}
+        >
+          <div className="text-center font-black text-yellow-400">
+            {index + 1}º
+          </div>
+
+          <div className="font-black text-base lg:text-lg flex items-center gap-3 min-w-0">
+            <Flag team={team.team} />
+            <span className="truncate">{team.team}</span>
+          </div>
+
+          <div className="grid grid-cols-7 gap-2 text-center font-semibold">
+            <div>{team.points}</div>
+            <div>{team.played}</div>
+            <div>{team.wins}</div>
+            <div>{team.draws}</div>
+            <div>{team.losses}</div>
+            <div>{team.goalDiff}</div>
+            <div>{team.goalsFor}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+})()}
 
            {/* Games Grid */}
             <div className="space-y-0 bg-slate-950/80 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
