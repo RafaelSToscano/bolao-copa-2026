@@ -9,10 +9,10 @@ import { RefreshCw } from "lucide-react";
 interface AuthFormProps {
   onLogin: (name: string, password: string) => Promise<void>;
   onRequestAccess: (
-    name: string,
-    accessCode: string,
-    password: string
-  ) => Promise<void>;
+  name: string,
+  accessCode: string,
+  password: string
+) => Promise<void>;
   onRefresh: () => Promise<void>;
   error?: string | null;
   isLoading?: boolean;
@@ -41,15 +41,13 @@ export function AuthForm({
   };
 
   const handleRequestAccess = async () => {
-  const success = await onRequestAccess(
+  await onRequestAccess(
     registerName,
     registerPhone,
     registerPassword
   );
 
-  if (success) {
-    setSuccessModalOpen(true);
-  }
+  setSuccessModalOpen(true);
 };
 
   return (
