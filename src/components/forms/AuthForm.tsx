@@ -33,6 +33,7 @@ export function AuthForm({
   const [registerPassword, setRegisterPassword] = useState("");
 
   const [isRegistering, setIsRegistering] = useState(false);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,8 +41,16 @@ export function AuthForm({
   };
 
   const handleRequestAccess = async () => {
-    await onRequestAccess(registerName, registerPhone, registerPassword);
-  };
+  const success = await onRequestAccess(
+    registerName,
+    registerPhone,
+    registerPassword
+  );
+
+  if (success) {
+    setSuccessModalOpen(true);
+  }
+};
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
@@ -67,7 +76,7 @@ export function AuthForm({
                   Nome do jogador
                 </label>
                 <Input
-                  placeholder="Exemplo: Rafael"
+                  placeholder="Exemplo: Rafael Toscano ou apelido (evitar  nomes iguais)"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={isLoading}
@@ -123,7 +132,7 @@ export function AuthForm({
                   Nome do jogador
                 </label>
                 <Input
-                  placeholder="Exemplo: Rafael"
+                  placeholder="Exemplo: Rafael Toscano ou apelido (evitar nomes iguais)"
                   value={registerName}
                   onChange={(e) => setRegisterName(e.target.value)}
                   disabled={isLoading}
@@ -196,6 +205,37 @@ export function AuthForm({
           {error && (
             <div className="text-center text-sm text-red-400">{error}</div>
           )}
+          {successModalOpen && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+    <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-700 p-6 text-center shadow-2xl">
+      <div className="text-4xl mb-3">✅</div>
+
+      <h3 className="text-2xl font-black text-white">
+        Solicitação enviada
+      </h3>
+
+      <p className="text-slate-300 text-base mt-3">
+        Sua solicitação foi enviada com sucesso e está aguardando aprovação do administrador.
+      </p>
+
+      <Button
+  type="button"
+  onClick={() => {
+    setSuccessModalOpen(false);
+    setIsRegistering(false);
+    setRegisterName("");
+    setRegisterPhone("");
+    setRegisterPassword("");
+    setName("");
+    setPassword("");
+  }}
+  className="mt-6 w-full h-12 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold"
+>
+  OK
+</Button>
+    </div>
+  </div>
+)}
         </CardContent>
       </Card>
     </div>

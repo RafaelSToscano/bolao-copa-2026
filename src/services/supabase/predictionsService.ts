@@ -60,4 +60,16 @@ export const predictionsService = {
       throw new Error(`Failed to save predictions: ${error.message}`);
     }
   },
+  async deletePredictionsForPlayer(playerId: string): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const { error } = await supabase
+    .from("predictions")
+    .delete()
+    .eq("player_id", playerId);
+
+  if (error) {
+    throw new Error(`Failed to delete predictions: ${error.message}`);
+  }
+},
 };

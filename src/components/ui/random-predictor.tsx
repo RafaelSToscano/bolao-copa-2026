@@ -38,16 +38,15 @@ interface SingleGameRandomPredictorProps {
  * Generates a random score between 0 and maxGoals
  * Uses weighted distribution to favor lower scores (more realistic)
  */
-export function generateRandomScore(maxGoals: number = 6): number {
+export function generateRandomScore(maxGoals: number = 4): number {
   const rand = Math.random();
-  
-  // Weighted distribution: favor lower scores
+
+  // Distribuição ponderada: favorece placares mais baixos e limita em 4 gols
   if (rand < 0.30) return 0;
-  if (rand < 0.55) return 1;
-  if (rand < 0.75) return 2;
-  if (rand < 0.88) return 3;
-  if (rand < 0.95) return 4;
-  return Math.floor(Math.random() * (maxGoals - 4)) + 5;
+  if (rand < 0.58) return 1;
+  if (rand < 0.78) return 2;
+  if (rand < 0.92) return 3;
+  return maxGoals;
 }
 
 /**

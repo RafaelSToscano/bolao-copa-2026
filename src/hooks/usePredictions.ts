@@ -85,6 +85,26 @@ export function usePredictions(
     },
     [playerId, predictions, setPredictions]
   );
+const clearPlayerPredictions = useCallback(async () => {
+  if (!playerId) return;
+
+  setIsSaving(true);
+
+  try {
+    await predictionsService.deletePredictionsForPlayer(playerId);
+
+    setPredictions(
+      predictions.filter((p) => p.player_id !== playerId)
+    );
+
+    setDrafts({});
+  } catch (err) {
+    console.error("Failed to clear predictions:", err);
+    throw err;
+  } finally {
+    setIsSaving(false);
+  }
+}, [playerId, predictions, setPredictions]);
 
   return {
     drafts,
@@ -92,5 +112,6 @@ export function usePredictions(
     isSaving,
     saveSinglePrediction,
     saveBatchPredictions,
+    clearPlayerPredictions,
   };
 }

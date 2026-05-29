@@ -28,19 +28,20 @@ export function useAuth() {
 ): Promise<boolean> => {
     setError(null);
     try {
+      console.log("LOGIN DEBUG:", { name, password });
       const user = await playersService.findPlayerByCredentials(
       name,
      password
 );
 
       if (!user || !user.approved) {
-        setError(
-          user
-            ? "Usuário aguardando aprovação do administrador."
-            : "Usuário não encontrado."
-        );
-        return false;
-      }
+  setError(
+    user
+      ? "Solicitação aguardando aprovação. Gentileza aguardar."
+      : "Usuário não encontrado."
+  );
+  return false;
+}
 
       setCurrentUser(user);
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(user));
@@ -79,8 +80,8 @@ const requestAccess = async (
     password
 );
 
-    setError(
-      "Solicitação enviada com sucesso. Aguarde aprovação do administrador."
+    alert(
+  "Solicitação enviada com sucesso!\n\nAguarde aprovação do administrador."
     );
 
     return true;

@@ -50,8 +50,13 @@ export default function Home() {
   } = useData();
 
   // Predictions management
-  const { drafts, setDrafts, saveSinglePrediction, saveBatchPredictions } =
-    usePredictions(currentUser?.id, games, predictions, setPredictions);
+  const {
+  drafts,
+  setDrafts,
+  saveSinglePrediction,
+  saveBatchPredictions,
+  clearPlayerPredictions,
+} = usePredictions(currentUser?.id, games, predictions, setPredictions);
 
   // UI state
   const [tab, setTab] = useState<TabType>("palpites");
@@ -199,7 +204,23 @@ export default function Home() {
     await playersService.approvePlayer(playerId);
     await loadData();
     };
+    const handleRejectPlayer = async (playerId: string) => {
+  await playersService.rejectPlayer(playerId);
+  await loadData();
+    };
+const handleClearPredictions = async () => {
+  if (groupsLocked) return;
 
+  const confirmed = window.confirm(
+    "Tem certeza que deseja apagar todos os seus palpites?"
+  );
+
+  if (!confirmed) return;
+
+  await clearPlayerPredictions();
+
+  setMessage("Seus palpites foram apagados com sucesso.");
+};
   if (isChecking) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
@@ -259,6 +280,7 @@ export default function Home() {
           onSinglePrediction={saveSinglePrediction}
           onRandomPredictions={handleApplyRandomPredictions}
           onSingleRandomPrediction={handleApplySingleRandomPrediction}
+          onClearPredictions={handleClearPredictions}
           userStats={{
             totalUserGames: stats.totalUserGames,
             userPredictedGames: stats.userPredictedGames,
@@ -300,6 +322,7 @@ export default function Home() {
           players={players}
           onUpdateResult={handleUpdateOfficialResult}
           onApprovePlayer={handleApprovePlayer}
+          onRejectPlayer={handleRejectPlayer}
           stats={{
             totalPlayers: stats.totalPlayers,
             approvedPlayers: stats.approvedPlayers,

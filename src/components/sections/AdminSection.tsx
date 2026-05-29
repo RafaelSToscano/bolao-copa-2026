@@ -19,6 +19,7 @@ interface AdminSectionProps {
   value: string
   ) => void;
   onApprovePlayer: (playerId: string) => void;
+  onRejectPlayer: (playerId: string) => void;
 stats: {
     totalPlayers: number;
     approvedPlayers: number;
@@ -33,6 +34,7 @@ export function AdminSection({
   players,
   onUpdateResult,
   onApprovePlayer,
+  onRejectPlayer,
   stats,
 }: AdminSectionProps) {
   const handleExportCsv = () => {
@@ -130,12 +132,21 @@ export function AdminSection({
                 </div>
               </div>
 
-              <Button
-                onClick={() => onApprovePlayer(player.id)}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl px-6"
-              >
-                Aprovar
-              </Button>
+              <div className="flex gap-2">
+  <Button
+    onClick={() => onApprovePlayer(player.id)}
+    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl px-6"
+  >
+    Aprovar
+  </Button>
+
+  <Button
+    onClick={() => onRejectPlayer(player.id)}
+    className="bg-red-500 hover:bg-red-400 text-white font-black rounded-xl px-6"
+  >
+    Rejeitar
+  </Button>
+</div>
             </div>
           ))}
       </div>

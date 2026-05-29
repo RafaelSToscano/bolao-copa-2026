@@ -6,7 +6,7 @@ export const SCORING_RULES = {
 };
 
 // Group phase deadline - after this time, no more group predictions can be made
-export const GROUPS_PHASE_DEADLINE = new Date("2026-06-10T23:59:00-03:00");
+export const GROUPS_PHASE_DEADLINE = new Date("2026-06-10T23:59:59");
 
 // Team flag country codes mapping
 export const TEAM_FLAG_CODES: Record<string, string> = {

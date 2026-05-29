@@ -5,11 +5,11 @@ import { Prediction, DraftPrediction } from "@/types/prediction";
 import { TeamStanding } from "@/types/standings";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { RandomPredictor, SingleGameRandomPredictor, type RandomPrediction } from "@/components/ui/random-predictor";
 import { Flag } from "@/components/ui/Flag";
 import { formatDate } from "@/lib/formatting";
 import { calculateGroupStandingsFromPredictions } from "@/services/standings/predictionSimulation";
-
 interface PredictionsSectionProps {
   games: Game[];
   predictions: Prediction[];
@@ -24,6 +24,7 @@ interface PredictionsSectionProps {
   ) => void;
   onRandomPredictions: (predictions: RandomPrediction[]) => void;
   onSingleRandomPrediction: (prediction: RandomPrediction) => void;
+  onClearPredictions: () => void;
   userStats: {
     totalUserGames: number;
     userPredictedGames: number;
@@ -42,6 +43,7 @@ export function PredictionsSection({
   onSinglePrediction,
   onRandomPredictions,
   onSingleRandomPrediction,
+  onClearPredictions,
   userStats,
 }: PredictionsSectionProps) {
   const groupedGames = games.reduce((acc: Record<string, Game[]>, game) => {
@@ -111,6 +113,52 @@ export function PredictionsSection({
         </div>
         </div>
 
+{/* Mobile Actions */}
+<Card className="lg:hidden bg-gradient-to-br from-[#2A398D] via-slate-900 to-[#3CAC3B] border border-slate-700 rounded-3xl text-white overflow-hidden shadow-2xl">
+  <CardContent className="p-5 space-y-4">
+    <div>
+      <h3 className="text-2xl font-black">
+        Palpites Aleatórios
+      </h3>
+
+      <p className="text-white/80 text-sm mt-2">
+        Gere palpites apenas para os jogos ainda não preenchidos.
+      </p>
+    </div>
+
+    <RandomPredictor
+      games={games.filter((game) => {
+        if (groupsLocked || game.locked) return false;
+
+        const prediction = predictions.find(
+          (p) => p.player_id === currentUserId && p.game_id === game.id
+        );
+
+        return (
+          !prediction ||
+          prediction.predicted_score_a === null ||
+          prediction.predicted_score_b === null
+        );
+      })}
+      onGeneratePredictions={onRandomPredictions}
+      disabled={groupsLocked || userStats.userPendingGames === 0}
+      buttonLabel={
+        userStats.userPendingGames === 0
+          ? "Tudo preenchido"
+          : "Gerar Pendentes"
+      }
+    />
+
+    <Button
+      type="button"
+      onClick={onClearPredictions}
+      disabled={groupsLocked || userStats.userPredictedGames === 0}
+      className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 font-bold rounded-xl"
+    >
+      Limpar palpites
+    </Button>
+  </CardContent>
+</Card>
         {/* Desktop Dashboard Layout */}
         <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-6 items-start">
         {/* Main Content */}
@@ -214,7 +262,7 @@ export function PredictionsSection({
                 return (
                   <div
                     key={game.id}
-                    className="grid grid-cols-[64px_minmax(70px,1fr)_28px_36px_16px_36px_28px_minmax(70px,1fr)_26px] md:grid-cols-[120px_minmax(150px,1fr)_40px_48px_24px_48px_40px_minmax(150px,1fr)_90px] items-center bg-slate-950/40 border-b border-slate-800 hover:bg-slate-900/70 transition text-white text-sm md:text-lg min-h-[48px] md:min-h-[54px] px-2 md:px-4"
+                    className="grid grid-cols-[72px_minmax(92px,1fr)_26px_40px_16px_40px_26px_minmax(92px,1fr)] md:grid-cols-[120px_minmax(150px,1fr)_40px_48px_24px_48px_40px_minmax(150px,1fr)_90px] items-center bg-slate-950/40 border-b border-slate-800 hover:bg-slate-900/70 transition text-white text-xs md:text-lg min-h-[56px] md:min-h-[54px] px-2 md:px-4"
                   >
                     <div className="text-slate-300 text-[10px] md:text-base whitespace-nowrap">
                       {formatDate(game.match_date)}
@@ -282,7 +330,7 @@ export function PredictionsSection({
                       {game.team_b}
                     </div>
 
-                    <div className="flex justify-center items-center scale-90 opacity-80 hover:opacity-100 transition pr-2">
+                    <div className="hidden md:flex justify-center items-center scale-90 opacity-80 hover:opacity-100 transition pr-2">
                     <SingleGameRandomPredictor
                       
                         gameId={game.id}
@@ -386,6 +434,28 @@ export function PredictionsSection({
            : "Gerar Pendentes"
             }
             />
+            <div className="flex flex-col items-start gap-2">
+ <div className="flex flex-col items-start gap-2">
+  <Button
+    type="button"
+    onClick={onClearPredictions}
+    disabled={groupsLocked || userStats.userPredictedGames === 0}
+    variant="ghost"
+    size="sm"
+    className="
+      h-auto
+      px-1
+      text-sm
+      font-medium
+      text-white/60
+      hover:text-white/90
+      hover:bg-transparent
+    "
+  >
+    Limpar meus palpites
+  </Button>
+</div>
+</div>
           </CardContent>
         </Card>
 
