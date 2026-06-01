@@ -25,6 +25,20 @@ export const finalPredictionsService = {
     return data;
   },
 
+  async getAll(): Promise<FinalPrediction[]> {
+    const supabase = getSupabaseClient();
+
+    const { data, error } = await supabase
+      .from("final_predictions")
+      .select("*");
+
+    if (error) {
+      throw new Error(`Erro ao buscar todos os palpites finais: ${error.message}`);
+    }
+
+    return data || [];
+  },
+
   async upsert(prediction: FinalPrediction): Promise<void> {
     const supabase = getSupabaseClient();
 
