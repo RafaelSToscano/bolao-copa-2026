@@ -10,6 +10,7 @@ import { RandomPredictor, SingleGameRandomPredictor, type RandomPrediction } fro
 import { Flag } from "@/components/ui/Flag";
 import { formatDate } from "@/lib/formatting";
 import { calculateGroupStandingsFromPredictions } from "@/services/standings/predictionSimulation";
+import { FinalPredictionsCard } from "@/components/sections/FinalPredictionsCard";
 interface PredictionsSectionProps {
   games: Game[];
   predictions: Prediction[];
@@ -112,6 +113,12 @@ export function PredictionsSection({
           </div>
         </div>
         </div>
+      
+        <FinalPredictionsCard
+        playerId={currentUserId}
+        games={games}
+        disabled={groupsLocked}
+/>
 
 {/* Mobile Actions */}
 <Card className="lg:hidden bg-gradient-to-br from-[#2A398D] via-slate-900 to-[#3CAC3B] border border-slate-700 rounded-3xl text-white overflow-hidden shadow-2xl">
