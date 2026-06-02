@@ -23,8 +23,15 @@ import { calculateGroupStandingsFromPredictions, buildGamesFromPredictions } fro
 import { calculateBestThirdPlace, calculateQualifiedTeams } from "@/services/standings/standingsCalculations";
 import type { RandomPrediction } from "@/components/ui/random-predictor";
 import { playersService } from "@/services/supabase/playersService";
+import { SimulationSection } from "@/components/sections/SimulationSection";
 
-type TabType = "palpites" | "classificacao" | "matamata" | "ranking" | "admin";
+type TabType =
+  | "palpites"
+  | "classificacao"
+  | "matamata"
+  | "ranking"
+  | "simulador"
+  | "admin";
 
 export default function Home() {
   // Auth state
@@ -314,6 +321,13 @@ const handleClearPredictions = async () => {
       {tab === "ranking" && (
         <RankingSection ranking={ranking} />
       )}
+      
+      {tab === "simulador" && (
+      <SimulationSection
+       games={games}
+        players={players}
+        predictions={predictions}
+  />  )}
 
       {tab === "admin" && currentUser.is_admin && (
         <AdminSection

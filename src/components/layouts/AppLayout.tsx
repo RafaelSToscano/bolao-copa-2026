@@ -2,9 +2,22 @@
 
 import { Player } from "@/types/player";
 import { Button } from "@/components/ui/button";
-import { Shield, Trophy, BarChart3, Lock, LogOut } from "lucide-react";
+import {
+  Shield,
+  Trophy,
+  BarChart3,
+  Lock,
+  LogOut,
+  Calculator,
+} from "lucide-react";
 
-type TabType = "palpites" | "classificacao" | "matamata" | "ranking" | "admin";
+type TabType =
+  | "palpites"
+  | "classificacao"
+  | "matamata"
+  | "ranking"
+  | "simulador"
+  | "admin";
 
 interface AppLayoutProps {
   currentUser: Player;
@@ -41,6 +54,11 @@ export function AppLayout({
       id: "ranking" as TabType,
       label: "Ranking",
       icon: BarChart3,
+    },
+    {
+      id: "simulador" as TabType,
+      label: "Simulador",
+      icon: Calculator,
     },
     ...(currentUser.is_admin
       ? [
