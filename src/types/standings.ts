@@ -17,6 +17,6 @@ export interface GroupStandings {
 }
 
 export interface QualifiedTeam extends TeamStanding {
-  position: "1" | "2";
+  position: "1" | "2" | "3";
   group: string;
 }

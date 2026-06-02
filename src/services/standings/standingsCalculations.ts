@@ -146,7 +146,7 @@ export function calculateBestThirdPlace(games: Game[]): TeamStanding[] {
 }
 
 /**
- * Calculates qualified teams (1st and 2nd place from each group)
+ * Calculates qualified teams (1st and 2nd place from each group + best third-place teams)
  * @param games - All games
  * @returns List of qualified teams with position info
  */
@@ -164,23 +164,32 @@ export function calculateQualifiedTeams(games: Game[]): QualifiedTeam[] {
     const standings = calculateGroupStandings(groupGames);
 
     if (standings[0]) {
-      const { position: _position, ...rest } = standings[0];
       qualified.push({
         position: "1",
         group,
-        ...rest,
+        ...standings[0],
       } as QualifiedTeam);
     }
 
     if (standings[1]) {
-      const { position: _position, ...rest } = standings[1];
       qualified.push({
         position: "2",
         group,
-        ...rest,
+        ...standings[1],
       } as QualifiedTeam);
     }
   });
 
-  return qualified.sort((a, b) => a.group.localeCompare(b.group));
+  const bestThirds = calculateBestThirdPlace(games)
+    .slice(0, 8)
+    .map((team) => ({
+      position: "3",
+      group: (team as TeamStanding & { group: string }).group,
+      ...team,
+    })) as QualifiedTeam[];
+
+  return [...qualified, ...bestThirds].sort((a, b) => {
+    if (a.group !== b.group) return a.group.localeCompare(b.group);
+    return Number(a.position) - Number(b.position);
+  });
 }

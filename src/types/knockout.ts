@@ -4,7 +4,7 @@ export interface KnockoutMatch {
 }
 
 export interface QualifiedTeam {
-  position: "1" | "2";
+ position: "1" | "2" | "3";
   group: string;
   team: string;
   points: number;
