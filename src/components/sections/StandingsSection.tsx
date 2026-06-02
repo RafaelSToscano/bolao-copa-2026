@@ -54,92 +54,181 @@ export function StandingsSection({
             </div>
 
             {/* Classification table */}
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-xl">
-              <div className="bg-[#2A398D] text-white text-center font-black text-sm md:text-base py-3 tracking-wide">
-                CLASSIFICAÇÃO - GRUPO {group}
-              </div>
+<div className="bg-slate-950/80 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+  <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide">
+    CLASSIFICAÇÃO - GRUPO {group}
+  </div>
 
-              <div className="grid grid-cols-12 text-xs uppercase tracking-wide text-slate-400 px-3 py-2 font-bold border-b border-slate-800">
-                <div className="col-span-1 text-center">#</div>
-                <div className="col-span-4">Seleção</div>
-                <div className="col-span-1 text-center">P</div>
-                <div className="col-span-1 text-center">J</div>
-                <div className="col-span-1 text-center">V</div>
-                <div className="col-span-1 text-center">E</div>
-                <div className="col-span-1 text-center">D</div>
-                <div className="col-span-1 text-center">SG</div>
-                <div className="col-span-1 text-center">GP</div>
-              </div>
+  {/* Desktop */}
+  <div className="hidden md:block">
+    <div className="grid grid-cols-[52px_280px_260px] items-center justify-center text-xs lg:text-sm uppercase tracking-wide text-slate-300 px-4 py-3 font-black border-b border-slate-800 bg-slate-950">
+      <div className="text-center">#</div>
+      <div>Seleção</div>
 
-              {standings.map((team: TeamStanding, index: number) => (
-                <div
-                  key={team.team}
-                  className={`grid grid-cols-12 px-3 py-3 border-t border-slate-800 items-center ${
-                    index < 2 ? "bg-emerald-900/20" : ""
-                  }`}
-                >
-                  <div className="col-span-1 text-center font-black text-yellow-400 text-sm">
-                    {index + 1}º
-                  </div>
-                  <div className="col-span-4 font-semibold text-sm flex items-center gap-1">
-                    <Flag team={team.team} />
-                    {team.team}
-                  </div>
-                  <div className="col-span-1 text-center font-bold">{team.points}</div>
-                  <div className="col-span-1 text-center">{team.played}</div>
-                  <div className="col-span-1 text-center">{team.wins}</div>
-                  <div className="col-span-1 text-center">{team.draws}</div>
-                  <div className="col-span-1 text-center">{team.losses}</div>
-                  <div className="col-span-1 text-center">{team.goalDiff}</div>
-                  <div className="col-span-1 text-center">{team.goalsFor}</div>
-                </div>
-              ))}
-            </div>
+      <div className="grid grid-cols-7 gap-2 text-center">
+        <div>P</div>
+        <div>J</div>
+        <div>V</div>
+        <div>E</div>
+        <div>D</div>
+        <div>SG</div>
+        <div>GP</div>
+      </div>
+    </div>
+
+    {standings.map((team: TeamStanding, index: number) => (
+      <div
+        key={team.team}
+        className={`grid grid-cols-[52px_280px_260px] items-center justify-center px-4 py-4 border-t border-slate-800 text-sm lg:text-base ${
+          index < 2 ? "bg-emerald-900/20" : ""
+        }`}
+      >
+        <div className="text-center font-black text-yellow-400">
+          {index + 1}º
+        </div>
+
+        <div className="font-black text-base lg:text-lg flex items-center gap-3 min-w-0">
+          <Flag team={team.team} />
+          <span className="truncate">{team.team}</span>
+        </div>
+
+        <div className="grid grid-cols-7 gap-2 text-center font-semibold">
+          <div>{team.points}</div>
+          <div>{team.played}</div>
+          <div>{team.wins}</div>
+          <div>{team.draws}</div>
+          <div>{team.losses}</div>
+          <div>{team.goalDiff}</div>
+          <div>{team.goalsFor}</div>
+        </div>
+      </div>
+    ))}
+  </div>
+
+  {/* Mobile */}
+  <div className="md:hidden divide-y divide-slate-800">
+    {standings.map((team: TeamStanding, index: number) => (
+      <div
+        key={team.team}
+        className={`flex items-center justify-between px-4 py-4 ${
+          index < 2 ? "bg-emerald-900/20" : ""
+        }`}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-yellow-400 font-black w-8 shrink-0">
+            {index + 1}º
+          </span>
+
+          <Flag team={team.team} />
+
+          <span className="font-black text-base truncate">
+            {team.team}
+          </span>
+        </div>
+
+        <div className="text-right shrink-0 ml-3">
+          <div className="text-yellow-400 font-black text-lg">
+            {team.points} pts
+          </div>
+
+          <div className="text-[11px] text-slate-400">
+            J:{team.played} V:{team.wins} SG:{team.goalDiff}
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
 
             {/* Games with official scores */}
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-xl">
-              <div className="bg-[#2A398D] text-white text-center font-black text-sm md:text-base py-3 tracking-wide">
-                JOGOS - GRUPO {group}
-              </div>
+<div className="space-y-0 bg-slate-950/80 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+  <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide">
+    JOGOS - GRUPO {group}
+  </div>
 
-              {groupGames.map((game: Game) => (
-                <div
-                  key={game.id}
-                  className="grid grid-cols-[76px_minmax(76px,1fr)_32px_38px_18px_38px_32px_minmax(76px,1fr)] md:grid-cols-[90px_minmax(100px,1fr)_34px_48px_24px_48px_34px_minmax(100px,1fr)] items-center bg-slate-900 border-b border-slate-800 text-white text-sm md:text-base min-h-[48px] md:min-h-[58px] px-2 md:px-3"
-                >
-                  <div className="text-slate-300 text-[10px] md:text-sm whitespace-nowrap">
-                    {formatDate(game.match_date)}
-                  </div>
-                  <div className="text-right font-semibold truncate pr-4 text-sm md:text-base">
-                    {game.team_a}
-                  </div>
-                  <div className="flex justify-center">
-                    <Flag team={game.team_a} />
-                  </div>
-                  <div className="flex justify-center">
-                    <div className="h-9 w-10 md:h-10 md:w-12 rounded-lg border border-[#2A398D] bg-slate-950 text-center text-base md:text-lg font-bold text-white flex items-center justify-center">
-                      {game.official_score_a ?? "-"}
-                    </div>
-                  </div>
-                  <div className="text-center font-bold text-slate-300">x</div>
-                  <div className="flex justify-center">
-                    <div className="h-9 w-10 md:h-10 md:w-12 rounded-lg border border-[#2A398D] bg-slate-950 text-center text-base md:text-lg font-bold text-white flex items-center justify-center">
-                      {game.official_score_b ?? "-"}
-                    </div>
-                  </div>
-                  <div className="flex justify-center">
-                    <Flag team={game.team_b} />
-                  </div>
-                  <div className="font-semibold truncate pl-4 text-sm md:text-base">
-                    {game.team_b}
-                  </div>
-                </div>
-              ))}
+  {groupGames.map((game: Game) => (
+    <div
+      key={game.id}
+      className="border-b border-slate-800 bg-slate-950/40 hover:bg-slate-900/70 transition"
+    >
+      {/* Mobile */}
+      <div className="md:hidden p-3 space-y-3">
+        <div className="text-slate-300 text-xs">
+          {formatDate(game.match_date)}
+        </div>
+
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <div className="flex items-center justify-end gap-2 min-w-0">
+            <span className="font-bold text-sm text-right truncate">
+              {game.team_a}
+            </span>
+            <Flag team={game.team_a} />
+          </div>
+
+          <div className="flex items-center justify-center gap-2">
+            <div className="h-11 w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white flex items-center justify-center">
+              {game.official_score_a ?? "-"}
+            </div>
+
+            <span className="font-black text-slate-300">x</span>
+
+            <div className="h-11 w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white flex items-center justify-center">
+              {game.official_score_b ?? "-"}
             </div>
           </div>
+
+          <div className="flex items-center justify-start gap-2 min-w-0">
+            <Flag team={game.team_b} />
+            <span className="font-bold text-sm truncate">
+              {game.team_b}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop */}
+      <div className="hidden md:grid md:grid-cols-[120px_minmax(150px,1fr)_40px_48px_24px_48px_40px_minmax(150px,1fr)] items-center text-white text-lg min-h-[54px] px-4">
+        <div className="text-slate-300 text-base whitespace-nowrap">
+          {formatDate(game.match_date)}
+        </div>
+
+        <div className="text-right font-bold truncate pr-5 text-lg">
+          {game.team_a}
+        </div>
+
+        <div className="flex justify-center">
+          <Flag team={game.team_a} />
+        </div>
+
+        <div className="flex justify-center">
+          <div className="h-10 w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white flex items-center justify-center">
+            {game.official_score_a ?? "-"}
+          </div>
+        </div>
+
+        <div className="text-center font-bold text-slate-300">x</div>
+
+        <div className="flex justify-center">
+          <div className="h-10 w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white flex items-center justify-center">
+            {game.official_score_b ?? "-"}
+          </div>
+        </div>
+
+        <div className="flex justify-center">
+          <Flag team={game.team_b} />
+        </div>
+
+        <div className="font-bold truncate pl-5 text-lg">
+          {game.team_b}
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
+   </div>
         );
       })}
-
+      
       {/* Best Third Place */}
       <Card className="bg-slate-900 border-slate-800 text-white rounded-3xl">
         <CardContent className="p-5 space-y-4">
@@ -189,4 +278,4 @@ export function StandingsSection({
       </Card>
     </div>
   );
-}
+  } 
