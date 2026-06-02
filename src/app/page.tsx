@@ -24,6 +24,7 @@ import { calculateBestThirdPlace, calculateQualifiedTeams } from "@/services/sta
 import type { RandomPrediction } from "@/components/ui/random-predictor";
 import { playersService } from "@/services/supabase/playersService";
 import { SimulationSection } from "@/components/sections/SimulationSection";
+import { RulesSection } from "@/components/sections/RulesSection";
 
 type TabType =
   | "palpites"
@@ -31,6 +32,7 @@ type TabType =
   | "matamata"
   | "ranking"
   | "simulador"
+  | "regras"
   | "admin";
 
 export default function Home() {
@@ -328,7 +330,11 @@ const handleClearPredictions = async () => {
         players={players}
         predictions={predictions}
   />  )}
-
+      
+      {tab === "regras" && (
+      <RulesSection />
+      )}
+      
       {tab === "admin" && currentUser.is_admin && (
         <AdminSection
           games={games}

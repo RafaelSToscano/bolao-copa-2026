@@ -9,6 +9,7 @@ import {
   Lock,
   LogOut,
   Calculator,
+  BookOpen,
 } from "lucide-react";
 
 type TabType =
@@ -17,6 +18,7 @@ type TabType =
   | "matamata"
   | "ranking"
   | "simulador"
+  | "regras"
   | "admin";
 
 interface AppLayoutProps {
@@ -60,6 +62,11 @@ export function AppLayout({
       label: "Simulador",
       icon: Calculator,
     },
+    {
+      id: "regras" as TabType,
+      label: "Regras",
+      icon: BookOpen,
+},
     ...(currentUser.is_admin
       ? [
           {
