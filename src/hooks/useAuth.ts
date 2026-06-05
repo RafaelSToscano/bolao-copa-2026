@@ -28,7 +28,7 @@ export function useAuth() {
 ): Promise<boolean> => {
     setError(null);
     try {
-      console.log("LOGIN DEBUG:", { name, password });
+      console.log("LOGIN DEBUG:", { accessCode });
       const user = await playersService.findPlayerByCredentials(
   accessCode,
   password

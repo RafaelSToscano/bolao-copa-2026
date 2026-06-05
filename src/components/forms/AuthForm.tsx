@@ -9,10 +9,10 @@ import { RefreshCw } from "lucide-react";
 interface AuthFormProps {
   onLogin: (accessCode: string, password: string) => Promise<void>;
   onRequestAccess: (
-  name: string,
-  accessCode: string,
-  password: string
-) => Promise<void>;
+    name: string,
+    accessCode: string,
+    password: string
+  ) => Promise<void>;
   onRefresh: () => Promise<void>;
   error?: string | null;
   isLoading?: boolean;
@@ -28,6 +28,9 @@ export function AuthForm({
   const [accessCode, setAccessCode] = useState("");
   const [password, setPassword] = useState("");
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+
   const [registerName, setRegisterName] = useState("");
   const [registerPhone, setRegisterPhone] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
@@ -41,14 +44,9 @@ export function AuthForm({
   };
 
   const handleRequestAccess = async () => {
-  await onRequestAccess(
-    registerName,
-    registerPhone,
-    registerPassword
-  );
-
-  setSuccessModalOpen(true);
-};
+    await onRequestAccess(registerName, registerPhone, registerPassword);
+    setSuccessModalOpen(true);
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
@@ -63,7 +61,9 @@ export function AuthForm({
 
             <div>
               <h1 className="text-4xl font-black">Bolão 2026</h1>
-              <p className="text-slate-300 mt-2 text-lg font-semibold">Copa do Mundo FIFA</p>
+              <p className="text-slate-300 mt-2 text-lg font-semibold">
+                Copa do Mundo FIFA
+              </p>
             </div>
           </div>
 
@@ -73,6 +73,7 @@ export function AuthForm({
                 <label className="text-lg font-bold text-slate-200">
                   Celular com DDD
                 </label>
+
                 <Input
                   placeholder="Exemplo: 51999999999"
                   value={accessCode}
@@ -86,14 +87,25 @@ export function AuthForm({
                 <label className="text-lg font-bold text-slate-200">
                   Senha
                 </label>
-                <Input
-                  type="password"
-                  placeholder="Digite sua senha"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={isLoading}
-                  className="bg-slate-800 border-slate-700 text-white h-14 text-lg"
-                />
+
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Digite sua senha"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoading}
+                    className="bg-slate-800 border-slate-700 text-white h-14 text-lg pr-16"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  >
+                    {showPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
               </div>
 
               <Button
@@ -129,6 +141,7 @@ export function AuthForm({
                 <label className="text-lg font-bold text-slate-200">
                   Nome do jogador
                 </label>
+
                 <Input
                   placeholder="Exemplo: Rafael Toscano ou apelido"
                   value={registerName}
@@ -142,6 +155,7 @@ export function AuthForm({
                 <label className="text-lg font-bold text-slate-200">
                   Celular com DDD
                 </label>
+
                 <Input
                   placeholder="Exemplo: 51999999999"
                   value={registerPhone}
@@ -155,14 +169,27 @@ export function AuthForm({
                 <label className="text-lg font-bold text-slate-200">
                   Senha
                 </label>
-                <Input
-                  type="password"
-                  placeholder="Crie uma senha"
-                  value={registerPassword}
-                  onChange={(e) => setRegisterPassword(e.target.value)}
-                  disabled={isLoading}
-                  className="bg-slate-800 border-slate-700 text-white h-14 text-lg"
-                />
+
+                <div className="relative">
+                  <Input
+                    type={showRegisterPassword ? "text" : "password"}
+                    placeholder="Crie uma senha"
+                    value={registerPassword}
+                    onChange={(e) => setRegisterPassword(e.target.value)}
+                    disabled={isLoading}
+                    className="bg-slate-800 border-slate-700 text-white h-14 text-lg pr-16"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowRegisterPassword(!showRegisterPassword)
+                    }
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  >
+                    {showRegisterPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
               </div>
 
               <Button
@@ -184,7 +211,7 @@ export function AuthForm({
                 onClick={() => setIsRegistering(false)}
                 variant="outline"
                 className="w-full h-14 border-slate-700 bg-slate-800 text-white hover:bg-slate-700 text-lg font-bold"
-                              >
+              >
                 Voltar para login
               </Button>
             </div>
@@ -203,37 +230,39 @@ export function AuthForm({
           {error && (
             <div className="text-center text-sm text-red-400">{error}</div>
           )}
+
           {successModalOpen && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-    <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-700 p-6 text-center shadow-2xl">
-      <div className="text-4xl mb-3">✅</div>
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+              <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-700 p-6 text-center shadow-2xl">
+                <div className="text-4xl mb-3">✅</div>
 
-      <h3 className="text-2xl font-black text-white">
-        Solicitação enviada
-      </h3>
+                <h3 className="text-2xl font-black text-white">
+                  Solicitação enviada
+                </h3>
 
-      <p className="text-slate-300 text-base mt-3">
-        Sua solicitação foi enviada com sucesso e está aguardando aprovação do administrador.
-      </p>
+                <p className="text-slate-300 text-base mt-3">
+                  Sua solicitação foi enviada com sucesso e está aguardando
+                  aprovação do administrador.
+                </p>
 
-      <Button
-  type="button"
-  onClick={() => {
-    setSuccessModalOpen(false);
-    setIsRegistering(false);
-    setRegisterName("");
-    setRegisterPhone("");
-    setRegisterPassword("");
-    setAccessCode("");
-    setPassword("");
-  }}
-  className="mt-6 w-full h-12 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold"
->
-  OK
-</Button>
-    </div>
-  </div>
-)}
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setSuccessModalOpen(false);
+                    setIsRegistering(false);
+                    setRegisterName("");
+                    setRegisterPhone("");
+                    setRegisterPassword("");
+                    setAccessCode("");
+                    setPassword("");
+                  }}
+                  className="mt-6 w-full h-12 bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold"
+                >
+                  OK
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
