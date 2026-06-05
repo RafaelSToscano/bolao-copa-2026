@@ -1,6 +1,10 @@
 import { getSupabaseClient } from "./supabaseClient";
 import { Player } from "@/types/player";
 
+function normalizeAccessCode(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
 export const playersService = {
   async getAllPlayers(): Promise<Player[]> {
     const supabase = getSupabaseClient();
@@ -17,16 +21,34 @@ export const playersService = {
     return data || [];
   },
 
-  async findPlayerByCredentials(
-  accessCode: string,
-  password: string
-): Promise<Player | null> {
+  async findPlayerByAccessCode(accessCode: string): Promise<Player | null> {
     const supabase = getSupabaseClient();
+    const normalizedAccessCode = normalizeAccessCode(accessCode);
 
-   const { data, error } = await supabase.rpc("login_player", {
-  p_access_code: accessCode,
-  p_password: password,
-});
+    const { data, error } = await supabase
+      .from("players")
+      .select("*")
+      .eq("access_code", normalizedAccessCode)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(`Failed to find player: ${error.message}`);
+    }
+
+    return data;
+  },
+
+  async findPlayerByCredentials(
+    accessCode: string,
+    password: string
+  ): Promise<Player | null> {
+    const supabase = getSupabaseClient();
+    const normalizedAccessCode = normalizeAccessCode(accessCode);
+
+    const { data, error } = await supabase.rpc("login_player", {
+      p_access_code: normalizedAccessCode,
+      p_password: password,
+    });
 
     if (error) {
       throw new Error(`Failed to login player: ${error.message}`);
@@ -41,10 +63,11 @@ export const playersService = {
     password: string
   ): Promise<Player> {
     const supabase = getSupabaseClient();
+    const normalizedAccessCode = normalizeAccessCode(accessCode);
 
     const { data, error } = await supabase.rpc("request_player_access", {
-      p_name: name,
-      p_access_code: accessCode,
+      p_name: name.trim(),
+      p_access_code: normalizedAccessCode,
       p_password: password,
     });
 

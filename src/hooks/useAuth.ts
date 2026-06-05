@@ -60,10 +60,7 @@ const requestAccess = async (
   setError(null);
 
   try {
-    const existingUser = await playersService.findPlayerByCredentials(
-  name,
-  password
-);
+    const existingUser = await playersService.findPlayerByAccessCode(accessCode);
 
     if (existingUser) {
       setError(
