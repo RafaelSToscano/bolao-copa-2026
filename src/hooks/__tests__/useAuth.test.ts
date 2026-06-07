@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 vi.mock('@/services/supabase/playersService', () => ({
   playersService: {
     findPlayerByCredentials: vi.fn(),
+    findPlayerByAccessCode: vi.fn(),
     createPendingPlayer: vi.fn(),
   },
 }));
@@ -126,7 +127,7 @@ describe('useAuth Hook', () => {
   });
 
   it('should requestAccess successfully', async () => {
-    vi.mocked(playersService.findPlayerByCredentials).mockResolvedValue(null);
+    vi.mocked(playersService.findPlayerByAccessCode).mockResolvedValue(null);
     vi.mocked(playersService.createPendingPlayer).mockResolvedValue(undefined);
     vi.spyOn(window, 'alert').mockImplementation(() => {});
     const { result } = renderHook(() => useAuth());
@@ -142,7 +143,7 @@ describe('useAuth Hook', () => {
   });
 
   it('should fail requestAccess when user already exists', async () => {
-    vi.mocked(playersService.findPlayerByCredentials).mockResolvedValue(mockPlayer);
+    vi.mocked(playersService.findPlayerByAccessCode).mockResolvedValue(mockPlayer);
     const { result } = renderHook(() => useAuth());
     await act(async () => {});
 

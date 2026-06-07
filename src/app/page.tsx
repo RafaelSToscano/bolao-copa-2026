@@ -25,6 +25,7 @@ import type { RandomPrediction } from "@/components/ui/random-predictor";
 import { playersService } from "@/services/supabase/playersService";
 import { SimulationSection } from "@/components/sections/SimulationSection";
 import { RulesSection } from "@/components/sections/RulesSection";
+import { PlayoffSection } from "@/components/sections/PlayoffSection";
 
 type TabType =
   | "palpites"
@@ -33,6 +34,7 @@ type TabType =
   | "ranking"
   | "simulador"
   | "regras"
+  | "playoff"
   | "admin";
 
 export default function Home() {
@@ -83,7 +85,7 @@ export default function Home() {
     predictions
   );
   const { ranking } = useRanking(players, games, predictions);
-  const { round32 } = useKnockout(games);
+  const { round32 } = useKnockout(games, predictions, currentUser?.id);
   const stats = useAppStats(players, games, predictions, currentUser?.id);
 
   // Load data on mount
@@ -331,8 +333,12 @@ const handleClearPredictions = async () => {
         predictions={predictions}
   />  )}
       
+      {tab === "playoff" && (
+        <PlayoffSection round32={round32} />
+      )}
+
       {tab === "regras" && (
-      <RulesSection />
+        <RulesSection />
       )}
       
       {tab === "admin" && currentUser.is_admin && (
