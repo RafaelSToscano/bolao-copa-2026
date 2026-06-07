@@ -11,28 +11,22 @@ export function useAppStats(
   currentUserId?: string
 ) {
   const stats = useMemo(() => {
-    // Overall stats
-    const totalPlayers = players.filter((p) => !p.is_admin).length;
-    const playersWithPredictions = players
-      .filter((p) => !p.is_admin)
-      .filter((player) =>
-        predictions.some((prediction) => prediction.player_id === player.id)
-      ).length;
+    const totalPlayers = players.length;
 
-    const approvedPlayers = players.filter((p) => !p.is_admin && p.approved).length;
-    const pendingPlayers = players.filter((p) => !p.is_admin && !p.approved).length;
+    const playersWithPredictions = players.filter((player) =>
+      predictions.some((prediction) => prediction.player_id === player.id)
+    ).length;
 
-    const activePlayers = players
-      .filter((p) => !p.is_admin)
-      .filter((player) =>
-        predictions.some((prediction) => prediction.player_id === player.id)
-      ).length;
+    const approvedPlayers = players.filter((p) => p.approved).length;
+    const pendingPlayers = players.filter((p) => !p.approved).length;
 
-    // Current user stats
+    const activePlayers = players.filter((player) =>
+      predictions.some((prediction) => prediction.player_id === player.id)
+    ).length;
+
     const currentUserPredictions = currentUserId
       ? predictions.filter(
-          (p) =>
-            p.player_id === currentUserId && isPredictionComplete(p)
+          (p) => p.player_id === currentUserId && isPredictionComplete(p)
         )
       : [];
 
