@@ -6,6 +6,22 @@ import { playersService } from "@/services/supabase/playersService";
 import { gamesService } from "@/services/supabase/gamesService";
 import { predictionsService } from "@/services/supabase/predictionsService";
 
+function mergePredictions(
+  allPredictions: Prediction[],
+  userPredictions: Prediction[]
+): Prediction[] {
+  const map = new Map<string, Prediction>();
+
+  [...allPredictions, ...userPredictions].forEach((prediction) => {
+    map.set(
+      `${prediction.player_id}-${prediction.game_id}`,
+      prediction
+    );
+  });
+
+  return Array.from(map.values());
+}
+
 export function useData() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [games, setGames] = useState<Game[]>([]);
@@ -13,7 +29,7 @@ export function useData() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (currentUserId?: string) => {
     setLoading(true);
     setError(null);
 
@@ -24,9 +40,21 @@ export function useData() {
         predictionsService.getAllPredictions(),
       ]);
 
+      let mergedPredictions = predictionsData;
+
+      if (currentUserId) {
+        const userPredictions =
+          await predictionsService.getPredictionsForPlayer(currentUserId);
+
+        mergedPredictions = mergePredictions(
+          predictionsData,
+          userPredictions
+        );
+      }
+
       setPlayers(playersData);
       setGames(gamesData);
-      setPredictions(predictionsData);
+      setPredictions(mergedPredictions);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Erro ao carregar dados.";

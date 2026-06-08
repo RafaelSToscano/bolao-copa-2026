@@ -90,7 +90,7 @@ export default function Home() {
 
   // Load data on mount
   useEffect(() => {
-    loadData();
+    loadData(currentUser?.id);
   }, []);
 
   const handleLogin = async (accessCode: string, password: string) => {
@@ -98,8 +98,10 @@ export default function Home() {
   setLoginCode("");
   const success = await login(accessCode, password);
     if (success) {
-      await loadData();
-    }
+  const savedUser = localStorage.getItem("bolao_user");
+  const user = savedUser ? JSON.parse(savedUser) : null;
+  await loadData(user?.id);
+}
   };
     
   const handleRequestAccess = async (
@@ -112,7 +114,7 @@ export default function Home() {
   
     const handleTabChange = async (newTab: TabType) => {
     setTab(newTab);
-    await loadData();
+    await loadData(currentUser?.id);
   };
 
   const handleUpdateOfficialResult = async (
@@ -213,11 +215,11 @@ export default function Home() {
   };
     const handleApprovePlayer = async (playerId: string) => {
     await playersService.approvePlayer(playerId);
-    await loadData();
+    await loadData(currentUser?.id);
     };
     const handleRejectPlayer = async (playerId: string) => {
   await playersService.rejectPlayer(playerId);
-  await loadData();
+  await loadData(currentUser?.id);
     };
 const handleClearPredictions = async () => {
   if (groupsLocked) return;
