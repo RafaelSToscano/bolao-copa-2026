@@ -35,12 +35,27 @@ export function useData() {
 
     try {
       const [playersData, gamesData, predictionsData] = await Promise.all([
-        playersService.getAllPlayers(),
-        gamesService.getAllGames(),
-        predictionsService.getAllPredictions(),
-      ]);
+      playersService.getAllPlayers(),
+     gamesService.getAllGames(),
+     predictionsService.getAllPredictions(),
+]);
+      console.log("PLAYERS:", playersData.length);
+      console.log("GAMES:", gamesData.length);
+      console.log("PREDICTIONS:", predictionsData.length);
 
       let mergedPredictions = predictionsData;
+
+      if (currentUserId) {
+  const userPredictions =
+    await predictionsService.getPredictionsForPlayer(currentUserId);
+
+      mergedPredictions = mergePredictions(
+    predictionsData,
+    userPredictions
+  );
+}
+
+console.log("MERGED PREDICTIONS:", mergedPredictions.length);
 
       if (currentUserId) {
         const userPredictions =

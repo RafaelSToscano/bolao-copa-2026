@@ -90,8 +90,10 @@ export default function Home() {
 
   // Load data on mount
   useEffect(() => {
-    loadData(currentUser?.id);
-  }, []);
+  if (currentUser?.id) {
+    loadData(currentUser.id);
+  }
+}, [currentUser?.id]);
 
   const handleLogin = async (accessCode: string, password: string) => {
   setLoginName("");

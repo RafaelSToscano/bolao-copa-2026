@@ -26,6 +26,7 @@ export function FinalPredictionsCard({
   const [message, setMessage] = useState("");
 
   const hasLoadedRef = useRef(false);
+  const userChangedRef = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const teams = useMemo(() => {
@@ -36,6 +37,9 @@ export function FinalPredictionsCard({
   useEffect(() => {
     async function load() {
       if (!playerId) return;
+
+      hasLoadedRef.current = false;
+      userChangedRef.current = false;
 
       try {
         const data = await finalPredictionsService.getByPlayer(playerId);
@@ -57,16 +61,12 @@ export function FinalPredictionsCard({
 
   useEffect(() => {
     if (!hasLoadedRef.current) return;
+    if (!userChangedRef.current) return;
     if (disabled) return;
     if (!playerId) return;
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
-    }
-
-    if (!champion && !runnerUp && !thirdPlace) {
-      setMessage("");
-      return;
     }
 
     if (!champion || !runnerUp || !thirdPlace) {
@@ -94,7 +94,6 @@ export function FinalPredictionsCard({
         };
 
         await finalPredictionsService.upsert(payload);
-
         setMessage("Palpites finais salvos automaticamente.");
       } catch (err) {
         setMessage(
@@ -108,11 +107,24 @@ export function FinalPredictionsCard({
     }, 600);
 
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
   }, [champion, runnerUp, thirdPlace, playerId, disabled]);
+
+  const handleChampionChange = (value: string) => {
+    userChangedRef.current = true;
+    setChampion(value);
+  };
+
+  const handleRunnerUpChange = (value: string) => {
+    userChangedRef.current = true;
+    setRunnerUp(value);
+  };
+
+  const handleThirdPlaceChange = (value: string) => {
+    userChangedRef.current = true;
+    setThirdPlace(value);
+  };
 
   return (
     <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl shadow-2xl">
@@ -129,36 +141,65 @@ export function FinalPredictionsCard({
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[
-            ["🥇 Campeão", champion, setChampion],
-            ["🥈 Vice-campeão", runnerUp, setRunnerUp],
-            ["🥉 Terceiro colocado", thirdPlace, setThirdPlace],
-          ].map(([label, value, setter]) => (
-            <div key={label as string} className="space-y-2">
-              <label className="text-base lg:text-lg font-black text-slate-300">
-                {label as string}
-              </label>
+          <div className="space-y-2">
+            <label className="text-base lg:text-lg font-black text-slate-300">
+              🥇 Campeão
+            </label>
 
-              <select
-                value={value as string}
-                onChange={(e) =>
-                  (setter as React.Dispatch<React.SetStateAction<string>>)(
-                    e.target.value
-                  )
-                }
-                disabled={disabled || isSaving}
-                className="w-full h-14 lg:h-16 rounded-2xl bg-slate-800 border border-slate-700 text-white text-lg font-semibold px-4"
-              >
-                <option value="">Selecione</option>
+            <select
+              value={champion}
+              onChange={(e) => handleChampionChange(e.target.value)}
+              disabled={disabled || isSaving}
+              className="w-full h-14 lg:h-16 rounded-2xl bg-slate-800 border border-slate-700 text-white text-lg font-semibold px-4"
+            >
+              <option value="">Selecione</option>
+              {teams.map((team) => (
+                <option key={team} value={team}>
+                  {team}
+                </option>
+              ))}
+            </select>
+          </div>
 
-                {teams.map((team) => (
-                  <option key={team} value={team}>
-                    {team}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ))}
+          <div className="space-y-2">
+            <label className="text-base lg:text-lg font-black text-slate-300">
+              🥈 Vice-campeão
+            </label>
+
+            <select
+              value={runnerUp}
+              onChange={(e) => handleRunnerUpChange(e.target.value)}
+              disabled={disabled || isSaving}
+              className="w-full h-14 lg:h-16 rounded-2xl bg-slate-800 border border-slate-700 text-white text-lg font-semibold px-4"
+            >
+              <option value="">Selecione</option>
+              {teams.map((team) => (
+                <option key={team} value={team}>
+                  {team}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-base lg:text-lg font-black text-slate-300">
+              🥉 Terceiro colocado
+            </label>
+
+            <select
+              value={thirdPlace}
+              onChange={(e) => handleThirdPlaceChange(e.target.value)}
+              disabled={disabled || isSaving}
+              className="w-full h-14 lg:h-16 rounded-2xl bg-slate-800 border border-slate-700 text-white text-lg font-semibold px-4"
+            >
+              <option value="">Selecione</option>
+              {teams.map((team) => (
+                <option key={team} value={team}>
+                  {team}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {message && <div className="text-sm text-slate-300">{message}</div>}
