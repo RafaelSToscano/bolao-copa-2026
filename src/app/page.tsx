@@ -353,12 +353,14 @@ const handleClearPredictions = async () => {
           onUpdateResult={handleUpdateOfficialResult}
           onApprovePlayer={handleApprovePlayer}
           onRejectPlayer={handleRejectPlayer}
-          stats={{
-            totalPlayers: stats.totalPlayers,
-            approvedPlayers: stats.approvedPlayers,
-            pendingPlayers: stats.pendingPlayers,
-            activePlayers: stats.activePlayers,
-          }}
+         stats={{
+         totalPlayers: stats.totalPlayers,
+        approvedPlayers: stats.approvedPlayers,
+        pendingPlayers: stats.pendingPlayers,
+        activePlayers: stats.activePlayers,
+        incompletePlayers: stats.incompletePlayers,
+        zeroPlayers: stats.zeroPlayers,
+}}
         />
       )}
     </AppLayout>

@@ -100,7 +100,7 @@ export function AdminSection({
         <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[120px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
           <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
             <div className="text-sm lg:text-lg font-bold text-slate-300">
-              Já palpitou
+              Completos
             </div>
             <div className="text-4xl lg:text-5xl font-black text-blue-400">
               {stats.activePlayers}
