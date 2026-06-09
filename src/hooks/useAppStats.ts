@@ -12,16 +12,33 @@ export function useAppStats(
 ) {
   const stats = useMemo(() => {
     const totalPlayers = players.length;
-
-    const playersWithPredictions = players.filter((player) =>
-      predictions.some((prediction) => prediction.player_id === player.id)
-    ).length;
+    const totalGames = games.length;
 
     const approvedPlayers = players.filter((p) => p.approved).length;
     const pendingPlayers = players.filter((p) => !p.approved).length;
 
-    const activePlayers = players.filter((player) =>
-      predictions.some((prediction) => prediction.player_id === player.id)
+    const getCompletedPredictionsCount = (playerId: string) =>
+      predictions.filter(
+        (prediction) =>
+          prediction.player_id === playerId &&
+          isPredictionComplete(prediction)
+      ).length;
+
+    const playersWithPredictions = players.filter(
+      (player) => getCompletedPredictionsCount(player.id) > 0
+    ).length;
+
+    const activePlayers = players.filter(
+      (player) => getCompletedPredictionsCount(player.id) === totalGames
+    ).length;
+
+    const incompletePlayers = players.filter((player) => {
+      const count = getCompletedPredictionsCount(player.id);
+      return count > 0 && count < totalGames;
+    }).length;
+
+    const zeroPlayers = players.filter(
+      (player) => getCompletedPredictionsCount(player.id) === 0
     ).length;
 
     const currentUserPredictions = currentUserId
@@ -30,7 +47,7 @@ export function useAppStats(
         )
       : [];
 
-    const totalUserGames = games.length;
+    const totalUserGames = totalGames;
     const userPredictedGames = currentUserPredictions.length;
     const userPendingGames = totalUserGames - userPredictedGames;
     const userCompletion =
@@ -44,6 +61,8 @@ export function useAppStats(
       approvedPlayers,
       pendingPlayers,
       activePlayers,
+      incompletePlayers,
+      zeroPlayers,
       totalUserGames,
       userPredictedGames,
       userPendingGames,

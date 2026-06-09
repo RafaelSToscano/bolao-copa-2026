@@ -21,11 +21,13 @@ interface AdminSectionProps {
   onApprovePlayer: (playerId: string) => void;
   onRejectPlayer: (playerId: string) => void;
 stats: {
-    totalPlayers: number;
-    approvedPlayers: number;
-    pendingPlayers: number;
-    activePlayers: number;
-  };
+  totalPlayers: number;
+  approvedPlayers: number;
+  pendingPlayers: number;
+  activePlayers: number;
+  incompletePlayers: number;
+  zeroPlayers: number;
+};
 }
 
 export function AdminSection({
