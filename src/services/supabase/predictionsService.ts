@@ -6,15 +6,37 @@ export const predictionsService = {
    * Fetches all predictions
    */
   async getAllPredictions(): Promise<Prediction[]> {
-    const supabase = getSupabaseClient();
-    const { data, error } = await supabase.from("predictions").select("*");
+  const supabase = getSupabaseClient();
+
+  const pageSize = 1000;
+  let from = 0;
+  let allData: Prediction[] = [];
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("predictions")
+      .select("*")
+      .range(from, from + pageSize - 1);
 
     if (error) {
       throw new Error(`Failed to fetch predictions: ${error.message}`);
     }
 
-    return data || [];
-  },
+    if (!data || data.length === 0) {
+      break;
+    }
+
+    allData = [...allData, ...data];
+
+    if (data.length < pageSize) {
+      break;
+    }
+
+    from += pageSize;
+  }
+
+  return allData;
+},
 
   /**
    * Gets predictions for a specific player
