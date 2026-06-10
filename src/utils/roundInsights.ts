@@ -1,7 +1,7 @@
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
 import { Player } from "@/types/player";
-import { calculatePredictionPoints } from "@/services/predictions/predictionCalculations";
+import { calculatePredictionPoints, getOutcome } from "@/services/predictions/predictionCalculations";
 
 export interface Insight {
   emoji: string;
@@ -52,9 +52,9 @@ export function generateRoundInsights(
     (p) => roundGameIds.has(p.game_id) && playerMap.has(p.player_id)
   );
 
-  const insights: Insight[] = [];
+  const candidates: Insight[] = [];
 
-  // 1. Round top scorer
+  // ── Round top scorer ────────────────────────────────────────────────────────
   const playerPts = new Map<string, number>();
   for (const pred of roundPreds) {
     const game = roundGames.find((g) => g.id === pred.game_id);
@@ -63,19 +63,31 @@ export function generateRoundInsights(
     playerPts.set(pred.player_id, (playerPts.get(pred.player_id) ?? 0) + points);
   }
   let bestId = "";
-  let bestPts = -1;
+  let bestPts = 0;
   for (const [pid, pts] of playerPts) {
     if (pts > bestPts) { bestPts = pts; bestId = pid; }
   }
   if (bestId && bestPts > 0) {
-    const name = playerMap.get(bestId)!;
-    insights.push({
+    candidates.push({
       emoji: "⭐",
-      text: `Destaque da rodada: ${name} com ${bestPts} pontos!`,
+      text: `Destaque da rodada: ${playerMap.get(bestId)} com ${bestPts} pontos!`,
     });
   }
 
-  // 2. Exact score(s)
+  // ── Worst scorer of the round ────────────────────────────────────────────────
+  let worstId = "";
+  let worstRoundPts = Infinity;
+  for (const [pid, pts] of playerPts) {
+    if (pts < worstRoundPts) { worstRoundPts = pts; worstId = pid; }
+  }
+  if (worstId && worstRoundPts === 0 && playerPts.size > 1 && bestPts > 0) {
+    candidates.push({
+      emoji: "😴",
+      text: `${playerMap.get(worstId)} zerou na rodada. Será que estava assistindo o jogo errado? 😅`,
+    });
+  }
+
+  // ── Exact score hit(s) ───────────────────────────────────────────────────────
   const exactPreds = roundPreds.filter((p) => {
     const game = roundGames.find((g) => g.id === p.game_id);
     return game && predictionError(p, game) === 0;
@@ -85,23 +97,21 @@ export function generateRoundInsights(
     const game = roundGames.find((g) => g.id === p.game_id)!;
     const name = playerMap.get(p.player_id);
     if (name)
-      insights.push({
+      candidates.push({
         emoji: "🎯",
-        text: `${name} acertou o placar exato de ${game.team_a} ${game.official_score_a}×${game.official_score_b} ${game.team_b}!`,
+        text: `${name} acertou o placar exato de ${game.team_a} ${game.official_score_a}×${game.official_score_b} ${game.team_b}! Bola de cristal!`,
       });
   } else if (exactPreds.length > 1) {
     const names = [
-      ...new Set(
-        exactPreds.map((p) => playerMap.get(p.player_id)).filter(Boolean)
-      ),
+      ...new Set(exactPreds.map((p) => playerMap.get(p.player_id)).filter(Boolean)),
     ] as string[];
-    insights.push({
+    candidates.push({
       emoji: "🎯",
-      text: `${names.slice(0, 2).join(" e ")} acertaram placares exatos na rodada!`,
+      text: `${names.slice(0, 2).join(" e ")} acertaram placares exatos na rodada! 🔥`,
     });
   }
 
-  // 3. Biggest miss
+  // ── Biggest miss ─────────────────────────────────────────────────────────────
   let worstErr = 3;
   let worstPred: Prediction | null = null;
   let worstGame: Game | null = null;
@@ -118,13 +128,13 @@ export function generateRoundInsights(
   if (worstPred && worstGame) {
     const name = playerMap.get(worstPred.player_id);
     if (name)
-      insights.push({
+      candidates.push({
         emoji: "😬",
         text: `${name} chutou ${worstGame.team_a} ${worstPred.predicted_score_a}×${worstPred.predicted_score_b} ${worstGame.team_b}, mas foi ${worstGame.official_score_a}×${worstGame.official_score_b}. Que derrapada!`,
       });
   }
 
-  // 4. Most optimistic single prediction
+  // ── Most optimistic single prediction ────────────────────────────────────────
   let maxGoals = 5;
   let optimistPred: Prediction | null = null;
   let optimistGame: Game | null = null;
@@ -142,14 +152,127 @@ export function generateRoundInsights(
   }
   if (optimistPred && optimistGame) {
     const name = playerMap.get(optimistPred.player_id);
-    const actual =
-      (optimistGame.official_score_a ?? 0) + (optimistGame.official_score_b ?? 0);
+    const actual = (optimistGame.official_score_a ?? 0) + (optimistGame.official_score_b ?? 0);
     if (name)
-      insights.push({
+      candidates.push({
         emoji: "🚀",
-        text: `${name} apostou em ${maxGoals} gols no jogo de ${optimistGame.team_a} vs ${optimistGame.team_b}. Foram só ${actual}. Otimismo no limite! 😂`,
+        text: `${name} apostou em ${maxGoals} gols no jogo de ${optimistGame.team_a} vs ${optimistGame.team_b}. Foram só ${actual}. Sonhou alto! 😂`,
       });
   }
 
-  return insights.slice(0, 3);
+  // ── Game that fooled everyone (worst collective outcome accuracy) ─────────────
+  for (const game of roundGames) {
+    if (game.official_score_a === null || game.official_score_b === null) continue;
+    const realOutcome = getOutcome(game.official_score_a, game.official_score_b);
+    const gamePreds = roundPreds.filter((p) => p.game_id === game.id);
+    if (gamePreds.length < 3) continue;
+
+    const wrongOutcome = gamePreds.filter((p) => {
+      if (p.predicted_score_a === null || p.predicted_score_b === null) return false;
+      return getOutcome(p.predicted_score_a, p.predicted_score_b) !== realOutcome;
+    });
+
+    if (wrongOutcome.length === gamePreds.length) {
+      candidates.push({
+        emoji: "🤯",
+        text: `Ninguém acertou o resultado de ${game.team_a} vs ${game.team_b} (${game.official_score_a}×${game.official_score_b}). O jogo enganou geral!`,
+      });
+    } else if (wrongOutcome.length >= gamePreds.length * 0.8) {
+      candidates.push({
+        emoji: "😲",
+        text: `Quase ninguém esperava o resultado de ${game.team_a} ${game.official_score_a}×${game.official_score_b} ${game.team_b}. Surpreendente!`,
+      });
+    }
+  }
+
+  // ── Consensus wrong prediction (everyone predicted same wrong score) ──────────
+  for (const game of roundGames) {
+    if (game.official_score_a === null || game.official_score_b === null) continue;
+    const gamePreds = roundPreds.filter(
+      (p) =>
+        p.game_id === game.id &&
+        p.predicted_score_a !== null &&
+        p.predicted_score_b !== null
+    );
+    if (gamePreds.length < 3) continue;
+
+    const firstA = gamePreds[0].predicted_score_a;
+    const firstB = gamePreds[0].predicted_score_b;
+    const allSame = gamePreds.every(
+      (p) => p.predicted_score_a === firstA && p.predicted_score_b === firstB
+    );
+    if (
+      allSame &&
+      (firstA !== game.official_score_a || firstB !== game.official_score_b)
+    ) {
+      candidates.push({
+        emoji: "🐑",
+        text: `Todo mundo chutou ${game.team_a} ${firstA}×${firstB} ${game.team_b}. Ninguém foi diferente… e ninguém acertou! Manada de ovelhas! 😂`,
+      });
+    }
+  }
+
+  // ── 0×0 game nobody expected ──────────────────────────────────────────────────
+  const zeroZeroGames = roundGames.filter(
+    (g) => g.official_score_a === 0 && g.official_score_b === 0
+  );
+  for (const game of zeroZeroGames) {
+    const gamePreds = roundPreds.filter(
+      (p) =>
+        p.game_id === game.id &&
+        p.predicted_score_a !== null &&
+        p.predicted_score_b !== null
+    );
+    const predictedGoals = gamePreds.filter(
+      (p) => (p.predicted_score_a ?? 0) + (p.predicted_score_b ?? 0) > 0
+    );
+    if (predictedGoals.length === gamePreds.length && gamePreds.length >= 2) {
+      candidates.push({
+        emoji: "😴",
+        text: `${game.team_a} vs ${game.team_b} terminou 0×0. Todo mundo esperava gols e não veio nenhum. Soninho!`,
+      });
+    }
+  }
+
+  // ── Most conservative player (predicted lowest total goals in the round) ──────
+  const playerTotalPredicted = new Map<string, number>();
+  for (const pred of roundPreds) {
+    if (pred.predicted_score_a === null || pred.predicted_score_b === null) continue;
+    const total = pred.predicted_score_a + pred.predicted_score_b;
+    playerTotalPredicted.set(
+      pred.player_id,
+      (playerTotalPredicted.get(pred.player_id) ?? 0) + total
+    );
+  }
+  if (playerTotalPredicted.size >= 3) {
+    let minGoals = Infinity;
+    let conservativeId = "";
+    for (const [pid, total] of playerTotalPredicted) {
+      if (total < minGoals) { minGoals = total; conservativeId = pid; }
+    }
+    const avgGoals =
+      [...playerTotalPredicted.values()].reduce((a, b) => a + b, 0) /
+      playerTotalPredicted.size;
+
+    if (conservativeId && minGoals < avgGoals * 0.5 && minGoals <= roundGames.length) {
+      const name = playerMap.get(conservativeId);
+      if (name)
+        candidates.push({
+          emoji: "🛡️",
+          text: `${name} apostou em apenas ${minGoals} gols no total da rodada. Defesa fechada no coração! 😂`,
+        });
+    }
+  }
+
+  // ── Shuffle and pick 3 (prioritise top scorer + 2 random interesting ones) ────
+  const priority = candidates.filter((c) => c.emoji === "⭐" || c.emoji === "🎯");
+  const others = candidates.filter((c) => c.emoji !== "⭐" && c.emoji !== "🎯");
+
+  // Shuffle others for variety
+  for (let i = others.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [others[i], others[j]] = [others[j], others[i]];
+  }
+
+  return [...priority, ...others].slice(0, 3);
 }
