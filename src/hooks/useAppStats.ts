@@ -11,11 +11,9 @@ export function useAppStats(
   currentUserId?: string
 ) {
   const stats = useMemo(() => {
-    const totalPlayers = players.length;
+    const nonAdminPlayers = players.filter((p) => !p.is_admin);
+    const totalPlayers = nonAdminPlayers.length;
     const totalGames = games.length;
-
-    const approvedPlayers = players.filter((p) => p.approved).length;
-    const pendingPlayers = players.filter((p) => !p.approved).length;
 
     const getCompletedPredictionsCount = (playerId: string) =>
       predictions.filter(
@@ -24,20 +22,23 @@ export function useAppStats(
           isPredictionComplete(prediction)
       ).length;
 
-    const playersWithPredictions = players.filter(
+    const approvedPlayers = nonAdminPlayers.filter((p) => p.approved).length;
+    const pendingPlayers = nonAdminPlayers.filter((p) => !p.approved).length;
+
+    const playersWithPredictions = nonAdminPlayers.filter(
       (player) => getCompletedPredictionsCount(player.id) > 0
     ).length;
 
-    const activePlayers = players.filter(
+    const activePlayers = nonAdminPlayers.filter(
       (player) => getCompletedPredictionsCount(player.id) === totalGames
     ).length;
 
-    const incompletePlayers = players.filter((player) => {
+    const incompletePlayers = nonAdminPlayers.filter((player) => {
       const count = getCompletedPredictionsCount(player.id);
       return count > 0 && count < totalGames;
     }).length;
 
-    const zeroPlayers = players.filter(
+    const zeroPlayers = nonAdminPlayers.filter(
       (player) => getCompletedPredictionsCount(player.id) === 0
     ).length;
 

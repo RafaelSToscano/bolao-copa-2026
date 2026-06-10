@@ -15,16 +15,18 @@ export function calculateRanking(
   games: Game[],
   predictions: Prediction[]
 ): (Player & { total: number; exacts: number })[] {
+  const predMap = new Map<string, Prediction>();
+  for (const p of predictions) {
+    predMap.set(`${p.player_id}-${p.game_id}`, p);
+  }
+
   return players
     .map((player) => {
       let total = 0;
       let exacts = 0;
 
       for (const game of games) {
-        const pred = predictions.find(
-          (p) => p.player_id === player.id && p.game_id === game.id
-        );
-
+        const pred = predMap.get(`${player.id}-${game.id}`);
         const result = calculatePredictionPoints(pred, game);
         total += result.points;
         exacts += result.exact;

@@ -91,10 +91,11 @@ describe('RankingSection Component', () => {
     expect(exacts.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('should render ranking logo in podium', () => {
+  it('should render podium icons for top 3', () => {
     render(<RankingSection ranking={mockPlayers} />);
-    const logos = screen.getAllByAltText('Ranking');
-    expect(logos.length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByText('🏆')).toBeInTheDocument();
+    expect(screen.getByText('🥈')).toBeInTheDocument();
+    expect(screen.getByText('🥉')).toBeInTheDocument();
   });
 
   it('should display all players in full ranking table', () => {

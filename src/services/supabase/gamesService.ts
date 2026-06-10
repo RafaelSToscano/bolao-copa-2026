@@ -28,6 +28,10 @@ export const gamesService = {
     field: "official_score_a" | "official_score_b",
     value: number | null
   ): Promise<void> {
+    if (value !== null && (!Number.isInteger(value) || value < 0)) {
+      throw new Error("Placar inválido: deve ser um número inteiro não negativo.");
+    }
+
     const supabase = getSupabaseClient();
     const { error } = await supabase
       .from("games")
