@@ -6,6 +6,7 @@ import { Player } from "@/types/player";
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
 import { RankingShareCard } from "./RankingShareCard";
+import { RankingFullCard } from "./RankingFullCard";
 import { generateRoundInsights } from "@/utils/roundInsights";
 import { calculatePositionChanges } from "@/services/ranking/leaderboardCalculations";
 import { Button } from "./button";
@@ -19,6 +20,7 @@ interface RankingShareModalProps {
   predictions: Prediction[];
   players: Player[];
   positionChanges?: Map<string, number>;
+  showAll?: boolean;
   onClose: () => void;
 }
 
@@ -36,6 +38,7 @@ export function RankingShareModal({
   predictions,
   players,
   positionChanges: positionChangesProp,
+  showAll = false,
   onClose,
 }: RankingShareModalProps) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -44,7 +47,7 @@ export function RankingShareModal({
   const [error, setError] = useState<string | null>(null);
   const [clipboardReady, setClipboardReady] = useState(false);
 
-  const insights = generateRoundInsights(games, predictions, players);
+  const insights = showAll ? [] : generateRoundInsights(games, predictions, players);
   const positionChanges = positionChangesProp ?? calculatePositionChanges(ranking, games, predictions, players);
   const date = formatDate(new Date());
 
@@ -62,6 +65,7 @@ export function RankingShareModal({
       const url = await toPng(cardRef.current, {
         pixelRatio: 2,
         backgroundColor: "#0f172a",
+        skipFonts: true,
       });
       setDataUrl(url);
     } catch {
@@ -127,7 +131,9 @@ export function RankingShareModal({
         {/* Modal header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 shrink-0">
           <div>
-            <h3 className="text-lg font-black text-white">Compartilhar Ranking</h3>
+            <h3 className="text-lg font-black text-white">
+              {showAll ? "Ranking Completo" : "Compartilhar Ranking"}
+            </h3>
             <p className="text-slate-400 text-xs">
               {capturing ? "Gerando imagem…" : dataUrl ? "Pronto para compartilhar" : "Prévia do card"}
             </p>
@@ -173,13 +179,22 @@ export function RankingShareModal({
 
           {/* Hidden card used for capture */}
           <div style={{ position: "absolute", left: -9999, top: 0, pointerEvents: "none" }}>
-            <RankingShareCard
-              ref={cardRef}
-              ranking={ranking}
-              insights={insights}
-              date={date}
-              positionChanges={positionChanges}
-            />
+            {showAll ? (
+              <RankingFullCard
+                ref={cardRef}
+                ranking={ranking}
+                positionChanges={positionChanges}
+                date={date}
+              />
+            ) : (
+              <RankingShareCard
+                ref={cardRef}
+                ranking={ranking}
+                insights={insights}
+                date={date}
+                positionChanges={positionChanges}
+              />
+            )}
           </div>
         </div>
 

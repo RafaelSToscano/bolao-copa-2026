@@ -16,18 +16,14 @@ import { StandingsSection } from "@/components/sections/StandingsSection";
 import { KnockoutSection } from "@/components/sections/KnockoutSection";
 import { RankingSection } from "@/components/sections/RankingSection";
 import { AdminSection } from "@/components/sections/AdminSection";
-import { calculatePredictionPoints } from "@/services/predictions/predictionCalculations";
 import { gamesService } from "@/services/supabase/gamesService";
-import { calculateGroupStandingsFromPredictions, buildGamesFromPredictions } from "@/services/standings/predictionSimulation";
-import { calculateBestThirdPlace, calculateQualifiedTeams } from "@/services/standings/standingsCalculations";
+import { calculateGroupStandingsFromPredictions } from "@/services/standings/predictionSimulation";
 import type { RandomPrediction } from "@/components/ui/random-predictor";
 import { playersService } from "@/services/supabase/playersService";
 import { SimulationSection } from "@/components/sections/SimulationSection";
 import { RulesSection } from "@/components/sections/RulesSection";
 import { PlayoffSection } from "@/components/sections/PlayoffSection";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
-import { RankingShareModal } from "@/components/ui/RankingShareModal";
-import { MOCK_RANKING, MOCK_GAMES, MOCK_PREDICTIONS, MOCK_PLAYERS, MOCK_POSITION_CHANGES } from "@/utils/mockShareData";
 
 type TabType =
   | "palpites"
@@ -73,11 +69,8 @@ export default function Home() {
 
   // UI state
   const [tab, setTab] = useState<TabType>("palpites");
-  const [loginName, setLoginName] = useState("");
-  const [loginCode, setLoginCode] = useState("");
   const [message, setMessage] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
 
   // Phase state
   const { isGroupsLocked } = usePhaseState();
@@ -100,8 +93,6 @@ export default function Home() {
 }, [currentUser?.id]);
 
   const handleLogin = async (accessCode: string, password: string) => {
-  setLoginName("");
-  setLoginCode("");
   const success = await login(accessCode, password);
     if (success) {
   let user = null;
@@ -114,7 +105,7 @@ export default function Home() {
   await loadData(user?.id);
 }
   };
-    
+
   const handleRequestAccess = async (
   name: string,
   accessCode: string,
@@ -122,7 +113,7 @@ export default function Home() {
 ): Promise<void> => {
   await requestAccess(name, accessCode, password);
 };
-  
+
     const handleTabChange = async (newTab: TabType) => {
     setTab(newTab);
     await loadData(currentUser?.id);
@@ -335,27 +326,16 @@ const handleClearConfirmed = async () => {
       )}
 
       {tab === "ranking" && (
-        <>
-          {/* TODO: remove after testing — temp share button for non-admins */}
-          <div className="flex justify-end">
-            <button
-              onClick={() => setShowShareModal(true)}
-              className="text-xs text-slate-500 underline underline-offset-2 hover:text-slate-300 cursor-pointer"
-            >
-              [dev] Testar compartilhamento (mock)
-            </button>
-          </div>
-          <RankingSection ranking={ranking} positionChanges={positionChanges} />
-        </>
+        <RankingSection ranking={ranking} positionChanges={positionChanges} />
       )}
-      
+
       {tab === "simulador" && (
       <SimulationSection
        games={games}
         players={players}
         predictions={predictions}
   />  )}
-      
+
       {tab === "playoff" && (
         <PlayoffSection round32={round32} />
       )}
@@ -363,7 +343,7 @@ const handleClearConfirmed = async () => {
       {tab === "regras" && (
         <RulesSection />
       )}
-      
+
       {tab === "admin" && currentUser.is_admin && (
         <AdminSection
           games={games}
@@ -394,17 +374,6 @@ const handleClearConfirmed = async () => {
         variant="danger"
         onConfirm={handleClearConfirmed}
         onCancel={() => setShowClearConfirm(false)}
-      />
-    )}
-
-    {showShareModal && (
-      <RankingShareModal
-        ranking={MOCK_RANKING}
-        games={MOCK_GAMES}
-        predictions={MOCK_PREDICTIONS}
-        players={MOCK_PLAYERS}
-        positionChanges={MOCK_POSITION_CHANGES}
-        onClose={() => setShowShareModal(false)}
       />
     )}
     </>

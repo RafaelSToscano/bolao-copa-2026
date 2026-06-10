@@ -137,8 +137,8 @@ describe('generateRound32 - Knockout Qualification', () => {
   it('should have no undefined teams when all groups have results', () => {
     const round32 = generateRound32(games);
     round32.forEach((match, idx) => {
-      expect(match.home).toBeDefined(`Match ${idx + 1}: home team should be defined`);
-      expect(match.away).toBeDefined(`Match ${idx + 1}: away team should be defined`);
+      expect(match.home, `Match ${idx + 1}: home team should be defined`).toBeDefined();
+      expect(match.away, `Match ${idx + 1}: away team should be defined`).toBeDefined();
     });
   });
 

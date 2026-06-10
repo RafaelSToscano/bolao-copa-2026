@@ -5,7 +5,7 @@ import { Flag } from '@/components/ui/Flag';
 // Mock the formatting function
 vi.mock('@/lib/formatting', () => ({
   getFlagCode: vi.fn((team: string) => {
-    const codes: Record<string, string> = {
+    const codes: Record<string, string | null> = {
       'Brasil': 'br',
       'México': 'mx',
       'Argentina': 'ar',

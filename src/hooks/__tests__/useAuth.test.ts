@@ -128,7 +128,7 @@ describe('useAuth Hook', () => {
 
   it('should requestAccess successfully', async () => {
     vi.mocked(playersService.findPlayerByAccessCode).mockResolvedValue(null);
-    vi.mocked(playersService.createPendingPlayer).mockResolvedValue(undefined);
+    vi.mocked(playersService.createPendingPlayer).mockResolvedValue(mockPlayer);
     vi.spyOn(window, 'alert').mockImplementation(() => {});
     const { result } = renderHook(() => useAuth());
     await act(async () => {});

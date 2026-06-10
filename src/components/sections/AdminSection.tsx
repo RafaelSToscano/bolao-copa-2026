@@ -11,7 +11,7 @@ import { Flag } from "@/components/ui/Flag";
 import { formatDate, exportAuditCsv } from "@/lib/formatting";
 import { calculatePredictionPoints } from "@/services/predictions/predictionCalculations";
 import { RankingShareModal } from "@/components/ui/RankingShareModal";
-import { Share2 } from "lucide-react";
+import { Share2, List } from "lucide-react";
 
 interface AdminSectionProps {
   games: Game[];
@@ -45,7 +45,7 @@ export function AdminSection({
   onRejectPlayer,
   stats,
 }: AdminSectionProps) {
-  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareMode, setShareMode] = useState<"highlight" | "full" | null>(null);
 
   const handleExportCsv = () => {
     exportAuditCsv(players, games, predictions, calculatePredictionPoints);
@@ -66,11 +66,18 @@ export function AdminSection({
 
   <div className="flex flex-wrap gap-3">
     <Button
-      onClick={() => setShowShareModal(true)}
+      onClick={() => setShareMode("highlight")}
       className="bg-green-600 hover:bg-green-500 text-white font-bold gap-2"
     >
       <Share2 size={16} />
       Compartilhar Ranking
+    </Button>
+    <Button
+      onClick={() => setShareMode("full")}
+      className="bg-slate-600 hover:bg-slate-500 text-white font-bold gap-2"
+    >
+      <List size={16} />
+      Ranking Completo
     </Button>
     <Button
           onClick={handleExportCsv}
@@ -81,13 +88,14 @@ export function AdminSection({
   </div>
 </div>
 
-      {showShareModal && (
+      {shareMode !== null && (
         <RankingShareModal
           ranking={ranking}
           games={games}
           predictions={predictions}
           players={players}
-          onClose={() => setShowShareModal(false)}
+          showAll={shareMode === "full"}
+          onClose={() => setShareMode(null)}
         />
       )}
 

@@ -9,8 +9,6 @@ const mockTeam = (position: '1' | '2' | '3', group: string, team: string): Quali
   team,
   points: 9,
   goalDiff: 5,
-  goalsFor: 10,
-  goalsAgainst: 5,
 });
 
 const mockMatch = (home: QualifiedTeam | undefined, away: QualifiedTeam | undefined): KnockoutMatch => ({

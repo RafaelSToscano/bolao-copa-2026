@@ -17,7 +17,7 @@ import {
 } from '@/services/standings/standingsCalculations';
 
 const mockGames: Game[] = [
-  { id: 'g1', team_a: 'BRA', team_b: 'ARG', group: 'A', match_date: '2026-06-10', score_a: 2, score_b: 1 },
+  { id: 'g1', phase: 'groups', group_name: 'A', match_order: 1, team_a: 'BRA', team_b: 'ARG', match_date: '2026-06-10', official_score_a: 2, official_score_b: 1, locked: true },
 ];
 
 describe('useStandings Hook', () => {
@@ -41,7 +41,7 @@ describe('useStandings Hook', () => {
       { initialProps: { games: mockGames } }
     );
 
-    const newGames = [...mockGames, { id: 'g2', team_a: 'FRA', team_b: 'GER', group: 'B', match_date: '2026-06-11', score_a: null, score_b: null }];
+    const newGames: Game[] = [...mockGames, { id: 'g2', phase: 'groups', group_name: 'B', match_order: 2, team_a: 'FRA', team_b: 'GER', match_date: '2026-06-11', official_score_a: null, official_score_b: null, locked: false }];
     rerender({ games: newGames });
 
     expect(calculateAllGroupStandings).toHaveBeenCalledWith(newGames);

@@ -7,14 +7,14 @@ import { Prediction } from '@/types/prediction';
 
 // Mock the ranking calculation
 vi.mock('@/services/ranking/leaderboardCalculations', () => ({
-  calculateRanking: vi.fn((players, games, predictions) => {
+  calculateRanking: vi.fn((players: Player[]) => {
     return players
       .map((player) => ({
         ...player,
         total: Math.random() * 100,
         exacts: Math.floor(Math.random() * 10),
       }))
-      .sort((a, b) => b.total - a.total);
+      .sort((a: { total: number }, b: { total: number }) => b.total - a.total);
   }),
   calculatePositionChanges: vi.fn(() => new Map()),
 }));
