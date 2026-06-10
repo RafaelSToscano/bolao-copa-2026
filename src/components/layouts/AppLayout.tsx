@@ -12,7 +12,7 @@ import {
   BookOpen,
   GitBranch,
 } from "lucide-react";
-import { DeadlineBanner } from "@/components/ui/DeadlineBanner";
+import { DeadlineBanner, LockedBanner } from "@/components/ui/DeadlineBanner";
 
 type TabType =
   | "palpites"
@@ -90,6 +90,7 @@ export function AppLayout({
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
+      <LockedBanner />
       <DeadlineBanner
         userCompletion={userCompletion}
         onGoToPredictions={() => {

@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { GROUPS_PHASE_DEADLINE } from "@/config/scoring";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Lock, X } from "lucide-react";
+
+const LOCKED_BANNER_KEY = "bolao_locked_banner_dismissed";
 
 function BlinkingAlert() {
   return <AlertTriangle size={16} className="shrink-0 animate-blink" />;
@@ -72,6 +74,42 @@ export function DeadlineBanner({ userCompletion, onGoToPredictions }: DeadlineBa
         className="ml-2 rounded-lg bg-white/20 hover:bg-white/30 px-3 py-1 text-xs font-black transition shrink-0 cursor-pointer"
       >
         {actionLabel} →
+      </button>
+    </div>
+  );
+}
+
+export function LockedBanner() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const passed = Date.now() > GROUPS_PHASE_DEADLINE.getTime();
+    const dismissed = sessionStorage.getItem(LOCKED_BANNER_KEY) === "1";
+    setVisible(passed && !dismissed);
+  }, []);
+
+  const dismiss = () => {
+    sessionStorage.setItem(LOCKED_BANNER_KEY, "1");
+    setVisible(false);
+  };
+
+  if (!visible) return null;
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-3 px-4 py-2 bg-slate-800/95 border-b border-slate-700 text-white text-sm font-bold shadow-lg">
+      <div className="flex items-center gap-2 min-w-0">
+        <Lock size={15} className="shrink-0 text-yellow-400" />
+        <span className="truncate">
+          Palpites da fase de grupos encerrados.{" "}
+          <span className="text-yellow-400">Playoffs abrem em 28 de junho.</span>
+        </span>
+      </div>
+      <button
+        onClick={dismiss}
+        aria-label="Fechar aviso"
+        className="shrink-0 rounded-lg p-1 hover:bg-white/10 transition cursor-pointer"
+      >
+        <X size={15} />
       </button>
     </div>
   );
