@@ -9,7 +9,7 @@ import { RankingShareCard } from "./RankingShareCard";
 import { generateRoundInsights } from "@/utils/roundInsights";
 import { calculatePositionChanges } from "@/services/ranking/leaderboardCalculations";
 import { Button } from "./button";
-import { Download, Share2, X, Loader2 } from "lucide-react";
+import { Download, Share2, X, Loader2, ClipboardCheck } from "lucide-react";
 
 const WA_GROUP_LINK = "https://chat.whatsapp.com/BlFvuzUh0imESvzXvR8UOB";
 
@@ -42,6 +42,7 @@ export function RankingShareModal({
   const [capturing, setCapturing] = useState(false);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [clipboardReady, setClipboardReady] = useState(false);
 
   const insights = generateRoundInsights(games, predictions, players);
   const positionChanges = positionChangesProp ?? calculatePositionChanges(ranking, games, predictions, players);
@@ -72,28 +73,44 @@ export function RankingShareModal({
 
   async function handleShare() {
     if (!dataUrl) return;
+    setClipboardReady(false);
     const blob = await (await fetch(dataUrl)).blob();
     const file = new File([blob], "ranking-bolao.png", { type: "image/png" });
 
-    if (
-      typeof navigator.share === "function" &&
-      navigator.canShare?.({ files: [file] })
-    ) {
+    // Mobile: Web Share API opens native share sheet with WhatsApp as option
+    if (typeof navigator.share === "function" && navigator.canShare?.({ files: [file] })) {
       try {
         await navigator.share({
           files: [file],
           title: "Ranking Bolão Copa 2026",
-          text: "Ranking atualizado do Bolão Copa 2026 🏆",
+          text: "🏆 Ranking atualizado do Bolão Copa 2026!",
         });
         return;
       } catch {
-        // user cancelled or share failed — fall through
+        // user cancelled — don't proceed to desktop fallback
+        return;
       }
     }
 
-    // Fallback: download + open WhatsApp
-    handleDownload();
+    // Desktop: copy image to clipboard + open WhatsApp Web group
+    // User just needs to paste (Ctrl+V / ⌘V) in the group chat and send
+    let copied = false;
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ "image/png": blob }),
+      ]);
+      copied = true;
+    } catch {
+      // Clipboard write not supported (e.g. Firefox) — fall back to download
+    }
+
     window.open(WA_GROUP_LINK, "_blank", "noopener,noreferrer");
+
+    if (copied) {
+      setClipboardReady(true);
+    } else {
+      handleDownload();
+    }
   }
 
   function handleDownload() {
@@ -142,6 +159,16 @@ export function RankingShareModal({
 
           {!capturing && error && (
             <div className="text-red-400 text-sm text-center py-4">{error}</div>
+          )}
+
+          {clipboardReady && (
+            <div className="w-full flex items-start gap-3 bg-green-950/60 border border-green-700 rounded-2xl px-4 py-3 text-sm text-green-300">
+              <ClipboardCheck size={18} className="shrink-0 mt-0.5" />
+              <span>
+                Imagem copiada! O WhatsApp já abriu no grupo.{" "}
+                <strong>Cole com Ctrl+V</strong> (ou <strong>⌘V</strong> no Mac) e envie. 🚀
+              </span>
+            </div>
           )}
 
           {/* Hidden card used for capture */}
