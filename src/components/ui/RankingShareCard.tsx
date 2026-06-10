@@ -217,7 +217,7 @@ export const RankingShareCard = forwardRef<HTMLDivElement, RankingShareCardProps
             </div>
             {insights.map((ins, i) => (
               <div
-                key={i}
+                key={`${ins.emoji}-${i}`}
                 style={{
                   padding: "9px 16px",
                   fontSize: 13,

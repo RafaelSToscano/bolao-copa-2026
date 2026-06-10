@@ -274,22 +274,30 @@ export function generateRoundInsights(
     );
 
     const nonAdminPlayers = players.filter((p) => !p.is_admin);
-    const prevRanking = nonAdminPlayers
-      .map((player) => {
-        let total = 0;
-        for (const game of gamesWithoutRound) {
-          const pred = predictions.find(
-            (p) => p.player_id === player.id && p.game_id === game.id
-          );
-          const { points } = calculatePredictionPoints(pred, game);
-          total += points;
-        }
-        return { id: player.id, total };
-      })
-      .sort((a, b) => b.total - a.total);
+
+    // Build a full prediction lookup to avoid O(n²) .find() calls
+    const allPredMap = new Map<string, Prediction>(
+      predictions.map((p) => [`${p.player_id}-${p.game_id}`, p])
+    );
+
+    const rankByGames = (gameList: typeof games) =>
+      nonAdminPlayers
+        .map((player) => {
+          let total = 0;
+          for (const game of gameList) {
+            const pred = allPredMap.get(`${player.id}-${game.id}`);
+            const { points } = calculatePredictionPoints(pred, game);
+            total += points;
+          }
+          return { id: player.id, total };
+        })
+        .sort((a, b) => b.total - a.total);
+
+    const prevRanking = rankByGames(gamesWithoutRound);
+    const currentRanking = rankByGames(games);
 
     const prevTop10 = new Set(prevRanking.slice(0, 10).map((p) => p.id));
-    const currentTop10Ids = [...playerMap.keys()].slice(0, 10);
+    const currentTop10Ids = currentRanking.slice(0, 10).map((p) => p.id);
     const currentTop10 = new Set(currentTop10Ids);
 
     const entered = currentTop10Ids.filter((id) => !prevTop10.has(id));

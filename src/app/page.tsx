@@ -16,7 +16,6 @@ import { StandingsSection } from "@/components/sections/StandingsSection";
 import { KnockoutSection } from "@/components/sections/KnockoutSection";
 import { RankingSection } from "@/components/sections/RankingSection";
 import { AdminSection } from "@/components/sections/AdminSection";
-import { Card } from "@/components/ui/card";
 import { calculatePredictionPoints } from "@/services/predictions/predictionCalculations";
 import { gamesService } from "@/services/supabase/gamesService";
 import { calculateGroupStandingsFromPredictions, buildGamesFromPredictions } from "@/services/standings/predictionSimulation";
@@ -105,8 +104,13 @@ export default function Home() {
   setLoginCode("");
   const success = await login(accessCode, password);
     if (success) {
-  const savedUser = localStorage.getItem("bolao_user");
-  const user = savedUser ? JSON.parse(savedUser) : null;
+  let user = null;
+  try {
+    const savedUser = localStorage.getItem("bolao_user");
+    user = savedUser ? JSON.parse(savedUser) : null;
+  } catch {
+    localStorage.removeItem("bolao_user");
+  }
   await loadData(user?.id);
 }
   };
