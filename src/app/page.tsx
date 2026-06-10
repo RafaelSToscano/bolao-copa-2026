@@ -399,6 +399,7 @@ const handleClearConfirmed = async () => {
         games={MOCK_GAMES}
         predictions={MOCK_PREDICTIONS}
         players={MOCK_PLAYERS}
+        positionChanges={MOCK_POSITION_CHANGES}
         onClose={() => setShowShareModal(false)}
       />
     )}

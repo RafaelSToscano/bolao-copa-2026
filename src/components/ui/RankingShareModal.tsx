@@ -18,6 +18,7 @@ interface RankingShareModalProps {
   games: Game[];
   predictions: Prediction[];
   players: Player[];
+  positionChanges?: Map<string, number>;
   onClose: () => void;
 }
 
@@ -34,6 +35,7 @@ export function RankingShareModal({
   games,
   predictions,
   players,
+  positionChanges: positionChangesProp,
   onClose,
 }: RankingShareModalProps) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -42,7 +44,7 @@ export function RankingShareModal({
   const [error, setError] = useState<string | null>(null);
 
   const insights = generateRoundInsights(games, predictions, players);
-  const positionChanges = calculatePositionChanges(ranking, games, predictions, players);
+  const positionChanges = positionChangesProp ?? calculatePositionChanges(ranking, games, predictions, players);
   const date = formatDate(new Date());
 
   useEffect(() => {
