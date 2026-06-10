@@ -28,6 +28,7 @@ import { RulesSection } from "@/components/sections/RulesSection";
 import { PlayoffSection } from "@/components/sections/PlayoffSection";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { RankingShareModal } from "@/components/ui/RankingShareModal";
+import { MOCK_RANKING, MOCK_GAMES, MOCK_PREDICTIONS, MOCK_PLAYERS } from "@/utils/mockShareData";
 
 type TabType =
   | "palpites"
@@ -337,7 +338,7 @@ const handleClearConfirmed = async () => {
               onClick={() => setShowShareModal(true)}
               className="text-xs text-slate-500 underline underline-offset-2 hover:text-slate-300 cursor-pointer"
             >
-              [dev] Testar compartilhamento
+              [dev] Testar compartilhamento (mock)
             </button>
           </div>
           <RankingSection ranking={ranking} />
@@ -394,10 +395,10 @@ const handleClearConfirmed = async () => {
 
     {showShareModal && (
       <RankingShareModal
-        ranking={ranking}
-        games={games}
-        predictions={predictions}
-        players={players}
+        ranking={MOCK_RANKING}
+        games={MOCK_GAMES}
+        predictions={MOCK_PREDICTIONS}
+        players={MOCK_PLAYERS}
         onClose={() => setShowShareModal(false)}
       />
     )}
