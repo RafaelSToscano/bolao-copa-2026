@@ -53,6 +53,9 @@ export function PredictionsSection({
     acc[group].push(game);
     return acc;
   }, {});
+  Object.values(groupedGames).forEach((g) =>
+    g.sort((a, b) => (a.match_date ?? "").localeCompare(b.match_date ?? ""))
+  );
 
   return (
     <div className="space-y-4">
