@@ -2,9 +2,27 @@
 
 import { Player } from "@/types/player";
 import { Card, CardContent } from "@/components/ui/card";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface RankingSectionProps {
   ranking: (Player & { total: number; exacts: number })[];
+  positionChanges?: Map<string, number>;
+}
+
+function PositionBadge({ change }: { change: number | undefined }) {
+  if (change === undefined || change === 0)
+    return <span className="text-slate-600 text-xs flex items-center gap-0.5"><Minus size={12} /></span>;
+  if (change > 0)
+    return (
+      <span className="text-emerald-400 text-xs font-bold flex items-center gap-0.5">
+        <TrendingUp size={12} />+{change}
+      </span>
+    );
+  return (
+    <span className="text-red-400 text-xs font-bold flex items-center gap-0.5">
+      <TrendingDown size={12} />{change}
+    </span>
+  );
 }
 
 const podiumCards = [
@@ -28,7 +46,7 @@ const podiumCards = [
   },
 ];
 
-export function RankingSection({ ranking }: RankingSectionProps) {
+export function RankingSection({ ranking, positionChanges }: RankingSectionProps) {
   const lastPlayer = ranking.length > 0 ? ranking[ranking.length - 1] : null;
 
   return (
@@ -69,8 +87,9 @@ export function RankingSection({ ranking }: RankingSectionProps) {
                   {player.total} pts
                 </div>
 
-                <div className="text-xs text-slate-400">
-                  {player.exacts} placares exatos
+                <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
+                  <span>{player.exacts} placares exatos</span>
+                  <PositionBadge change={positionChanges?.get(player.id)} />
                 </div>
               </CardContent>
             </Card>
@@ -98,8 +117,9 @@ export function RankingSection({ ranking }: RankingSectionProps) {
                 {lastPlayer.total} pts
               </div>
 
-              <div className="text-xs text-slate-400">
-                Prêmio consolação 😅
+              <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
+                <span>Prêmio consolação 😅</span>
+                <PositionBadge change={positionChanges?.get(lastPlayer.id)} />
               </div>
             </CardContent>
           </Card>
@@ -118,16 +138,20 @@ export function RankingSection({ ranking }: RankingSectionProps) {
                 {index + 1}º
               </div>
 
-              <div className="col-span-6 font-semibold">
+              <div className="col-span-5 font-semibold truncate">
                 {player.name}
+              </div>
+
+              <div className="col-span-2 flex justify-center">
+                <PositionBadge change={positionChanges?.get(player.id)} />
               </div>
 
               <div className="col-span-2 text-right font-bold">
                 {player.total}
               </div>
 
-              <div className="col-span-2 text-right text-xs text-slate-400">
-                {player.exacts} exatos
+              <div className="col-span-1 text-right text-xs text-slate-500">
+                {player.exacts}✓
               </div>
             </div>
           ))}

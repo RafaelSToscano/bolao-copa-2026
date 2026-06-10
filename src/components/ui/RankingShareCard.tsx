@@ -8,6 +8,15 @@ interface RankingShareCardProps {
   ranking: (Player & { total: number; exacts: number })[];
   insights: Insight[];
   date: string;
+  positionChanges?: Map<string, number>;
+}
+
+function ChangeTag({ change }: { change: number | undefined }) {
+  if (change === undefined || change === 0)
+    return <span style={{ color: "#475569", fontSize: 11 }}>–</span>;
+  if (change > 0)
+    return <span style={{ color: "#34d399", fontSize: 11, fontWeight: 700 }}>▲+{change}</span>;
+  return <span style={{ color: "#f87171", fontSize: 11, fontWeight: 700 }}>▼{change}</span>;
 }
 
 const podium = [
@@ -17,7 +26,7 @@ const podium = [
 ];
 
 export const RankingShareCard = forwardRef<HTMLDivElement, RankingShareCardProps>(
-  function RankingShareCard({ ranking, insights, date }, ref) {
+  function RankingShareCard({ ranking, insights, date, positionChanges }, ref) {
     const top3 = ranking.slice(0, 3);
     const middle = ranking.slice(3, 10);
     const last = ranking.length > 3 ? ranking[ranking.length - 1] : null;
@@ -91,8 +100,9 @@ export const RankingShareCard = forwardRef<HTMLDivElement, RankingShareCardProps
                   >
                     {i + 1}º {player.name}
                   </div>
-                  <div style={{ fontSize: 12, color: "#64748b" }}>
-                    {player.exacts} placar{player.exacts !== 1 ? "es" : ""} exato{player.exacts !== 1 ? "s" : ""}
+                  <div style={{ fontSize: 12, color: "#64748b", display: "flex", gap: 6, alignItems: "center" }}>
+                    <span>{player.exacts} placar{player.exacts !== 1 ? "es" : ""} exato{player.exacts !== 1 ? "s" : ""}</span>
+                    <ChangeTag change={positionChanges?.get(player.id)} />
                   </div>
                 </div>
                 <div
@@ -144,11 +154,13 @@ export const RankingShareCard = forwardRef<HTMLDivElement, RankingShareCardProps
                 <span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>
                   {player.name}
                 </span>
+                <ChangeTag change={positionChanges?.get(player.id)} />
                 <span
                   style={{
                     fontSize: 14,
                     fontWeight: 800,
                     color: "#e2e8f0",
+                    marginLeft: 8,
                   }}
                 >
                   {player.total} pts

@@ -16,6 +16,7 @@ vi.mock('@/services/ranking/leaderboardCalculations', () => ({
       }))
       .sort((a, b) => b.total - a.total);
   }),
+  calculatePositionChanges: vi.fn(() => new Map()),
 }));
 
 describe('useRanking Hook', () => {

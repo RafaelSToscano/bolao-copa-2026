@@ -7,6 +7,7 @@ import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
 import { RankingShareCard } from "./RankingShareCard";
 import { generateRoundInsights } from "@/utils/roundInsights";
+import { calculatePositionChanges } from "@/services/ranking/leaderboardCalculations";
 import { Button } from "./button";
 import { Download, Share2, X, Loader2 } from "lucide-react";
 
@@ -41,6 +42,7 @@ export function RankingShareModal({
   const [error, setError] = useState<string | null>(null);
 
   const insights = generateRoundInsights(games, predictions, players);
+  const positionChanges = calculatePositionChanges(ranking, games, predictions, players);
   const date = formatDate(new Date());
 
   useEffect(() => {
@@ -147,6 +149,7 @@ export function RankingShareModal({
               ranking={ranking}
               insights={insights}
               date={date}
+              positionChanges={positionChanges}
             />
           </div>
         </div>

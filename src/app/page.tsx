@@ -28,7 +28,7 @@ import { RulesSection } from "@/components/sections/RulesSection";
 import { PlayoffSection } from "@/components/sections/PlayoffSection";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { RankingShareModal } from "@/components/ui/RankingShareModal";
-import { MOCK_RANKING, MOCK_GAMES, MOCK_PREDICTIONS, MOCK_PLAYERS } from "@/utils/mockShareData";
+import { MOCK_RANKING, MOCK_GAMES, MOCK_PREDICTIONS, MOCK_PLAYERS, MOCK_POSITION_CHANGES } from "@/utils/mockShareData";
 
 type TabType =
   | "palpites"
@@ -89,7 +89,7 @@ export default function Home() {
     games,
     predictions
   );
-  const { ranking } = useRanking(players, games, predictions);
+  const { ranking, positionChanges } = useRanking(players, games, predictions);
   const { round32 } = useKnockout(games, predictions, currentUser?.id);
   const stats = useAppStats(players, games, predictions, currentUser?.id);
 
@@ -341,7 +341,7 @@ const handleClearConfirmed = async () => {
               [dev] Testar compartilhamento (mock)
             </button>
           </div>
-          <RankingSection ranking={ranking} />
+          <RankingSection ranking={ranking} positionChanges={positionChanges} />
         </>
       )}
       

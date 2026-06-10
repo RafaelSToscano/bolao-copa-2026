@@ -264,6 +264,54 @@ export function generateRoundInsights(
     }
   }
 
+  // ── Top-10 entries and exits ─────────────────────────────────────────────────
+  if (roundGames.length > 0) {
+    const lastRoundIds = new Set(roundGames.map((g) => g.id));
+    const gamesWithoutRound = games.map((g) =>
+      lastRoundIds.has(g.id)
+        ? { ...g, official_score_a: null as null, official_score_b: null as null }
+        : g
+    );
+
+    const nonAdminPlayers = players.filter((p) => !p.is_admin);
+    const prevRanking = nonAdminPlayers
+      .map((player) => {
+        let total = 0;
+        for (const game of gamesWithoutRound) {
+          const pred = predictions.find(
+            (p) => p.player_id === player.id && p.game_id === game.id
+          );
+          const { points } = calculatePredictionPoints(pred, game);
+          total += points;
+        }
+        return { id: player.id, total };
+      })
+      .sort((a, b) => b.total - a.total);
+
+    const prevTop10 = new Set(prevRanking.slice(0, 10).map((p) => p.id));
+    const currentTop10Ids = [...playerMap.keys()].slice(0, 10);
+    const currentTop10 = new Set(currentTop10Ids);
+
+    const entered = currentTop10Ids.filter((id) => !prevTop10.has(id));
+    const exited = [...prevTop10].filter((id) => !currentTop10.has(id));
+
+    if (entered.length > 0) {
+      const names = entered.map((id) => playerMap.get(id)).filter(Boolean) as string[];
+      if (names.length === 1)
+        candidates.push({ emoji: "🚪", text: `${names[0]} entrou no Top 10! Bora subir mais! 📈` });
+      else
+        candidates.push({ emoji: "🚪", text: `${names.slice(0, 2).join(" e ")} entraram no Top 10 nessa rodada! 📈` });
+    }
+
+    if (exited.length > 0) {
+      const names = exited.map((id) => playerMap.get(id)).filter(Boolean) as string[];
+      if (names.length === 1)
+        candidates.push({ emoji: "📉", text: `${names[0]} caiu fora do Top 10. Vai recuperar na próxima! 😬` });
+      else
+        candidates.push({ emoji: "📉", text: `${names.slice(0, 2).join(" e ")} saíram do Top 10 nessa rodada. Que virada! 😬` });
+    }
+  }
+
   const priority = candidates.filter((c) => c.emoji === "⭐" || c.emoji === "🎯");
   const others = candidates.filter((c) => c.emoji !== "⭐" && c.emoji !== "🎯");
   return [...priority, ...others];

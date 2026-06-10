@@ -42,6 +42,26 @@ export const MOCK_RANKING: (Player & { total: number; exacts: number })[] = [
   { ...MOCK_PLAYERS[15], total:  18, exacts: 0 },
 ];
 
+// positive = moved up, negative = moved down, 0 = same
+export const MOCK_POSITION_CHANGES = new Map<string, number>([
+  ["p1",   0],
+  ["p2",  +3],
+  ["p3",  -1],
+  ["p4",  +2],
+  ["p5",   0],
+  ["p6",  -2],
+  ["p7",  +1],
+  ["p8",  -1],
+  ["p9",  +4],
+  ["p10",  0],
+  ["p11", -3],
+  ["p12", +1],
+  ["p13",  0],
+  ["p14", -2],
+  ["p15", +2],
+  ["p16", -1],
+]);
+
 // ── Last-round games (yesterday, all with official scores) ────────────────────
 
 const TODAY = new Date();
