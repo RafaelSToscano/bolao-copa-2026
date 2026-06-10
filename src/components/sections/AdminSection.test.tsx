@@ -24,12 +24,19 @@ const mockStats = {
   approvedPlayers: 1,
   pendingPlayers: 1,
   activePlayers: 1,
+  incompletePlayers: 0,
+  zeroPlayers: 0,
 };
+
+const mockRanking = [
+  { id: 'p1', name: 'João Silva', access_code: 'A1', is_admin: false, approved: true, total: 42, exacts: 2 },
+];
 
 const baseProps = {
   games: mockGames,
   predictions: [],
   players: mockPlayers,
+  ranking: mockRanking,
   onUpdateResult: vi.fn(),
   onApprovePlayer: vi.fn(),
   onRejectPlayer: vi.fn(),

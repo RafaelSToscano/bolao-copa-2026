@@ -27,6 +27,7 @@ import { SimulationSection } from "@/components/sections/SimulationSection";
 import { RulesSection } from "@/components/sections/RulesSection";
 import { PlayoffSection } from "@/components/sections/PlayoffSection";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { RankingShareModal } from "@/components/ui/RankingShareModal";
 
 type TabType =
   | "palpites"
@@ -76,6 +77,7 @@ export default function Home() {
   const [loginCode, setLoginCode] = useState("");
   const [message, setMessage] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Phase state
   const { isGroupsLocked } = usePhaseState();
@@ -258,6 +260,7 @@ const handleClearConfirmed = async () => {
   }
 
   return (
+    <>
     <AppLayout
       currentUser={currentUser}
       activeTab={tab}
@@ -327,7 +330,18 @@ const handleClearConfirmed = async () => {
       )}
 
       {tab === "ranking" && (
-        <RankingSection ranking={ranking} />
+        <>
+          {/* TODO: remove after testing — temp share button for non-admins */}
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="text-xs text-slate-500 underline underline-offset-2 hover:text-slate-300 cursor-pointer"
+            >
+              [dev] Testar compartilhamento
+            </button>
+          </div>
+          <RankingSection ranking={ranking} />
+        </>
       )}
       
       {tab === "simulador" && (
@@ -350,6 +364,7 @@ const handleClearConfirmed = async () => {
           games={games}
           predictions={predictions}
           players={players}
+          ranking={ranking}
           onUpdateResult={handleUpdateOfficialResult}
           onApprovePlayer={handleApprovePlayer}
           onRejectPlayer={handleRejectPlayer}
@@ -376,5 +391,16 @@ const handleClearConfirmed = async () => {
         onCancel={() => setShowClearConfirm(false)}
       />
     )}
+
+    {showShareModal && (
+      <RankingShareModal
+        ranking={ranking}
+        games={games}
+        predictions={predictions}
+        players={players}
+        onClose={() => setShowShareModal(false)}
+      />
+    )}
+    </>
   );
 }

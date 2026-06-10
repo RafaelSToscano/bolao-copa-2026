@@ -1,18 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
+import { Player } from "@/types/player";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Flag } from "@/components/ui/Flag";
 import { formatDate, exportAuditCsv } from "@/lib/formatting";
 import { calculatePredictionPoints } from "@/services/predictions/predictionCalculations";
+import { RankingShareModal } from "@/components/ui/RankingShareModal";
+import { Share2 } from "lucide-react";
 
 interface AdminSectionProps {
   games: Game[];
   predictions: Prediction[];
-  players: any[];
+  players: Player[];
+  ranking: (Player & { total: number; exacts: number })[];
   onUpdateResult: (
   gameId: string,
   field: "official_score_a" | "official_score_b",
@@ -34,11 +39,14 @@ export function AdminSection({
   games,
   predictions,
   players,
+  ranking,
   onUpdateResult,
   onApprovePlayer,
   onRejectPlayer,
   stats,
 }: AdminSectionProps) {
+  const [showShareModal, setShowShareModal] = useState(false);
+
   const handleExportCsv = () => {
     exportAuditCsv(players, games, predictions, calculatePredictionPoints);
   };
@@ -56,15 +64,32 @@ export function AdminSection({
     </p>
     </div>
 
-  <div>
+  <div className="flex flex-wrap gap-3">
+    <Button
+      onClick={() => setShowShareModal(true)}
+      className="bg-green-600 hover:bg-green-500 text-white font-bold gap-2"
+    >
+      <Share2 size={16} />
+      Compartilhar Ranking
+    </Button>
     <Button
           onClick={handleExportCsv}
-          className="mt-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold"
+          className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold"
         >
                 Exportar auditoria CSV
     </Button>
   </div>
 </div>
+
+      {showShareModal && (
+        <RankingShareModal
+          ranking={ranking}
+          games={games}
+          predictions={predictions}
+          players={players}
+          onClose={() => setShowShareModal(false)}
+        />
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
