@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@/test/utils';
+import { render, screen, fireEvent } from '@/test/utils';
 import userEvent from '@testing-library/user-event';
 import {
   RandomPredictor,
@@ -147,13 +147,14 @@ describe('SingleGameRandomPredictor Component', () => {
     expect(screen.getByRole('button')).toBeDisabled();
   });
 
-  it('should call onGeneratePrediction with the correct gameId after click', async () => {
+  it('should call onGeneratePrediction with the correct gameId after confirming', async () => {
     const onGeneratePrediction = vi.fn();
     render(
       <SingleGameRandomPredictor gameId="g1" onGeneratePrediction={onGeneratePrediction} />
     );
 
-    screen.getByRole('button').click();
+    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByText('Gerar'));
     await vi.runAllTimersAsync();
 
     expect(onGeneratePrediction).toHaveBeenCalledTimes(1);
@@ -161,6 +162,19 @@ describe('SingleGameRandomPredictor Component', () => {
     expect(prediction.game_id).toBe('g1');
     expect(prediction.predicted_score_a).toBeGreaterThanOrEqual(0);
     expect(prediction.predicted_score_b).toBeGreaterThanOrEqual(0);
+  });
+
+  it('should not call onGeneratePrediction when confirmation is cancelled', async () => {
+    const onGeneratePrediction = vi.fn();
+    render(
+      <SingleGameRandomPredictor gameId="g1" onGeneratePrediction={onGeneratePrediction} />
+    );
+
+    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByText('Cancelar'));
+    await vi.runAllTimersAsync();
+
+    expect(onGeneratePrediction).not.toHaveBeenCalled();
   });
 
   it('should show tooltip title', () => {

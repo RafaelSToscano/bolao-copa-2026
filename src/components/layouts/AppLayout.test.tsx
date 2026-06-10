@@ -23,6 +23,7 @@ const baseProps = {
   onTabChange: vi.fn(),
   onLogout: vi.fn(),
   children: <div data-testid="content">Conteúdo</div>,
+  userCompletion: 50,
 };
 
 describe('AppLayout Component', () => {

@@ -12,6 +12,7 @@ import {
   BookOpen,
   GitBranch,
 } from "lucide-react";
+import { DeadlineBanner } from "@/components/ui/DeadlineBanner";
 
 type TabType =
   | "palpites"
@@ -29,6 +30,7 @@ interface AppLayoutProps {
   onTabChange: (tab: TabType) => void;
   onLogout: () => void;
   children: React.ReactNode;
+  userCompletion: number;
 }
 
 export function AppLayout({
@@ -37,6 +39,7 @@ export function AppLayout({
   onTabChange,
   onLogout,
   children,
+  userCompletion,
 }: AppLayoutProps) {
   const menuItems = [
     {
@@ -87,8 +90,20 @@ export function AppLayout({
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
+      <DeadlineBanner
+        userCompletion={userCompletion}
+        onGoToPredictions={() => {
+          const alreadyThere = activeTab === "palpites";
+          if (!alreadyThere) onTabChange("palpites");
+          setTimeout(
+            () => document.getElementById("group-predictions")?.scrollIntoView({ behavior: "smooth" }),
+            alreadyThere ? 0 : 150
+          );
+        }}
+      />
+
       {/* MOBILE HEADER */}
-      <div className="lg:hidden bg-gradient-to-r from-blue-900 via-slate-900 to-emerald-900 border-b border-slate-800">
+      <div className="lg:hidden bg-gradient-to-r from-blue-900 via-slate-900 to-emerald-900 border-b border-slate-800 pt-9">
         <div className="p-4 flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <img
@@ -120,7 +135,7 @@ export function AppLayout({
 
       <div className="lg:flex">
         {/* DESKTOP SIDEBAR */}
-        <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-72 bg-slate-950 border-r border-slate-800 p-6 flex-col justify-between">
+        <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-72 bg-slate-950 border-r border-slate-800 pt-14 pb-6 px-6 flex-col justify-between">
           <div className="space-y-8">
             <div className="text-center space-y-3">
               <img
@@ -201,7 +216,7 @@ export function AppLayout({
 
         {/* DESKTOP CONTENT */}
         <main className="hidden lg:block ml-72 w-[calc(100%-18rem)] min-h-screen">
-          <div className="p-8 space-y-6 max-w-[1600px] mx-auto">
+          <div className="pt-14 p-8 space-y-6 max-w-[1600px] mx-auto">
             {children}
           </div>
         </main>

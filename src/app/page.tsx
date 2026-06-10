@@ -26,6 +26,7 @@ import { playersService } from "@/services/supabase/playersService";
 import { SimulationSection } from "@/components/sections/SimulationSection";
 import { RulesSection } from "@/components/sections/RulesSection";
 import { PlayoffSection } from "@/components/sections/PlayoffSection";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 type TabType =
   | "palpites"
@@ -74,6 +75,7 @@ export default function Home() {
   const [loginName, setLoginName] = useState("");
   const [loginCode, setLoginCode] = useState("");
   const [message, setMessage] = useState("");
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Phase state
   const { isGroupsLocked } = usePhaseState();
@@ -223,17 +225,14 @@ export default function Home() {
   await playersService.rejectPlayer(playerId);
   await loadData(currentUser?.id);
     };
-const handleClearPredictions = async () => {
+const handleClearPredictions = () => {
   if (groupsLocked) return;
+  setShowClearConfirm(true);
+};
 
-  const confirmed = window.confirm(
-    "Tem certeza que deseja apagar todos os seus palpites?"
-  );
-
-  if (!confirmed) return;
-
+const handleClearConfirmed = async () => {
+  setShowClearConfirm(false);
   await clearPlayerPredictions();
-
   setMessage("Seus palpites foram apagados com sucesso.");
 };
   if (isChecking) {
@@ -264,6 +263,7 @@ const handleClearPredictions = async () => {
       activeTab={tab}
       onTabChange={handleTabChange}
       onLogout={logout}
+      userCompletion={stats.userCompletion}
     >
       {/* Message Display */}
       {(dataError || message) && (
@@ -364,5 +364,17 @@ const handleClearPredictions = async () => {
         />
       )}
     </AppLayout>
+
+    {showClearConfirm && (
+      <ConfirmModal
+        title="Apagar palpites"
+        message="Tem certeza que deseja apagar todos os seus palpites? Esta ação não pode ser desfeita."
+        confirmLabel="Apagar tudo"
+        cancelLabel="Cancelar"
+        variant="danger"
+        onConfirm={handleClearConfirmed}
+        onCancel={() => setShowClearConfirm(false)}
+      />
+    )}
   );
 }

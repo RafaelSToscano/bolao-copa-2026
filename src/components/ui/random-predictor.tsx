@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Dice5 } from "lucide-react";
 import { Button } from "./button";
+import { ConfirmModal } from "./ConfirmModal";
 
 export type Game = {
   id: string;
@@ -127,51 +128,62 @@ export function SingleGameRandomPredictor({
   disabled = false,
 }: SingleGameRandomPredictorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  const handleGeneratePrediction = () => {
+  const handleConfirmed = () => {
+    setShowConfirm(false);
     setIsGenerating(true);
 
-    // Small delay for animation/UX feedback
     setTimeout(() => {
-      const prediction: RandomPrediction = {
+      onGeneratePrediction({
         game_id: gameId,
         predicted_score_a: generateRandomScore(),
         predicted_score_b: generateRandomScore(),
-      };
-
-      onGeneratePrediction(prediction);
+      });
       setIsGenerating(false);
     }, 200);
   };
 
   return (
-  <button
-    onClick={handleGeneratePrediction}
-    disabled={disabled || isGenerating}
-    className="
-      flex items-center gap-2
-      px-3 py-2
-      rounded-xl
-      bg-slate-900/80
-      border border-slate-700
-      hover:border-yellow-500
-      hover:bg-slate-800
-      disabled:opacity-50
-      disabled:cursor-not-allowed
-      text-slate-300
-      hover:text-yellow-400
-      transition-all
-      text-xs
-      font-bold
-      shadow-lg
-    "
-    title="Gerar palpite aleatório para este jogo"
-  >
-    <Dice5 size={15} />
+    <>
+      <button
+        onClick={() => setShowConfirm(true)}
+        disabled={disabled || isGenerating}
+        className="
+          flex items-center gap-2
+          px-3 py-2
+          rounded-xl
+          bg-slate-900/80
+          border border-slate-700
+          hover:border-yellow-500
+          hover:bg-slate-800
+          disabled:opacity-50
+          disabled:cursor-not-allowed
+          text-slate-300
+          hover:text-yellow-400
+          transition-all
+          text-xs
+          font-bold
+          shadow-lg
+          cursor-pointer
+        "
+        title="Gerar palpite aleatório para este jogo"
+      >
+        <Dice5 size={15} />
+        <span className="hidden xl:inline">Aleatório</span>
+      </button>
 
-    <span className="hidden xl:inline">
-      Aleatório
-    </span>
-  </button>
-);
+      {showConfirm && (
+        <ConfirmModal
+          title="Palpite aleatório"
+          message="Isso vai substituir o palpite atual deste jogo por um resultado gerado aleatoriamente."
+          confirmLabel="Gerar"
+          cancelLabel="Cancelar"
+          variant="warning"
+          onConfirm={handleConfirmed}
+          onCancel={() => setShowConfirm(false)}
+        />
+      )}
+    </>
+  );
 }

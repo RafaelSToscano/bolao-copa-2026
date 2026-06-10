@@ -171,7 +171,7 @@ export function PredictionsSection({
         {/* Desktop Dashboard Layout */}
         <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-6 items-start">
         {/* Main Content */}
-        <div className="space-y-8">
+        <div id="group-predictions" className="space-y-8">
         {Object.entries(groupedGames).map(([group, groupGames]) => (
           <div
             key={group}
