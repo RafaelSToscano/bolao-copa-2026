@@ -264,15 +264,7 @@ export function generateRoundInsights(
     }
   }
 
-  // ── Shuffle and pick 3 (prioritise top scorer + 2 random interesting ones) ────
   const priority = candidates.filter((c) => c.emoji === "⭐" || c.emoji === "🎯");
   const others = candidates.filter((c) => c.emoji !== "⭐" && c.emoji !== "🎯");
-
-  // Shuffle others for variety
-  for (let i = others.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [others[i], others[j]] = [others[j], others[i]];
-  }
-
-  return [...priority, ...others].slice(0, 3);
+  return [...priority, ...others];
 }
