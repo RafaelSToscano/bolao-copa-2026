@@ -1,5 +1,13 @@
 # Changelog
 
+## [v1.2.0] — 2026-06-11
+
+### Novidades
+- **Jogo do Momento**: destaque automático na tela de Palpites enquanto um jogo está acontecendo — mostra bandeiras, equipes e o seu palpite em tamanho grande para facilitar o acompanhamento pela TV
+- Suporte a múltiplos jogos simultâneos (fase eliminatória com partidas no mesmo horário)
+
+---
+
 ## [v1.1.0] — 2026-06-10
 
 ### Novidades
