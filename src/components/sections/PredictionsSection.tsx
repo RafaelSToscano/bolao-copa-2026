@@ -11,6 +11,8 @@ import { Flag } from "@/components/ui/Flag";
 import { formatDate } from "@/lib/formatting";
 import { calculateGroupStandingsFromPredictions } from "@/services/standings/predictionSimulation";
 import { FinalPredictionsCard } from "@/components/sections/FinalPredictionsCard";
+import { LiveGameBanner } from "@/components/ui/LiveGameBanner";
+import { getLiveGames } from "@/lib/liveGames";
 interface PredictionsSectionProps {
   games: Game[];
   predictions: Prediction[];
@@ -47,6 +49,8 @@ export function PredictionsSection({
   onClearPredictions,
   userStats,
 }: PredictionsSectionProps) {
+  const liveGameIds = new Set(getLiveGames(games).map((g) => g.id));
+
   const groupedGames = games.reduce((acc: Record<string, Game[]>, game) => {
     const group = game.group_name || "Outros";
     if (!acc[group]) acc[group] = [];
@@ -59,6 +63,13 @@ export function PredictionsSection({
 
   return (
     <div className="space-y-4">
+      {/* Live / current game highlight */}
+      <LiveGameBanner
+        games={games}
+        predictions={predictions}
+        currentUserId={currentUserId}
+      />
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
         <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[92px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
@@ -323,10 +334,15 @@ export function PredictionsSection({
                   predicted_score_b: existing?.predicted_score_b?.toString() ?? "",
                 };
 
+               const isLive = liveGameIds.has(game.id);
                return (
   <div
     key={game.id}
-    className="border-b border-slate-800 bg-slate-950/40 hover:bg-slate-900/70 transition"
+    className={`border-b transition ${
+      isLive
+        ? "border-amber-500/30 bg-amber-900/10 hover:bg-amber-900/20"
+        : "border-slate-800 bg-slate-950/40 hover:bg-slate-900/70"
+    }`}
   >
     {/* Mobile */}
     <div className="md:hidden p-3 space-y-3">

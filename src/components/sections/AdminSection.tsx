@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
 import { Player } from "@/types/player";
@@ -11,7 +11,9 @@ import { Flag } from "@/components/ui/Flag";
 import { formatDate, exportAuditCsv } from "@/lib/formatting";
 import { calculatePredictionPoints } from "@/services/predictions/predictionCalculations";
 import { RankingShareModal } from "@/components/ui/RankingShareModal";
-import { Share2, List } from "lucide-react";
+import { Share2, List, ChevronDown, ChevronUp, ShieldCheck } from "lucide-react";
+import { auditService } from "@/services/supabase/auditService";
+import { PredictionAuditEntry } from "@/types/audit";
 
 interface AdminSectionProps {
   games: Game[];
@@ -46,6 +48,19 @@ export function AdminSection({
   stats,
 }: AdminSectionProps) {
   const [shareMode, setShareMode] = useState<"highlight" | "full" | null>(null);
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditLog, setAuditLog] = useState<PredictionAuditEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!auditOpen || auditLog.length > 0) return;
+    setAuditLoading(true);
+    auditService.getPredictionAudit()
+      .then(setAuditLog)
+      .catch((e) => setAuditError(e.message))
+      .finally(() => setAuditLoading(false));
+  }, [auditOpen]);
 
   const handleExportCsv = () => {
     exportAuditCsv(players, games, predictions, calculatePredictionPoints);
@@ -294,6 +309,88 @@ export function AdminSection({
             </div>
           </div>
         ))}
+      </div>
+
+      {/* ── Auditoria de Palpites ──────────────────────────────────────── */}
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden">
+        <button
+          onClick={() => setAuditOpen((o) => !o)}
+          className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-800/50 transition cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <ShieldCheck size={18} className="text-emerald-400 shrink-0" />
+            <div className="text-left">
+              <div className="font-bold text-white text-sm">Auditoria de Palpites</div>
+              <div className="text-slate-400 text-xs">Histórico completo de inserções e alterações</div>
+            </div>
+          </div>
+          {auditOpen ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+        </button>
+
+        {auditOpen && (
+          <div className="border-t border-slate-800">
+            {auditLoading && (
+              <div className="text-slate-400 text-sm text-center py-8">Carregando…</div>
+            )}
+            {auditError && (
+              <div className="text-red-400 text-sm text-center py-8">{auditError}</div>
+            )}
+            {!auditLoading && !auditError && auditLog.length === 0 && (
+              <div className="text-slate-500 text-sm text-center py-8">Nenhum registro ainda.</div>
+            )}
+            {!auditLoading && auditLog.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-800 text-slate-500 uppercase tracking-wide">
+                      <th className="text-left px-4 py-2 font-semibold">Quando</th>
+                      <th className="text-left px-4 py-2 font-semibold">Participante</th>
+                      <th className="text-left px-4 py-2 font-semibold">Jogo</th>
+                      <th className="text-center px-4 py-2 font-semibold">Ação</th>
+                      <th className="text-center px-4 py-2 font-semibold">Palpite</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {auditLog.map((entry) => (
+                      <tr key={entry.id} className="border-b border-slate-800/50 hover:bg-slate-800/30">
+                        <td className="px-4 py-2 text-slate-400 whitespace-nowrap">
+                          {new Date(entry.changed_at).toLocaleString("pt-BR", {
+                            day: "2-digit", month: "2-digit",
+                            hour: "2-digit", minute: "2-digit",
+                          })}
+                        </td>
+                        <td className="px-4 py-2 font-semibold text-white">{entry.player_name}</td>
+                        <td className="px-4 py-2 text-slate-300 whitespace-nowrap">
+                          {entry.team_a} × {entry.team_b}
+                        </td>
+                        <td className="px-4 py-2 text-center">
+                          {entry.action === "insert" ? (
+                            <span className="text-emerald-400 font-bold">novo</span>
+                          ) : (
+                            <span className="text-yellow-400 font-bold">alterado</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-center whitespace-nowrap">
+                          {entry.action === "update" && (
+                            <span className="text-slate-500 line-through mr-2">
+                              {entry.old_score_a}×{entry.old_score_b}
+                            </span>
+                          )}
+                          <span className="text-white font-bold">
+                            {entry.new_score_a}×{entry.new_score_b}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="text-center text-slate-600 text-xs py-3">
+                  Exibindo os últimos {auditLog.length} registros
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
