@@ -169,13 +169,25 @@ export function CrowdPredictionsSection({
 
                     <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4">
                     <div className="text-xs uppercase text-slate-400 font-black">
-                        Resultado
+                     Resumo das apostas
                     </div>
+
                     <div className="text-sm font-bold mt-2 space-y-1">
-                        <div>{game.team_a}: <span className="text-yellow-400">{resultCounts.A}</span></div>
-                        <div>Empate: <span className="text-yellow-400">{resultCounts.E}</span></div>
-                        <div>{game.team_b}: <span className="text-yellow-400">{resultCounts.B}</span></div>
-                    </div>
+                 <div>
+                  Vitória do {game.team_a}:{" "}
+                 <span className="text-yellow-400">{resultCounts.A} apostas</span>
+                </div>
+
+                <div>
+               Empate:{" "}
+                  <span className="text-yellow-400">{resultCounts.E} apostas</span>
+                </div>
+
+                <div>
+                  Vitória da {game.team_b}:{" "}
+             <span className="text-yellow-400">{resultCounts.B} apostas</span>
+            </div>
+            </div>
                     </div>
                 </div>
 
