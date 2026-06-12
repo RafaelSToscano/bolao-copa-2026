@@ -12,6 +12,7 @@ import { formatDate } from "@/lib/formatting";
 import { calculateGroupStandingsFromPredictions } from "@/services/standings/predictionSimulation";
 import { FinalPredictionsCard } from "@/components/sections/FinalPredictionsCard";
 import { LiveGameBanner } from "@/components/ui/LiveGameBanner";
+import { NextGameBanner } from "@/components/ui/NextGameBanner";
 import { getLiveGames } from "@/lib/liveGames";
 interface PredictionsSectionProps {
   games: Game[];
@@ -69,7 +70,11 @@ export function PredictionsSection({
         predictions={predictions}
         currentUserId={currentUserId}
       />
-
+      <NextGameBanner
+        games={games}
+        predictions={predictions}
+        currentUserId={currentUserId}
+/>
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
         <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[92px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
