@@ -8,7 +8,7 @@ export function getLiveGames(games: Game[]): Game[] {
     if (!game.match_date) return false;
     const kickoff = new Date(game.match_date).getTime();
     const elapsed = (now - kickoff) / 60000;
-    return elapsed >= 0 && elapsed <= LIVE_WINDOW_MINUTES;
+      return elapsed >= 0 && elapsed <= LIVE_WINDOW_MINUTES;
   });
 }
 

@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
 import { Flag } from "@/components/ui/Flag";
-import { getLiveGames } from "@/lib/liveGames";
+import { getLiveGames, getElapsedMinutes } from "@/lib/liveGames";
+import { useLiveScores, findLiveScoreForGame } from "@/hooks/useLiveScores";
+import { calculatePredictionPoints } from "@/services/predictions/predictionCalculations";
 
 interface LiveGameBannerProps {
   games: Game[];
@@ -22,6 +24,7 @@ function KickoffTime({ matchDate }: { matchDate: string }) {
 
 export function LiveGameBanner({ games, predictions, currentUserId }: LiveGameBannerProps) {
   const [liveGames, setLiveGames] = useState<Game[]>([]);
+  const liveScores = useLiveScores(liveGames);
 
   useEffect(() => {
     const update = () => setLiveGames(getLiveGames(games));
@@ -59,6 +62,42 @@ export function LiveGameBanner({ games, predictions, currentUserId }: LiveGameBa
           const hasPrediction =
             prediction?.predicted_score_a != null &&
             prediction?.predicted_score_b != null;
+          const liveScore = findLiveScoreForGame(game, liveScores);
+
+          const hasLiveScore =
+           liveScore?.homeScore !== null &&
+           liveScore?.homeScore !== undefined &&
+           liveScore?.awayScore !== null &&
+           liveScore?.awayScore !== undefined;
+           const livePoints =
+  hasLiveScore && prediction
+    ? calculatePredictionPoints(prediction, {
+        ...game,
+        official_score_a: liveScore!.homeScore,
+        official_score_b: liveScore!.awayScore,
+      }).points
+    : null;
+
+const livePointsMessage =
+  livePoints === null
+    ? null
+    : livePoints === 15
+      ? "🔥 Placar exato neste momento"
+      : livePoints > 0
+        ? `🏆 Você está fazendo ${livePoints} pontos`
+        : "❌ Nenhum ponto neste momento";
+          const elapsedMinutes = game.match_date ? getElapsedMinutes(game.match_date) : null;
+
+          const liveMinute =
+          elapsedMinutes === null
+         ? null
+          : elapsedMinutes <= 45
+         ? `${elapsedMinutes}'`
+          : elapsedMinutes <= 60
+           ? "Intervalo"
+         : elapsedMinutes <= 105
+          ? `${elapsedMinutes - 15}'`
+          : "Fim de jogo";
 
           return (
             <div
@@ -78,6 +117,14 @@ export function LiveGameBanner({ games, predictions, currentUserId }: LiveGameBa
                   <span className="text-xs font-black text-amber-400 uppercase tracking-wider">
                     Acontecendo agora
                   </span>
+                  {liveMinute && (
+  <>
+                   <span className="text-amber-700 text-xs mx-0.5">·</span>
+                  <span className="text-xs font-black text-white">
+                 ⏱ {liveMinute}
+                  </span>
+                </>
+                  )}
                   {game.match_date && (
                     <>
                       <span className="text-amber-700 text-xs mx-0.5">·</span>
@@ -103,36 +150,76 @@ export function LiveGameBanner({ games, predictions, currentUserId }: LiveGameBa
                   </span>
                 </div>
 
-                {/* Predicted score */}
-                <div className="flex flex-col items-center gap-2">
-                  {hasPrediction ? (
-                    <>
-                      <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest bg-amber-500/10 border border-amber-500/25 rounded-full px-3 py-0.5">
-                        Seu palpite
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-4xl font-black text-amber-300 tabular-nums">
-                          {prediction!.predicted_score_a}
-                        </span>
-                        <span className="text-2xl font-black text-slate-500">×</span>
-                        <span className="text-4xl font-black text-amber-300 tabular-nums">
-                          {prediction!.predicted_score_b}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-slate-800 border border-slate-700 rounded-full px-3 py-0.5">
-                        Sem palpite
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-4xl font-black text-slate-600 tabular-nums">—</span>
-                        <span className="text-2xl font-black text-slate-700">×</span>
-                        <span className="text-4xl font-black text-slate-600 tabular-nums">—</span>
-                      </div>
-                    </>
-                  )}
-                </div>
+                {/* Center */}
+<div className="flex flex-col items-center gap-2">
+
+  {hasLiveScore && liveScore && (
+    <>
+      <span className="text-[10px] font-black text-red-400 uppercase tracking-widest bg-red-500/10 border border-red-500/25 rounded-full px-3 py-0.5">
+        Placar ao vivo
+      </span>
+
+      <div className="flex items-center gap-2">
+  <span className="text-4xl font-black text-red-300 tabular-nums">
+    {liveScore.homeScore}
+  </span>
+
+  <span className="text-2xl font-black text-slate-500">×</span>
+
+  <span className="text-4xl font-black text-red-300 tabular-nums">
+    {liveScore.awayScore}
+  </span>
+</div>
+      {livePointsMessage && (
+  <div
+      className={`text-base font-black rounded-full px-4 py-2 border ${
+      livePoints === 15
+        ? "text-yellow-300 bg-yellow-500/10 border-yellow-500/30"
+        : livePoints && livePoints > 0
+          ? "text-emerald-300 bg-emerald-500/10 border-emerald-500/30"
+          : "text-red-300 bg-red-500/10 border-red-500/30"
+    }`}
+  >
+    {livePointsMessage}
+    {livePoints === 15 ? " · +15 pts" : ""}
+  </div>
+)}
+    </>
+  )}
+
+  {hasPrediction ? (
+  <>
+    <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest bg-amber-500/10 border border-amber-500/25 rounded-full px-3 py-0.5">
+      Seu palpite
+    </span>
+
+    <div className="flex items-center gap-2">
+      <span className="text-4xl font-black text-amber-300 tabular-nums">
+        {prediction!.predicted_score_a}
+      </span>
+
+      <span className="text-2xl font-black text-slate-500">×</span>
+
+      <span className="text-4xl font-black text-amber-300 tabular-nums">
+        {prediction!.predicted_score_b}
+      </span>
+    </div>
+  </>
+) : (
+    <>
+      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-slate-800 border border-slate-700 rounded-full px-3 py-0.5">
+        Sem palpite
+      </span>
+
+      <div className="flex items-center gap-2">
+        <span className="text-3xl font-black text-slate-600">—</span>
+        <span className="text-xl font-black text-slate-700">×</span>
+        <span className="text-3xl font-black text-slate-600">—</span>
+      </div>
+    </>
+  )}
+
+</div>
 
                 {/* Team B */}
                 <div className="flex flex-col items-center gap-2 min-w-0">
