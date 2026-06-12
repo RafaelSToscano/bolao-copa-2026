@@ -1,11 +1,16 @@
 import { getSupabaseClient } from "./supabaseClient";
 import { Prediction } from "@/types/prediction";
+import { USE_MOCK_DATA, MOCK_PREDICTIONS } from "@/services/mock";
 
 export const predictionsService = {
   /**
    * Fetches all predictions
    */
   async getAllPredictions(): Promise<Prediction[]> {
+  if (USE_MOCK_DATA) {
+    return MOCK_PREDICTIONS;
+  }
+
   const supabase = getSupabaseClient();
 
   const pageSize = 1000;
@@ -42,6 +47,10 @@ export const predictionsService = {
    * Gets predictions for a specific player
    */
   async getPredictionsForPlayer(playerId: string): Promise<Prediction[]> {
+    if (USE_MOCK_DATA) {
+      return MOCK_PREDICTIONS.filter((p) => p.player_id === playerId);
+    }
+
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from("predictions")
@@ -59,6 +68,8 @@ export const predictionsService = {
    * Upserts a single prediction
    */
   async upsertPrediction(prediction: Prediction): Promise<void> {
+    if (USE_MOCK_DATA) return;
+
     const supabase = getSupabaseClient();
     const { error } = await supabase
       .from("predictions")
@@ -73,6 +84,8 @@ export const predictionsService = {
    * Upserts multiple predictions
    */
   async upsertPredictions(predictions: Prediction[]): Promise<void> {
+    if (USE_MOCK_DATA) return;
+
     const supabase = getSupabaseClient();
     const { error } = await supabase
       .from("predictions")
@@ -83,6 +96,8 @@ export const predictionsService = {
     }
   },
   async deletePredictionsForPlayer(playerId: string): Promise<void> {
+  if (USE_MOCK_DATA) return;
+
   const supabase = getSupabaseClient();
 
   const { error } = await supabase

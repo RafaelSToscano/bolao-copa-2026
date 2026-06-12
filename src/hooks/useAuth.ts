@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Player } from "@/types/player";
 import { playersService } from "@/services/supabase/playersService";
+import { USE_MOCK_DATA, MOCK_PLAYERS } from "@/services/mock";
 
 const LOCAL_STORAGE_KEY = "bolao_user";
 
@@ -14,11 +15,31 @@ export function useAuth() {
     const savedUser = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (savedUser) {
       try {
-        setCurrentUser(JSON.parse(savedUser));
+        const parsed = JSON.parse(savedUser) as Player;
+        if (USE_MOCK_DATA) {
+          const stillValid = MOCK_PLAYERS.some((p) => p.id === parsed.id);
+          if (stillValid) {
+            setCurrentUser(parsed);
+            setIsChecking(false);
+            return;
+          }
+          localStorage.removeItem(LOCAL_STORAGE_KEY);
+        } else {
+          setCurrentUser(parsed);
+          setIsChecking(false);
+          return;
+        }
       } catch {
         localStorage.removeItem(LOCAL_STORAGE_KEY);
       }
     }
+
+    if (USE_MOCK_DATA && MOCK_PLAYERS.length > 0) {
+      const fallback = MOCK_PLAYERS[0];
+      setCurrentUser(fallback);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(fallback));
+    }
+
     setIsChecking(false);
   }, []);
 

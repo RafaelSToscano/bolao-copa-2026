@@ -57,6 +57,58 @@ export function calculatePredictionPoints(
   return { points, exact: 0 };
 }
 
+export interface PredictionPointsBreakdown {
+  total: number;
+  exact: boolean;
+  correctOutcome: boolean;
+  correctTeamA: boolean;
+  correctTeamB: boolean;
+}
+
+/**
+ * Returns the per-rule breakdown that produces the same total as
+ * `calculatePredictionPoints`. Used by UI surfaces (e.g. the live
+ * card's points-chip tooltip) that need to explain WHY the user is
+ * earning a given number of points.
+ */
+export function calculatePredictionPointsBreakdown(
+  prediction: Prediction | undefined,
+  game: Game | undefined
+): PredictionPointsBreakdown | null {
+  if (!prediction || !game) return null;
+
+  const pa = prediction.predicted_score_a;
+  const pb = prediction.predicted_score_b;
+  const ra = game.official_score_a;
+  const rb = game.official_score_b;
+  if (pa === null || pb === null || ra === null || rb === null) return null;
+
+  if (pa === ra && pb === rb) {
+    return {
+      total: SCORING_RULES.EXACT_SCORE,
+      exact: true,
+      correctOutcome: true,
+      correctTeamA: true,
+      correctTeamB: true,
+    };
+  }
+
+  const correctOutcome = getOutcome(pa, pb) === getOutcome(ra, rb);
+  const correctTeamA = pa === ra;
+  const correctTeamB = pb === rb;
+  const total =
+    (correctOutcome ? SCORING_RULES.CORRECT_OUTCOME : 0) +
+    (correctTeamA ? SCORING_RULES.CORRECT_TEAM_SCORE : 0) +
+    (correctTeamB ? SCORING_RULES.CORRECT_TEAM_SCORE : 0);
+  return {
+    total,
+    exact: false,
+    correctOutcome,
+    correctTeamA,
+    correctTeamB,
+  };
+}
+
 /**
  * Validates if a prediction is complete
  * @param prediction - The prediction to validate

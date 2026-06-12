@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "./supabaseClient";
+import { USE_MOCK_DATA } from "@/services/mock";
 
 export type FinalPrediction = {
   player_id: string;
@@ -10,6 +11,16 @@ export type FinalPrediction = {
 
 export const finalPredictionsService = {
   async getByPlayer(playerId: string): Promise<FinalPrediction | null> {
+    if (USE_MOCK_DATA) {
+      return {
+        player_id: playerId,
+        champion: "Brasil",
+        runner_up: "Argentina",
+        third_place: "França",
+        updated_at: new Date().toISOString(),
+      };
+    }
+
     const supabase = getSupabaseClient();
 
     const { data, error } = await supabase
@@ -26,6 +37,8 @@ export const finalPredictionsService = {
   },
 
   async getAll(): Promise<FinalPrediction[]> {
+    if (USE_MOCK_DATA) return [];
+
     const supabase = getSupabaseClient();
 
     const { data, error } = await supabase
@@ -40,6 +53,8 @@ export const finalPredictionsService = {
   },
 
   async upsert(prediction: FinalPrediction): Promise<void> {
+    if (USE_MOCK_DATA) return;
+
     const supabase = getSupabaseClient();
 
     const { error } = await supabase

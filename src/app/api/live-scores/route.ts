@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
+import { USE_MOCK_DATA, getMockLiveScores } from "@/services/mock";
 
 export async function GET() {
+  if (USE_MOCK_DATA) {
+    return NextResponse.json(getMockLiveScores());
+  }
+
   try {
     const response = await fetch(
       "https://api.football-data.org/v4/matches",
@@ -15,7 +20,7 @@ export async function GET() {
     const data = await response.json();
 
     return NextResponse.json(data);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Erro ao buscar jogos ao vivo" },
       { status: 500 }

@@ -18,6 +18,20 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+### Local development without backend
+
+To run the app without Supabase or football-data credentials, set
+`NEXT_PUBLIC_USE_MOCK_DATA=true` in `.env.local`. The service layer
+and the `/api/live-scores` route then return in-memory fixtures
+(10 players, 72 group games, full prediction matrix, derived live
+scores). Writes are no-ops.
+
+The flag defaults to **`false`** when unset and is matched against
+the literal string `"true"` only — production deploys must NOT set
+this variable, and CI/preview environments should leave it unset
+unless explicitly testing the mock layer. See `docs/dashboard.md`
+for details.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
