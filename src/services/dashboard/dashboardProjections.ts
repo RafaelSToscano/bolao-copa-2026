@@ -10,7 +10,10 @@ import {
   DashboardRecentPayload,
   DashboardUpcomingPayload,
 } from "@/types/dashboard";
-import { calculateRanking } from "@/services/ranking/leaderboardCalculations";
+import {
+  calculatePositionChanges,
+  calculateRanking,
+} from "@/services/ranking/leaderboardCalculations";
 import { calculatePredictionPoints } from "@/services/predictions/predictionCalculations";
 import { calculateAllGroupStandings } from "@/services/standings/standingsCalculations";
 
@@ -115,23 +118,29 @@ export function projectRankingTop(
     officialRanking.map((row) => [row.id, row.total])
   );
 
-  const top = liveRanking.slice(0, topN).map((row) => ({
+  // Mirror the Ranking screen's "since last round" arrow so the
+  // dashboard shows the same delta when no live match is folding in
+  // provisional points. Computed against the OFFICIAL ranking (not
+  // the live one) so the value stays stable during a live match.
+  const lastRoundDeltas = calculatePositionChanges(
+    officialRanking,
+    games,
+    predictions,
+    players
+  );
+
+  const decorate = (row: (typeof liveRanking)[number]) => ({
     ...row,
     officialPosition: officialPositionByPlayerId.get(row.id) ?? row.position,
     officialTotal: officialTotalByPlayerId.get(row.id) ?? row.total,
-  }));
+    lastRoundDelta: lastRoundDeltas.get(row.id) ?? 0,
+  });
+
+  const top = liveRanking.slice(0, topN).map(decorate);
 
   const lanternaRow =
     liveRanking.length > 0 ? liveRanking[liveRanking.length - 1] : null;
-  const lanterna = lanternaRow
-    ? {
-        ...lanternaRow,
-        officialPosition:
-          officialPositionByPlayerId.get(lanternaRow.id) ?? lanternaRow.position,
-        officialTotal:
-          officialTotalByPlayerId.get(lanternaRow.id) ?? lanternaRow.total,
-      }
-    : null;
+  const lanterna = lanternaRow ? decorate(lanternaRow) : null;
 
   return { top, lanterna, provisional };
 }

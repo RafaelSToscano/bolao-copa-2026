@@ -1,6 +1,9 @@
 import { Game } from "@/types/game";
 import { MOCK_NOW } from "./mockNow";
 
+const MOCK_DISABLE_LIVE =
+  process.env.NEXT_PUBLIC_MOCK_DISABLE_LIVE === "true";
+
 const GROUPS: Record<string, [string, string, string, string]> = {
   A: ["México", "Coreia do Sul", "África do Sul", "República Tcheca"],
   B: ["Canadá", "Bósnia", "Catar", "Suíça"],
@@ -104,10 +107,12 @@ function buildAll(): Game[] {
 
       // Stagger kickoffs by global index, but inject two live matches
       // by pinning specific (groupIndex, pairIndex) slots near MOCK_NOW.
+      // The pinning is suppressed when NEXT_PUBLIC_MOCK_DISABLE_LIVE is
+      // set so we can exercise the no-live-match UI branch.
       let kickoffMs: number;
-      if (groupIndex === 2 && pairIndex === 0) {
+      if (!MOCK_DISABLE_LIVE && groupIndex === 2 && pairIndex === 0) {
         kickoffMs = MOCK_NOW - 25 * MINUTE; // live, ~25 min in
-      } else if (groupIndex === 7 && pairIndex === 1) {
+      } else if (!MOCK_DISABLE_LIVE && groupIndex === 7 && pairIndex === 1) {
         kickoffMs = MOCK_NOW - 60 * MINUTE; // live, ~60 min in
       } else {
         let candidate = start + globalIndex * stepHours * HOUR;
