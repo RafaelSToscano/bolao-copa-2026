@@ -115,15 +115,32 @@ export function DashboardLiveCard({
             prediction?.predicted_score_a != null &&
             prediction?.predicted_score_b != null;
           const liveScore = findLiveScoreForGame(game, liveScores);
-          const hasLiveScore =
+          const liveScoreAvailable =
             liveScore?.homeScore != null && liveScore?.awayScore != null;
+          // Fall back to the official score the admin recorded once the
+          // match is over. Without this the card shows "Fim de jogo"
+          // with empty dashes when the live-scores API has already
+          // dropped the finished match.
+          const officialAvailable =
+            game.official_score_a != null && game.official_score_b != null;
+          const homeScore = liveScoreAvailable
+            ? liveScore!.homeScore
+            : officialAvailable
+              ? game.official_score_a
+              : null;
+          const awayScore = liveScoreAvailable
+            ? liveScore!.awayScore
+            : officialAvailable
+              ? game.official_score_b
+              : null;
+          const hasScore = homeScore != null && awayScore != null;
 
           const liveBreakdown =
-            hasLiveScore && prediction
+            hasScore && prediction
               ? calculatePredictionPointsBreakdown(prediction, {
                   ...game,
-                  official_score_a: liveScore!.homeScore,
-                  official_score_b: liveScore!.awayScore,
+                  official_score_a: homeScore,
+                  official_score_b: awayScore,
                 })
               : null;
 
@@ -190,14 +207,14 @@ export function DashboardLiveCard({
                 </div>
 
                 <div className="flex flex-col items-center gap-2">
-                  {hasLiveScore && liveScore ? (
+                  {hasScore ? (
                     <div className="flex items-center gap-3">
                       <span className="text-5xl font-black text-red-300 tabular-nums">
-                        {liveScore.homeScore}
+                        {homeScore}
                       </span>
                       <span className="text-3xl font-black text-slate-500">×</span>
                       <span className="text-5xl font-black text-red-300 tabular-nums">
-                        {liveScore.awayScore}
+                        {awayScore}
                       </span>
                     </div>
                   ) : (

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { UpcomingMatchesCard } from "../UpcomingMatchesCard";
 import { Game } from "@/types/game";
@@ -40,5 +40,35 @@ describe("UpcomingMatchesCard", () => {
   it("does not render a 'Ver todos' link", () => {
     render(<UpcomingMatchesCard games={[game({ id: "g1" })]} />);
     expect(screen.queryByText(/Ver todos/)).not.toBeInTheDocument();
+  });
+
+  describe("today's matches", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-06-20T15:00:00.000Z"));
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("highlights matches scheduled for today with a 'Hoje' badge", () => {
+      const games = [
+        game({
+          id: "today",
+          team_a: "Brasil",
+          team_b: "Argentina",
+          match_date: "2026-06-20T20:00:00.000Z",
+        }),
+        game({
+          id: "tomorrow",
+          team_a: "México",
+          team_b: "Canadá",
+          match_date: "2026-06-21T20:00:00.000Z",
+        }),
+      ];
+      render(<UpcomingMatchesCard games={games} />);
+      const badges = screen.getAllByText("Hoje");
+      expect(badges).toHaveLength(1);
+    });
   });
 });
