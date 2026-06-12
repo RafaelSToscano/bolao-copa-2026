@@ -11,6 +11,7 @@ import {
   Calculator,
   BookOpen,
   GitBranch,
+  MessageSquare,
 } from "lucide-react";
 import { DeadlineBanner, LockedBanner } from "@/components/ui/DeadlineBanner";
 
@@ -68,9 +69,9 @@ export function AppLayout({
       icon: Calculator,
     },
     {
-      id: "playoff" as TabType,
-      label: "Meu Mata-mata",
-      icon: GitBranch,
+     id: "playoff" as TabType,
+     label: "Palpites da Galera",
+    icon: MessageSquare,
     },
     {
       id: "regras" as TabType,

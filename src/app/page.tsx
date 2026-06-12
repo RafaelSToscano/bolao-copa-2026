@@ -23,6 +23,7 @@ import { playersService } from "@/services/supabase/playersService";
 import { SimulationSection } from "@/components/sections/SimulationSection";
 import { RulesSection } from "@/components/sections/RulesSection";
 import { PlayoffSection } from "@/components/sections/PlayoffSection";
+import { CrowdPredictionsSection } from "@/components/sections/CrowdPredictionsSection";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 type TabType =
@@ -336,9 +337,15 @@ const handleClearConfirmed = async () => {
         predictions={predictions}
   />  )}
 
-      {tab === "playoff" && (
-        <PlayoffSection round32={round32} />
-      )}
+      {tab === "playoff" && currentUser && (
+      <CrowdPredictionsSection
+     games={games}
+      predictions={predictions}
+      players={players}
+     currentUserId={currentUser.id}
+     ranking={ranking}
+/>
+)}
 
       {tab === "regras" && (
         <RulesSection />
