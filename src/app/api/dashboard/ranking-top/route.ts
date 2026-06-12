@@ -22,7 +22,7 @@ export async function GET() {
         predictionsService.getAllPredictions(),
         getCachedLiveScores(),
       ]);
-      return projectRankingTop(players, games, predictions, 5, liveScores);
+      return projectRankingTop(players, games, predictions, 10, liveScores);
     }
   );
 

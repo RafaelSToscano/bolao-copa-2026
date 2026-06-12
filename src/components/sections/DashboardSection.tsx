@@ -10,7 +10,7 @@ import {
   useLiveScores,
 } from "@/hooks/useLiveScores";
 import { DashboardLiveCard } from "./dashboard/DashboardLiveCard";
-import { RankingTopFive } from "./dashboard/RankingTopFive";
+import { RankingTopTen } from "./dashboard/RankingTopTen";
 import { UpcomingMatchesCard } from "./dashboard/UpcomingMatchesCard";
 import { RecentResultsCard } from "./dashboard/RecentResultsCard";
 import { MyStatusCard } from "./dashboard/MyStatusCard";
@@ -147,7 +147,7 @@ export function DashboardSection({
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="space-y-6">
-          <RankingTopFive
+          <RankingTopTen
             top={data.rankingTop?.top ?? []}
             lanterna={data.rankingTop?.lanterna ?? null}
             provisional={data.rankingTop?.provisional ?? false}
