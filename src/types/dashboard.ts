@@ -15,10 +15,16 @@ export type RankingRow = Player & {
  * in) and the DB-source-of-truth values, so the client can render a
  * stable +N/-N delta against the official ranking for the entire
  * duration of a live match.
+ *
+ * `lastRoundDelta` mirrors the "since last round" arrow shown on the
+ * Ranking screen: positive = moved up, negative = moved down, 0 = no
+ * change (or no completed round yet). The dashboard surfaces this
+ * when no live match is in progress so both screens agree.
  */
 export type LiveRankingRow = RankingRow & {
   officialPosition: number;
   officialTotal: number;
+  lastRoundDelta: number;
 };
 
 export interface DashboardLivePayload {

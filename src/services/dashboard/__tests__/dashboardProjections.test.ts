@@ -172,6 +172,54 @@ describe("projectRankingTop", () => {
     expect(result.top.every((r) => r.total === r.officialTotal)).toBe(true);
   });
 
+  it("populates lastRoundDelta from completed-round movement", () => {
+    // Round 1 (older date): p1 nails it, p2 misses → p1 leads.
+    // Round 2 (latest date, two games): p2 nails both, p1 misses
+    // both → p2 jumps ahead in the final standing.
+    const players = [player("p1", "P1"), player("p2", "P2")];
+    const games: Game[] = [
+      game({
+        id: "r1",
+        match_date: "2026-06-10T18:00:00.000Z",
+        official_score_a: 2,
+        official_score_b: 0,
+      }),
+      game({
+        id: "r2a",
+        match_date: "2026-06-12T15:00:00.000Z",
+        official_score_a: 1,
+        official_score_b: 1,
+      }),
+      game({
+        id: "r2b",
+        match_date: "2026-06-12T18:00:00.000Z",
+        official_score_a: 3,
+        official_score_b: 0,
+      }),
+    ];
+    const predictions: Prediction[] = [
+      { player_id: "p1", game_id: "r1", predicted_score_a: 2, predicted_score_b: 0 },
+      { player_id: "p2", game_id: "r1", predicted_score_a: 0, predicted_score_b: 2 },
+      { player_id: "p1", game_id: "r2a", predicted_score_a: 0, predicted_score_b: 0 },
+      { player_id: "p2", game_id: "r2a", predicted_score_a: 1, predicted_score_b: 1 },
+      { player_id: "p1", game_id: "r2b", predicted_score_a: 0, predicted_score_b: 3 },
+      { player_id: "p2", game_id: "r2b", predicted_score_a: 3, predicted_score_b: 0 },
+    ];
+
+    const result = projectRankingTop(players, games, predictions, 5);
+    const p1 = result.top.find((r) => r.id === "p1");
+    const p2 = result.top.find((r) => r.id === "p2");
+    expect(p2?.position).toBe(1);
+    expect(p2?.lastRoundDelta).toBe(1); // climbed from 2nd → 1st
+    expect(p1?.lastRoundDelta).toBe(-1); // dropped from 1st → 2nd
+  });
+
+  it("lastRoundDelta is 0 when no round has been scored", () => {
+    const players = [player("p1", "P1"), player("p2", "P2")];
+    const result = projectRankingTop(players, [], [], 5);
+    expect(result.top.every((r) => r.lastRoundDelta === 0)).toBe(true);
+  });
+
   it("does not modify games whose official score is already set", () => {
     const players = [player("u1", "Me")];
     const games: Game[] = [
