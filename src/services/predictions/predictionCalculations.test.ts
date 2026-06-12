@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getOutcome,
   calculatePredictionPoints,
+  calculatePredictionPointsBreakdown,
   isPredictionComplete,
   isPredictionEmpty,
 } from '@/services/predictions/predictionCalculations';
@@ -349,6 +350,91 @@ describe('Prediction Calculations', () => {
         predicted_score_b: 0,
       };
       expect(isPredictionEmpty(prediction)).toBe(false);
+    });
+  });
+
+  describe('calculatePredictionPointsBreakdown', () => {
+    function pred(a: number | null, b: number | null): Prediction {
+      return {
+        id: 'p',
+        player_id: 'u1',
+        game_id: 'g1',
+        predicted_score_a: a,
+        predicted_score_b: b,
+      };
+    }
+    function gme(a: number | null, b: number | null): Game {
+      return {
+        id: 'g1',
+        phase: 'groups',
+        group_name: 'A',
+        match_order: 1,
+        match_date: null,
+        team_a: 'A',
+        team_b: 'B',
+        official_score_a: a,
+        official_score_b: b,
+        locked: false,
+      };
+    }
+
+    it('returns null when prediction or game is missing data', () => {
+      expect(calculatePredictionPointsBreakdown(undefined, gme(1, 0))).toBeNull();
+      expect(calculatePredictionPointsBreakdown(pred(null, 0), gme(1, 0))).toBeNull();
+      expect(calculatePredictionPointsBreakdown(pred(1, 0), gme(null, 0))).toBeNull();
+    });
+
+    it('flags exact match with all flags true and total = EXACT_SCORE', () => {
+      const r = calculatePredictionPointsBreakdown(pred(2, 1), gme(2, 1));
+      expect(r).toEqual({
+        total: SCORING_RULES.EXACT_SCORE,
+        exact: true,
+        correctOutcome: true,
+        correctTeamA: true,
+        correctTeamB: true,
+      });
+    });
+
+    it('matches the documented BRA 0x0 vs 3x2 case (0 pts)', () => {
+      // Predicted A wins 3-2, actual draw 0-0 → no outcome match, no
+      // team-A match (3≠0), no team-B match (2≠0) → 0 pts
+      const r = calculatePredictionPointsBreakdown(pred(3, 2), gme(0, 0));
+      expect(r).toEqual({
+        total: 0,
+        exact: false,
+        correctOutcome: false,
+        correctTeamA: false,
+        correctTeamB: false,
+      });
+    });
+
+    it('matches the documented KSA 0x0 vs 0x2 case (2 pts)', () => {
+      // Predicted B wins 0-2, actual draw 0-0 → no outcome match,
+      // team-A matches (0=0 → +2), no team-B match (2≠0) → 2 pts
+      const r = calculatePredictionPointsBreakdown(pred(0, 2), gme(0, 0));
+      expect(r).toEqual({
+        total: SCORING_RULES.CORRECT_TEAM_SCORE,
+        exact: false,
+        correctOutcome: false,
+        correctTeamA: true,
+        correctTeamB: false,
+      });
+    });
+
+    it('totals remain in sync with calculatePredictionPoints', () => {
+      const cases: Array<[Prediction, Game]> = [
+        [pred(0, 0), gme(0, 0)], // exact draw
+        [pred(2, 1), gme(2, 1)], // exact A win
+        [pred(2, 1), gme(3, 1)], // outcome + team B
+        [pred(2, 1), gme(1, 0)], // outcome only
+        [pred(0, 2), gme(0, 0)], // team A only
+        [pred(3, 2), gme(0, 0)], // nothing
+      ];
+      for (const [p, g] of cases) {
+        const breakdown = calculatePredictionPointsBreakdown(p, g);
+        const points = calculatePredictionPoints(p, g);
+        expect(breakdown?.total).toBe(points.points);
+      }
     });
   });
 });

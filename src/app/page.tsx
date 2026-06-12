@@ -11,6 +11,7 @@ import { useKnockout } from "@/hooks/useKnockout";
 import { useAppStats } from "@/hooks/useAppStats";
 import { AuthForm } from "@/components/forms/AuthForm";
 import { AppLayout } from "@/components/layouts/AppLayout";
+import { DashboardSection } from "@/components/sections/DashboardSection";
 import { PredictionsSection } from "@/components/sections/PredictionsSection";
 import { StandingsSection } from "@/components/sections/StandingsSection";
 import { KnockoutSection } from "@/components/sections/KnockoutSection";
@@ -27,6 +28,7 @@ import { CrowdPredictionsSection } from "@/components/sections/CrowdPredictionsS
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 type TabType =
+  | "dashboard"
   | "palpites"
   | "classificacao"
   | "matamata"
@@ -69,7 +71,7 @@ export default function Home() {
 } = usePredictions(currentUser?.id, games, predictions, setPredictions);
 
   // UI state
-  const [tab, setTab] = useState<TabType>("palpites");
+  const [tab, setTab] = useState<TabType>("dashboard");
   const [message, setMessage] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
@@ -139,6 +141,17 @@ export default function Home() {
             : g
         )
       );
+
+      // Bust the dashboard's in-memory cache so viewers see the new
+      // result on their next poll (within seconds) instead of waiting
+      // up to s-maxage. Best-effort; failures don't block the UI.
+      if (currentUser?.id) {
+        void fetch("/api/dashboard/cache/evict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: currentUser.id }),
+        }).catch(() => {});
+      }
 
       setMessage("Resultado atualizado com sucesso!");
       setTimeout(() => setMessage(""), 3000);
@@ -279,6 +292,14 @@ const handleClearConfirmed = async () => {
       )}
 
       {/* Tab Content */}
+      {tab === "dashboard" && currentUser && (
+        <DashboardSection
+          currentUserId={currentUser.id}
+          myPredictions={predictions}
+          onNavigate={(t) => setTab(t)}
+        />
+      )}
+
       {tab === "palpites" && currentUser && (
         <PredictionsSection
           games={games}

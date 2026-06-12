@@ -57,8 +57,17 @@ export function findLiveScoreForGame(
 
   const gameTime = new Date(game.match_date).getTime();
 
+  // Match by team-pair AND time proximity. Time alone is not enough
+  // when two live games kick off within 90 minutes of each other —
+  // we'd return the first match in that window for every lookup,
+  // showing the same score on different cards.
+  const teamPairMatches = (match: LiveScoreMatch) =>
+    (match.homeTeam === game.team_a && match.awayTeam === game.team_b) ||
+    (match.homeTeam === game.team_b && match.awayTeam === game.team_a);
+
   return (
     matches.find((match) => {
+      if (!teamPairMatches(match)) return false;
       const apiTime = new Date(match.utcDate).getTime();
       const diffMinutes = Math.abs(apiTime - gameTime) / 60000;
       return diffMinutes <= 90;

@@ -4,7 +4,7 @@ import { RankingSection } from '@/components/sections/RankingSection';
 import { Player } from '@/types/player';
 
 describe('RankingSection Component', () => {
-  const mockPlayers: (Player & { total: number; exacts: number })[] = [
+  const mockPlayers: (Player & { total: number; exacts: number; position: number })[] = [
     {
       id: '1',
       name: 'João Silva',
@@ -13,6 +13,7 @@ describe('RankingSection Component', () => {
       approved: true,
       total: 150,
       exacts: 5,
+      position: 1,
     },
     {
       id: '2',
@@ -22,6 +23,7 @@ describe('RankingSection Component', () => {
       approved: true,
       total: 120,
       exacts: 3,
+      position: 2,
     },
     {
       id: '3',
@@ -31,6 +33,7 @@ describe('RankingSection Component', () => {
       approved: true,
       total: 100,
       exacts: 2,
+      position: 3,
     },
     {
       id: '4',
@@ -40,6 +43,7 @@ describe('RankingSection Component', () => {
       approved: true,
       total: 80,
       exacts: 1,
+      position: 4,
     },
     {
       id: '5',
@@ -49,6 +53,7 @@ describe('RankingSection Component', () => {
       approved: true,
       total: 60,
       exacts: 0,
+      position: 5,
     },
   ];
 

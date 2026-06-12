@@ -79,6 +79,8 @@ export function DeadlineBanner({ userCompletion, onGoToPredictions }: DeadlineBa
   );
 }
 
+const LOCKED_BANNER_AUTO_DISMISS_MS = 10_000;
+
 export function LockedBanner() {
   const [visible, setVisible] = useState(false);
 
@@ -87,6 +89,18 @@ export function LockedBanner() {
     const dismissed = sessionStorage.getItem(LOCKED_BANNER_KEY) === "1";
     setVisible(passed && !dismissed);
   }, []);
+
+  // Auto-dismiss after 10s so the banner doesn't permanently steal
+  // viewport space. Persists the dismissal in sessionStorage like the
+  // manual close button does, so the same tab won't re-show it.
+  useEffect(() => {
+    if (!visible) return;
+    const t = setTimeout(() => {
+      sessionStorage.setItem(LOCKED_BANNER_KEY, "1");
+      setVisible(false);
+    }, LOCKED_BANNER_AUTO_DISMISS_MS);
+    return () => clearTimeout(t);
+  }, [visible]);
 
   const dismiss = () => {
     sessionStorage.setItem(LOCKED_BANNER_KEY, "1");

@@ -1,5 +1,6 @@
 import { getSupabaseClient } from "./supabaseClient";
 import { Player } from "@/types/player";
+import { USE_MOCK_DATA, MOCK_PLAYERS } from "@/services/mock";
 
 function normalizeAccessCode(value: string): string {
   return value.replace(/\D/g, "");
@@ -7,6 +8,10 @@ function normalizeAccessCode(value: string): string {
 
 export const playersService = {
   async getAllPlayers(): Promise<Player[]> {
+    if (USE_MOCK_DATA) {
+      return MOCK_PLAYERS;
+    }
+
     const supabase = getSupabaseClient();
 
     const { data, error } = await supabase
@@ -22,6 +27,15 @@ export const playersService = {
   },
 
   async findPlayerByAccessCode(accessCode: string): Promise<Player | null> {
+    if (USE_MOCK_DATA) {
+      const normalized = normalizeAccessCode(accessCode);
+      return (
+        MOCK_PLAYERS.find((p) => p.access_code === normalized) ||
+        MOCK_PLAYERS[0] ||
+        null
+      );
+    }
+
     const supabase = getSupabaseClient();
     const normalizedAccessCode = normalizeAccessCode(accessCode);
 
@@ -42,6 +56,18 @@ export const playersService = {
     accessCode: string,
     password: string
   ): Promise<Player | null> {
+    if (USE_MOCK_DATA) {
+      const normalized = normalizeAccessCode(accessCode);
+      const byCode = MOCK_PLAYERS.find((p) => p.access_code === normalized);
+      if (byCode) return byCode;
+
+      const asIndex = parseInt(normalized, 10);
+      if (!Number.isNaN(asIndex) && asIndex >= 0 && asIndex < MOCK_PLAYERS.length) {
+        return MOCK_PLAYERS[asIndex];
+      }
+      return MOCK_PLAYERS[0] || null;
+    }
+
     const supabase = getSupabaseClient();
     const normalizedAccessCode = normalizeAccessCode(accessCode);
 
@@ -62,6 +88,18 @@ export const playersService = {
     accessCode: string,
     password: string
   ): Promise<Player> {
+    if (USE_MOCK_DATA) {
+      const normalized = normalizeAccessCode(accessCode);
+      return {
+        id: `mock-pending-${normalized}`,
+        name,
+        access_code: normalized,
+        is_admin: false,
+        approved: false,
+        created_at: new Date().toISOString(),
+      };
+    }
+
     const supabase = getSupabaseClient();
     const normalizedAccessCode = normalizeAccessCode(accessCode);
 
@@ -79,6 +117,8 @@ export const playersService = {
   },
 
   async approvePlayer(playerId: string): Promise<void> {
+    if (USE_MOCK_DATA) return;
+
     const supabase = getSupabaseClient();
 
     const { error } = await supabase
@@ -92,6 +132,8 @@ export const playersService = {
   },
 
   async rejectPlayer(playerId: string): Promise<void> {
+    if (USE_MOCK_DATA) return;
+
     const supabase = getSupabaseClient();
 
     const { error } = await supabase

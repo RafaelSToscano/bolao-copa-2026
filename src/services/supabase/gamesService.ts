@@ -1,11 +1,16 @@
 import { getSupabaseClient } from "./supabaseClient";
 import { Game } from "@/types/game";
+import { USE_MOCK_DATA, MOCK_GAMES } from "@/services/mock";
 
 export const gamesService = {
   /**
    * Fetches all games
    */
   async getAllGames(): Promise<Game[]> {
+    if (USE_MOCK_DATA) {
+      return MOCK_GAMES;
+    }
+
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from("games")
@@ -31,6 +36,8 @@ export const gamesService = {
     if (value !== null && (!Number.isInteger(value) || value < 0)) {
       throw new Error("Placar inválido: deve ser um número inteiro não negativo.");
     }
+
+    if (USE_MOCK_DATA) return;
 
     const supabase = getSupabaseClient();
     const { error } = await supabase

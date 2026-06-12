@@ -29,7 +29,7 @@ const mockStats = {
 };
 
 const mockRanking = [
-  { id: 'p1', name: 'João Silva', access_code: 'A1', is_admin: false, approved: true, total: 42, exacts: 2 },
+  { id: 'p1', name: 'João Silva', access_code: 'A1', is_admin: false, approved: true, total: 42, exacts: 2, position: 1 },
 ];
 
 const baseProps = {
