@@ -88,16 +88,20 @@ const livePointsMessage =
         : "❌ Nenhum ponto neste momento";
           const elapsedMinutes = game.match_date ? getElapsedMinutes(game.match_date) : null;
 
-          const liveMinute =
-          elapsedMinutes === null
-         ? null
-          : elapsedMinutes <= 45
-         ? `${elapsedMinutes}'`
-          : elapsedMinutes <= 60
-           ? "Intervalo"
-         : elapsedMinutes <= 105
-          ? `${elapsedMinutes - 15}'`
-          : "Fim de jogo";
+          const isFinished = liveScore?.status === "FINISHED";
+
+const liveMinute =
+  isFinished
+    ? "Encerrado"
+    : elapsedMinutes === null
+      ? null
+      : elapsedMinutes <= 45
+        ? `${elapsedMinutes}'`
+        : elapsedMinutes <= 60
+          ? "Intervalo"
+          : elapsedMinutes <= 120
+            ? `${Math.min(elapsedMinutes - 15, 90)}'`
+            : "Aguardando atualização";
 
           return (
             <div

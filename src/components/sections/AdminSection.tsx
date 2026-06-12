@@ -194,7 +194,19 @@ export function AdminSection({
           RESULTADOS OFICIAIS
         </div>
 
-        {games.map((game) => (
+        {[...games]
+  .sort((a, b) => {
+    const dateA = a.match_date
+      ? new Date(a.match_date).getTime()
+      : Number.MAX_SAFE_INTEGER;
+
+    const dateB = b.match_date
+      ? new Date(b.match_date).getTime()
+      : Number.MAX_SAFE_INTEGER;
+
+    return dateA - dateB;
+  })
+  .map((game) => (
           <div
             key={game.id}
             className="border border-slate-800 bg-slate-950/80 rounded-2xl overflow-hidden shadow-lg"
