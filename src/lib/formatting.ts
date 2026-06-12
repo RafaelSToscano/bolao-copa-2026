@@ -8,6 +8,22 @@ export function getFlagCode(team: string): string {
 }
 
 /**
+ * True when `value` falls on the same calendar day as `now` in the
+ * viewer's local timezone. The dashboard uses this to discreetly flag
+ * matches happening today in the upcoming/recent lists.
+ */
+export function isToday(value: string | null, now: Date = new Date()): boolean {
+  if (!value) return false;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return false;
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
+/**
  * Formats a date string for display
  */
 export function formatDate(value: string | null): string {

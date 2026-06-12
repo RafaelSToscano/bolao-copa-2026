@@ -5,6 +5,7 @@ import { Flag } from "@/components/ui/Flag";
 import { Clock } from "lucide-react";
 import { DashboardRecentItem } from "@/types/dashboard";
 import { calculatePredictionPointsBreakdown } from "@/services/predictions/predictionCalculations";
+import { isToday } from "@/lib/formatting";
 import { StickySectionHeader } from "./StickySectionHeader";
 import { PointsChip } from "./PointsChip";
 
@@ -33,12 +34,24 @@ export function RecentResultsCard({ items }: RecentResultsCardProps) {
               const hasPrediction =
                 myPrediction?.predicted_score_a != null &&
                 myPrediction?.predicted_score_b != null;
+              const today = isToday(game.match_date);
 
               return (
                 <div
                   key={game.id}
-                  className="p-4 border-b border-slate-800 last:border-b-0 space-y-2"
+                  className={`p-4 border-b border-slate-800 last:border-b-0 space-y-2 ${
+                    today
+                      ? "bg-amber-500/[0.04] border-l-2 border-l-amber-500/60"
+                      : ""
+                  }`}
                 >
+                  {today && (
+                    <div className="flex items-center justify-end">
+                      <span className="text-[11px] font-black uppercase tracking-widest text-amber-400">
+                        Hoje
+                      </span>
+                    </div>
+                  )}
                   <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-center">
                     <div className="flex items-center gap-2 min-w-0">
                       <Flag team={game.team_a} size="medium" />

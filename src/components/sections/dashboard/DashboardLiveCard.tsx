@@ -6,7 +6,7 @@ import { Flag } from "@/components/ui/Flag";
 import { findLiveScoreForGame, LiveScoreMatch } from "@/hooks/useLiveScores";
 import { calculatePredictionPointsBreakdown } from "@/services/predictions/predictionCalculations";
 import { Prediction } from "@/types/prediction";
-import { getElapsedMinutes } from "@/lib/liveGames";
+import { describeLiveMinute, resolveLiveScore } from "@/lib/liveGames";
 import { LivePill } from "./LivePill";
 import { StickySectionHeader } from "./StickySectionHeader";
 import { PointsChip } from "./PointsChip";
@@ -115,31 +115,22 @@ export function DashboardLiveCard({
             prediction?.predicted_score_a != null &&
             prediction?.predicted_score_b != null;
           const liveScore = findLiveScoreForGame(game, liveScores);
-          const hasLiveScore =
-            liveScore?.homeScore != null && liveScore?.awayScore != null;
+          const { home: homeScore, away: awayScore } = resolveLiveScore(
+            game,
+            liveScore
+          );
+          const hasScore = homeScore != null && awayScore != null;
 
           const liveBreakdown =
-            hasLiveScore && prediction
+            hasScore && prediction
               ? calculatePredictionPointsBreakdown(prediction, {
                   ...game,
-                  official_score_a: liveScore!.homeScore,
-                  official_score_b: liveScore!.awayScore,
+                  official_score_a: homeScore,
+                  official_score_b: awayScore,
                 })
               : null;
 
-          const elapsedMinutes = game.match_date
-            ? getElapsedMinutes(game.match_date)
-            : null;
-          const liveMinute =
-            elapsedMinutes === null
-              ? null
-              : elapsedMinutes <= 45
-                ? `${elapsedMinutes}'`
-                : elapsedMinutes <= 60
-                  ? "Intervalo"
-                  : elapsedMinutes <= 105
-                    ? `${elapsedMinutes - 15}'`
-                    : "Fim de jogo";
+          const liveMinute = describeLiveMinute(game, liveScore);
 
           return (
             <div
@@ -190,14 +181,14 @@ export function DashboardLiveCard({
                 </div>
 
                 <div className="flex flex-col items-center gap-2">
-                  {hasLiveScore && liveScore ? (
+                  {hasScore ? (
                     <div className="flex items-center gap-3">
                       <span className="text-5xl font-black text-red-300 tabular-nums">
-                        {liveScore.homeScore}
+                        {homeScore}
                       </span>
                       <span className="text-3xl font-black text-slate-500">×</span>
                       <span className="text-5xl font-black text-red-300 tabular-nums">
-                        {liveScore.awayScore}
+                        {awayScore}
                       </span>
                     </div>
                   ) : (
