@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 interface RankingSectionProps {
-  ranking: (Player & { total: number; exacts: number })[];
+  ranking: (Player & { total: number; exacts: number; position: number })[];
   positionChanges?: Map<string, number>;
 }
 
@@ -74,11 +74,11 @@ export function RankingSection({ ranking, positionChanges }: RankingSectionProps
                 </div>
 
                 <div className={`text-4xl md:text-3xl font-black ${card.color}`}>
-                  {card.label}
+                  {player.position}º
                 </div>
 
                 <div className="text-xs uppercase tracking-wide text-slate-400 font-black">
-                  {card.title}
+                  {player.position === 1 ? "LÍDER" : card.title}
                 </div>
 
                 <div className="font-bold">{player.name}</div>
@@ -104,7 +104,7 @@ export function RankingSection({ ranking, positionChanges }: RankingSectionProps
               </div>
 
               <div className="text-4xl md:text-3xl font-black text-red-400">
-                {ranking.length}º
+                {lastPlayer.position}º
               </div>
 
               <div className="text-xs uppercase tracking-wide text-red-300 font-black">
@@ -135,7 +135,7 @@ export function RankingSection({ ranking, positionChanges }: RankingSectionProps
               className="grid grid-cols-12 p-4 border-b border-slate-800 items-center"
             >
               <div className="col-span-2 font-black text-yellow-400">
-                {index + 1}º
+                {player.position}º
               </div>
 
               <div className="col-span-5 font-semibold truncate">

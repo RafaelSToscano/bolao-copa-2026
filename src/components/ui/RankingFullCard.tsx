@@ -4,7 +4,7 @@ import { forwardRef } from "react";
 import { Player } from "@/types/player";
 
 interface RankingFullCardProps {
-  ranking: (Player & { total: number; exacts: number })[];
+  ranking: (Player & { total: number; exacts: number; position: number })[];
   positionChanges?: Map<string, number>;
   date: string;
 }
@@ -108,7 +108,7 @@ export const RankingFullCard = forwardRef<HTMLDivElement, RankingFullCardProps>(
                   flexShrink: 0,
                 }}
               >
-                {lanterna ? "🔦" : `${i + 1}º`}
+                {lanterna ? "🔦" : `${player.position}º`}
               </span>
 
               {/* Name */}

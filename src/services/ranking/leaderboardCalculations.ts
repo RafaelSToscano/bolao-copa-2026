@@ -28,13 +28,13 @@ export function calculateRanking(
   players: Player[],
   games: Game[],
   predictions: Prediction[]
-): (Player & { total: number; exacts: number })[] {
+): (Player & { total: number; exacts: number; position: number })[] {
   const predMap = new Map<string, Prediction>();
   for (const p of predictions) {
     predMap.set(`${p.player_id}-${p.game_id}`, p);
   }
 
-  return players
+  const ranking = players
     .map((player) => {
       let total = 0;
       let exacts = 0;
@@ -56,15 +56,29 @@ export function calculateRanking(
       if (b.total !== a.total) return b.total - a.total;
       return b.exacts - a.exacts;
     });
-}
 
+    let currentPosition = 0;
+  let previousTotal: number | null = null;
+
+  return ranking.map((player, index) => {
+    if (previousTotal === null || player.total !== previousTotal) {
+      currentPosition = index + 1;
+      previousTotal = player.total;
+    }
+
+    return {
+      ...player,
+      position: currentPosition,
+    };
+  });
+}
 /**
  * Returns a map of playerId → position change since last round.
  * Positive = moved up, negative = moved down, 0 = unchanged.
  * Returns empty map when no round has been scored yet.
  */
 export function calculatePositionChanges(
-  currentRanking: (Player & { total: number; exacts: number })[],
+  currentRanking: (Player & { total: number; exacts: number; position: number })[],
   games: Game[],
   predictions: Prediction[],
   players: Player[]
@@ -79,11 +93,11 @@ export function calculatePositionChanges(
   );
 
   const prevRanking = calculateRanking(players, gamesWithoutLastRound, predictions);
-  const prevPositions = new Map(prevRanking.map((p, i) => [p.id, i + 1]));
+  const prevPositions = new Map(prevRanking.map((p) => [p.id, p.position]));
 
   const changes = new Map<string, number>();
   currentRanking.forEach((player, i) => {
-    const currentPos = i + 1;
+    const currentPos = player.position;
     const prevPos = prevPositions.get(player.id) ?? currentPos;
     changes.set(player.id, prevPos - currentPos); // positive = moved up
   });

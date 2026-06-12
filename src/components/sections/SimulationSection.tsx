@@ -15,7 +15,17 @@ interface SimulationSectionProps {
   players: Player[];
   predictions: Prediction[];
 }
-
+function simulatedRankingPosition(
+  ranking: { total: number }[],
+  index: number
+): number {
+  for (let i = index; i >= 0; i--) {
+    if (i === 0 || ranking[i].total !== ranking[i - 1].total) {
+      return i + 1;
+    }
+  }
+  return index + 1;
+}
 export function SimulationSection({
   games,
   players,
@@ -64,7 +74,7 @@ export function SimulationSection({
       })
       .sort((a, b) => b.pointsInGame - a.pointsInGame);
 
-    const simulatedRanking = players
+        const sortedSimulatedRanking = players
       .filter((player) => player.approved)
       .map((player) => {
         let currentTotal = 0;
@@ -96,6 +106,22 @@ export function SimulationSection({
         if (b.total !== a.total) return b.total - a.total;
         return b.exacts - a.exacts;
       });
+
+    const simulatedRanking = sortedSimulatedRanking.map((player, index) => {
+      const previous = sortedSimulatedRanking[index - 1];
+
+      const position =
+        previous && previous.total === player.total
+          ? index === 0
+            ? 1
+            : simulatedRankingPosition(sortedSimulatedRanking, index - 1)
+          : index + 1;
+
+      return {
+        ...player,
+        position,
+      };
+    });
 
     return {
       playerGamePoints,
@@ -248,7 +274,7 @@ export function SimulationSection({
                 className="grid grid-cols-[60px_1fr_110px] items-center border-b border-slate-800 py-4 text-lg"
               >
                 <div className="text-yellow-400 font-black text-lg">
-                  {index + 1}º
+                  {player.position}º
                 </div>
 
                 <div className="font-bold truncate text-lg">{player.name}</div>

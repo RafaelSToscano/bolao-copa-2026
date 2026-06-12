@@ -17,7 +17,7 @@ interface AdminSectionProps {
   games: Game[];
   predictions: Prediction[];
   players: Player[];
-  ranking: (Player & { total: number; exacts: number })[];
+  ranking: (Player & { total: number; exacts: number; position: number })[];
   onUpdateResult: (
   gameId: string,
   field: "official_score_a" | "official_score_b",

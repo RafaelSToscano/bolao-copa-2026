@@ -15,7 +15,7 @@ import { Download, Share2, X, Loader2, ClipboardCheck } from "lucide-react";
 const WA_GROUP_LINK = "https://chat.whatsapp.com/BlFvuzUh0imESvzXvR8UOB";
 
 interface RankingShareModalProps {
-  ranking: (Player & { total: number; exacts: number })[];
+  ranking: (Player & { total: number; exacts: number; position: number })[];
   games: Game[];
   predictions: Prediction[];
   players: Player[];
