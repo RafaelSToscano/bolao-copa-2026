@@ -46,6 +46,7 @@ const baseResponses = (liveGames: unknown[] = []) => ({
     exacts: 1,
     completion: 65,
   },
+  "/api/live-scores": { matches: [] },
   "/api/dashboard/group-leaders": {
     groups: [
       {
