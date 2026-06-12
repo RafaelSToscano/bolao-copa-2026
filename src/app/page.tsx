@@ -296,6 +296,7 @@ const handleClearConfirmed = async () => {
         <DashboardSection
           currentUserId={currentUser.id}
           myPredictions={predictions}
+          games={games}
           onNavigate={(t) => setTab(t)}
         />
       )}
