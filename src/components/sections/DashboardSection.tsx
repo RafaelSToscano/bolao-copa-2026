@@ -4,7 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Prediction } from "@/types/prediction";
 import { Game } from "@/types/game";
-import { findLiveScoreForGame, LiveScoreMatch } from "@/hooks/useLiveScores";
+import {
+  findLiveScoreForGame,
+  LiveScoreMatch,
+  useLiveScores,
+} from "@/hooks/useLiveScores";
 import { DashboardLiveCard } from "./dashboard/DashboardLiveCard";
 import { RankingTopFive } from "./dashboard/RankingTopFive";
 import { UpcomingMatchesCard } from "./dashboard/UpcomingMatchesCard";
@@ -78,6 +82,11 @@ export function DashboardSection({
   onNavigate,
 }: DashboardSectionProps) {
   const data = useDashboardData(currentUserId);
+  // Use the same client-side polling hook the Palpites banner uses,
+  // rather than the server-cached `data.live.liveScores` snapshot. The
+  // server path was sometimes returning empty/stale scores in
+  // production while the same upstream worked fine through this hook.
+  const liveScores = useLiveScores(data.live?.liveGames ?? []);
 
   const [goalTrigger, setGoalTrigger] = useState<string | null>(null);
   const [scoringTeam, setScoringTeam] = useState<string | null>(null);
@@ -97,7 +106,7 @@ export function DashboardSection({
 
   useEffect(() => {
     if (!data.live) return;
-    const next = snapshotScores(data.live.liveGames, data.live.liveScores);
+    const next = snapshotScores(data.live.liveGames, liveScores);
     const prev = lastSnapshotRef.current;
     lastSnapshotRef.current = next;
     if (prev === null) return; // first observation — establish baseline only
@@ -111,7 +120,7 @@ export function DashboardSection({
       setScoringTeam(team);
       modalTimerRef.current = null;
     }, MODAL_DELAY_MS);
-  }, [data.live]);
+  }, [data.live, liveScores]);
 
   return (
     <div className="space-y-6">
@@ -129,7 +138,7 @@ export function DashboardSection({
       {data.live && (
         <DashboardLiveCard
           liveGames={data.live.liveGames}
-          liveScores={data.live.liveScores}
+          liveScores={liveScores}
           myPredictions={myPredictions}
           currentUserId={currentUserId}
           onRefresh={data.refetch}
@@ -149,11 +158,6 @@ export function DashboardSection({
             myStatus={data.myStatus}
             onSeeAll={() => onNavigate("palpites")}
           />
-
-          <GroupLeadersCard
-            groups={data.groupLeaders?.groups ?? []}
-            onSeeAll={() => onNavigate("classificacao")}
-          />
         </div>
 
         <div className="space-y-6">
@@ -162,6 +166,11 @@ export function DashboardSection({
           <RecentResultsCard items={data.recent?.items ?? []} />
         </div>
       </div>
+
+      <GroupLeadersCard
+        groups={data.groupLeaders?.groups ?? []}
+        onSeeAll={() => onNavigate("classificacao")}
+      />
     </div>
   );
 }
