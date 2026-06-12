@@ -31,9 +31,16 @@ export function SimulationSection({
   players,
   predictions,
 }: SimulationSectionProps) {
-  const availableGames = games.filter(
+  const availableGames = [...games]
+  .filter(
     (game) => game.official_score_a === null || game.official_score_b === null
-  );
+  )
+  .sort((a, b) => {
+    const dateA = a.match_date ? new Date(a.match_date).getTime() : Number.MAX_SAFE_INTEGER;
+    const dateB = b.match_date ? new Date(b.match_date).getTime() : Number.MAX_SAFE_INTEGER;
+
+    return dateA - dateB;
+  });
 
   const [selectedGameId, setSelectedGameId] = useState(
     availableGames[0]?.id || ""
