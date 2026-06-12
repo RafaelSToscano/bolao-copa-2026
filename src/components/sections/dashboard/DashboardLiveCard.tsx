@@ -6,7 +6,7 @@ import { Flag } from "@/components/ui/Flag";
 import { findLiveScoreForGame, LiveScoreMatch } from "@/hooks/useLiveScores";
 import { calculatePredictionPointsBreakdown } from "@/services/predictions/predictionCalculations";
 import { Prediction } from "@/types/prediction";
-import { getElapsedMinutes } from "@/lib/liveGames";
+import { describeLiveMinute, resolveLiveScore } from "@/lib/liveGames";
 import { LivePill } from "./LivePill";
 import { StickySectionHeader } from "./StickySectionHeader";
 import { PointsChip } from "./PointsChip";
@@ -115,24 +115,10 @@ export function DashboardLiveCard({
             prediction?.predicted_score_a != null &&
             prediction?.predicted_score_b != null;
           const liveScore = findLiveScoreForGame(game, liveScores);
-          const liveScoreAvailable =
-            liveScore?.homeScore != null && liveScore?.awayScore != null;
-          // Fall back to the official score the admin recorded once the
-          // match is over. Without this the card shows "Fim de jogo"
-          // with empty dashes when the live-scores API has already
-          // dropped the finished match.
-          const officialAvailable =
-            game.official_score_a != null && game.official_score_b != null;
-          const homeScore = liveScoreAvailable
-            ? liveScore!.homeScore
-            : officialAvailable
-              ? game.official_score_a
-              : null;
-          const awayScore = liveScoreAvailable
-            ? liveScore!.awayScore
-            : officialAvailable
-              ? game.official_score_b
-              : null;
+          const { home: homeScore, away: awayScore } = resolveLiveScore(
+            game,
+            liveScore
+          );
           const hasScore = homeScore != null && awayScore != null;
 
           const liveBreakdown =
@@ -144,19 +130,7 @@ export function DashboardLiveCard({
                 })
               : null;
 
-          const elapsedMinutes = game.match_date
-            ? getElapsedMinutes(game.match_date)
-            : null;
-          const liveMinute =
-            elapsedMinutes === null
-              ? null
-              : elapsedMinutes <= 45
-                ? `${elapsedMinutes}'`
-                : elapsedMinutes <= 60
-                  ? "Intervalo"
-                  : elapsedMinutes <= 105
-                    ? `${elapsedMinutes - 15}'`
-                    : "Fim de jogo";
+          const liveMinute = describeLiveMinute(game, liveScore);
 
           return (
             <div
