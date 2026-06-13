@@ -21,11 +21,11 @@ import { GoalScorerModal } from "./dashboard/GoalScorerModal";
 
 const MODAL_DELAY_MS = 2200;
 
-export type DashboardTab =
-  | "palpites"
-  | "classificacao"
-  | "matamata"
-  | "ranking";
+export type DashboardNavigationTarget =
+  | "/palpites"
+  | "/classificacao"
+  | "/mata-mata"
+  | "/ranking";
 
 interface DashboardSectionProps {
   currentUserId: string;
@@ -35,7 +35,7 @@ interface DashboardSectionProps {
   // pool as Palpites instead of the cached, pre-filtered server
   // payload, so the two screens always agree on which games come next.
   games?: Game[];
-  onNavigate: (tab: DashboardTab) => void;
+  onNavigate: (target: DashboardNavigationTarget) => void;
 }
 
 interface TeamScore {
@@ -164,12 +164,12 @@ export function DashboardSection({
             top={data.rankingTop?.top ?? []}
             lanterna={data.rankingTop?.lanterna ?? null}
             provisional={data.rankingTop?.provisional ?? false}
-            onSeeAll={() => onNavigate("ranking")}
+            onSeeAll={() => onNavigate("/ranking")}
           />
 
           <MyStatusCard
             myStatus={data.myStatus}
-            onSeeAll={() => onNavigate("palpites")}
+            onSeeAll={() => onNavigate("/palpites")}
           />
         </div>
 
@@ -182,7 +182,7 @@ export function DashboardSection({
 
       <GroupLeadersCard
         groups={data.groupLeaders?.groups ?? []}
-        onSeeAll={() => onNavigate("classificacao")}
+        onSeeAll={() => onNavigate("/classificacao")}
       />
     </div>
   );

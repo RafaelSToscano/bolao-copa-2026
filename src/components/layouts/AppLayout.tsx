@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { Player } from "@/types/player";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,28 +14,41 @@ import {
   LogOut,
   Calculator,
   BookOpen,
-  GitBranch,
   MessageSquare,
   Menu,
   X,
 } from "lucide-react";
 import { DeadlineBanner, LockedBanner } from "@/components/ui/DeadlineBanner";
 
-type TabType =
-  | "dashboard"
-  | "palpites"
-  | "classificacao"
-  | "matamata"
-  | "ranking"
-  | "simulador"
-  | "regras"
-  | "playoff"
-  | "admin";
+interface MenuItem {
+  href: string;
+  label: string;
+  icon: typeof Home;
+}
+
+const BASE_MENU_ITEMS: MenuItem[] = [
+  { href: "/", label: "Dashboard", icon: Home },
+  { href: "/palpites", label: "Palpites", icon: Shield },
+  { href: "/classificacao", label: "Classificação", icon: Trophy },
+  { href: "/mata-mata", label: "Mata-mata", icon: Trophy },
+  { href: "/ranking", label: "Ranking", icon: BarChart3 },
+  { href: "/simulador", label: "Simulador", icon: Calculator },
+  {
+    href: "/palpites-da-galera",
+    label: "Palpites da Galera",
+    icon: MessageSquare,
+  },
+  { href: "/regras", label: "Regras", icon: BookOpen },
+];
+
+const ADMIN_MENU_ITEM: MenuItem = {
+  href: "/admin",
+  label: "Admin",
+  icon: Lock,
+};
 
 interface AppLayoutProps {
   currentUser: Player;
-  activeTab: TabType;
-  onTabChange: (tab: TabType) => void;
   onLogout: () => void;
   children: React.ReactNode;
   userCompletion: number;
@@ -41,16 +56,14 @@ interface AppLayoutProps {
 
 export function AppLayout({
   currentUser,
-  activeTab,
-  onTabChange,
   onLogout,
   children,
   userCompletion,
 }: AppLayoutProps) {
+  const pathname = usePathname();
+  const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Lock body scroll while the drawer is open so the page underneath
-  // doesn't scroll along with the drawer.
   useEffect(() => {
     if (!drawerOpen) return;
     const prev = document.body.style.overflow;
@@ -60,13 +73,11 @@ export function AppLayout({
     };
   }, [drawerOpen]);
 
-  // Close the drawer when the active tab changes (i.e. user picked a
-  // destination).
+  // Close the drawer whenever the route changes.
   useEffect(() => {
-    setDrawerOpen(false);
-  }, [activeTab]);
+    setDrawerOpen((open) => (open ? false : open));
+  }, [pathname]);
 
-  // Close on Escape for keyboard users.
   useEffect(() => {
     if (!drawerOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -76,71 +87,26 @@ export function AppLayout({
     return () => window.removeEventListener("keydown", onKey);
   }, [drawerOpen]);
 
-  const menuItems = [
-    {
-      id: "dashboard" as TabType,
-      label: "Dashboard",
-      icon: Home,
-    },
-    {
-      id: "palpites" as TabType,
-      label: "Palpites",
-      icon: Shield,
-    },
-    {
-      id: "classificacao" as TabType,
-      label: "Classificação",
-      icon: Trophy,
-    },
-    {
-      id: "matamata" as TabType,
-      label: "Mata-mata",
-      icon: Trophy,
-    },
-    {
-      id: "ranking" as TabType,
-      label: "Ranking",
-      icon: BarChart3,
-    },
-    {
-      id: "simulador" as TabType,
-      label: "Simulador",
-      icon: Calculator,
-    },
-    {
-     id: "playoff" as TabType,
-     label: "Palpites da Galera",
-    icon: MessageSquare,
-    },
-    {
-      id: "regras" as TabType,
-      label: "Regras",
-      icon: BookOpen,
-    },
-    ...(currentUser.is_admin
-      ? [
-          {
-            id: "admin" as TabType,
-            label: "Admin",
-            icon: Lock,
-          },
-        ]
-      : []),
-  ];
+  const menuItems: MenuItem[] = currentUser.is_admin
+    ? [...BASE_MENU_ITEMS, ADMIN_MENU_ITEM]
+    : BASE_MENU_ITEMS;
+
+  const goToPredictions = () => {
+    if (pathname === "/palpites") {
+      document
+        .getElementById("group-predictions")
+        ?.scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+    router.push("/palpites?focus=group-predictions");
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
       <LockedBanner />
       <DeadlineBanner
         userCompletion={userCompletion}
-        onGoToPredictions={() => {
-          const alreadyThere = activeTab === "palpites";
-          if (!alreadyThere) onTabChange("palpites");
-          setTimeout(
-            () => document.getElementById("group-predictions")?.scrollIntoView({ behavior: "smooth" }),
-            alreadyThere ? 0 : 150
-          );
-        }}
+        onGoToPredictions={goToPredictions}
       />
 
       {/* MOBILE HEADER — compact, with hamburger button */}
@@ -212,11 +178,12 @@ export function AppLayout({
             <nav className="flex-1 overflow-y-auto p-4 space-y-2">
               {menuItems.map((item) => {
                 const Icon = item.icon;
-                const active = activeTab === item.id;
+                const active = pathname === item.href;
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => onTabChange(item.id)}
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setDrawerOpen(false)}
                     className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left font-bold transition ${
                       active
                         ? "bg-yellow-500 text-slate-950"
@@ -225,7 +192,7 @@ export function AppLayout({
                   >
                     <Icon size={18} />
                     {item.label}
-                  </button>
+                  </Link>
                 );
               })}
             </nav>
@@ -299,12 +266,12 @@ export function AppLayout({
             <nav className="space-y-2">
               {menuItems.map((item) => {
                 const Icon = item.icon;
-                const active = activeTab === item.id;
+                const active = pathname === item.href;
 
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => onTabChange(item.id)}
+                  <Link
+                    key={item.href}
+                    href={item.href}
                     className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left font-bold transition ${
                       active
                         ? "bg-yellow-500 text-slate-950"
@@ -313,7 +280,7 @@ export function AppLayout({
                   >
                     <Icon size={18} />
                     {item.label}
-                  </button>
+                  </Link>
                 );
               })}
             </nav>
