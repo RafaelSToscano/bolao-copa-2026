@@ -38,7 +38,15 @@ export function projectLive(
   refNow?: number
 ): DashboardLivePayload {
   const t = nowMs(refNow);
-  const liveGames = liveGamesAt(games, t);
+  // For live cards a null official score means "no goals yet", not
+  // "match never recorded" — coerce to 0 so the LIVE card renders
+  // 0 × 0 from the moment kickoff passes, instead of the empty
+  // — × — placeholder.
+  const liveGames = liveGamesAt(games, t).map((game) => ({
+    ...game,
+    official_score_a: game.official_score_a ?? 0,
+    official_score_b: game.official_score_b ?? 0,
+  }));
 
   let secondsUntilNextKickoff: number | null = null;
   for (const game of games) {
