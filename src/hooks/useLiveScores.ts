@@ -13,7 +13,7 @@ export type LiveScoreMatch = {
 
 export const LIVE_POLL_MS = 10_000;
 
-const KICKOFF_WARMUP_MS = 60 * 60 * 1000;
+const KICKOFF_WARMUP_MS = 24 * 60 * 60 * 1000;
 
 const LIVE_STATUSES = new Set(["IN_PLAY", "PAUSED", "LIVE", "HALF_TIME"]);
 const UPCOMING_STATUSES = new Set(["TIMED", "SCHEDULED"]);
@@ -83,9 +83,9 @@ function hasLiveOrImminent(games: Game[]): boolean {
     // buffer (180 min) so a finished-but-still-IN_PLAY match keeps
     // polling until upstream flips it to FINISHED.
     if (elapsed >= 0 && elapsed <= 180 * 60 * 1000) return true;
-    // Pre-kickoff warmup: start polling within the next hour so the
-    // first live frame lands on the dashboard the instant the upstream
-    // flips status, without burning requests off-matchday.
+    // Pre-kickoff warmup: poll any time the next kickoff is within 24h
+    // so the dashboard sees status/score updates for matches happening
+    // today, and the live frame lands the instant upstream flips status.
     if (elapsed < 0 && -elapsed <= KICKOFF_WARMUP_MS) return true;
   }
   return false;
