@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { describeLiveMinute, resolveLiveScore } from "@/lib/liveGames";
+import {
+  describeLiveMinute,
+  getNextMatchDayGames,
+  resolveLiveScore,
+} from "@/lib/liveGames";
 import { Game } from "@/types/game";
 import { LiveScoreMatch } from "@/hooks/useLiveScores";
 
@@ -104,5 +108,74 @@ describe("describeLiveMinute", () => {
 
   it("returns null when the game has no kickoff date", () => {
     expect(describeLiveMinute(makeGame({ match_date: null }), null)).toBeNull();
+  });
+});
+
+describe("getNextMatchDayGames", () => {
+  const NOW = new Date("2026-06-20T12:00:00.000Z").getTime();
+
+  it("returns every game on the next match day when no limit is given", () => {
+    const games = [
+      makeGame({ id: "a", match_date: "2026-06-20T13:00:00.000Z" }),
+      makeGame({ id: "b", match_date: "2026-06-20T16:00:00.000Z" }),
+      makeGame({ id: "c", match_date: "2026-06-20T20:00:00.000Z" }),
+      makeGame({ id: "d", match_date: "2026-06-21T13:00:00.000Z" }),
+    ];
+    expect(
+      getNextMatchDayGames(games, Infinity, NOW).map((g) => g.id)
+    ).toEqual(["a", "b", "c"]);
+  });
+
+  it("respects the limit when provided", () => {
+    const games = [
+      makeGame({ id: "a", match_date: "2026-06-20T13:00:00.000Z" }),
+      makeGame({ id: "b", match_date: "2026-06-20T16:00:00.000Z" }),
+      makeGame({ id: "c", match_date: "2026-06-20T20:00:00.000Z" }),
+    ];
+    expect(getNextMatchDayGames(games, 2, NOW).map((g) => g.id)).toEqual([
+      "a",
+      "b",
+    ]);
+  });
+
+  it("skips today entirely when all today's matches are finished or past", () => {
+    const games = [
+      makeGame({
+        id: "today-finished",
+        match_date: "2026-06-20T14:00:00.000Z",
+        official_score_a: 1,
+        official_score_b: 0,
+      }),
+      makeGame({
+        id: "today-past",
+        match_date: "2026-06-20T11:00:00.000Z",
+      }),
+      makeGame({ id: "tomorrow", match_date: "2026-06-21T16:00:00.000Z" }),
+    ];
+    expect(
+      getNextMatchDayGames(games, Infinity, NOW).map((g) => g.id)
+    ).toEqual(["tomorrow"]);
+  });
+
+  it("jumps over an empty d+1 to d+2 when d+0 is exhausted", () => {
+    const games = [
+      makeGame({
+        id: "today-past",
+        match_date: "2026-06-20T11:00:00.000Z",
+      }),
+      makeGame({ id: "d2-1", match_date: "2026-06-22T13:00:00.000Z" }),
+      makeGame({ id: "d2-2", match_date: "2026-06-22T19:00:00.000Z" }),
+      makeGame({ id: "d3", match_date: "2026-06-23T13:00:00.000Z" }),
+    ];
+    expect(
+      getNextMatchDayGames(games, Infinity, NOW).map((g) => g.id)
+    ).toEqual(["d2-1", "d2-2"]);
+  });
+
+  it("returns [] when nothing is upcoming", () => {
+    const games = [
+      makeGame({ id: "past", match_date: "2026-06-20T11:00:00.000Z" }),
+    ];
+    expect(getNextMatchDayGames(games, Infinity, NOW)).toEqual([]);
   });
 });

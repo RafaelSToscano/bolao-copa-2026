@@ -253,6 +253,75 @@ describe("projectUpcoming", () => {
     const result = projectUpcoming(games, 3, NOW);
     expect(result.games.map((g) => g.id)).toEqual(["u1", "u2", "u3"]);
   });
+
+  it("caps a busy match day at the limit (default 2)", () => {
+    const games: Game[] = [
+      game({ id: "a", match_date: new Date(NOW + 1 * 60 * 60 * 1000).toISOString() }),
+      game({ id: "b", match_date: new Date(NOW + 2 * 60 * 60 * 1000).toISOString() }),
+      game({ id: "c", match_date: new Date(NOW + 3 * 60 * 60 * 1000).toISOString() }),
+      game({ id: "d", match_date: new Date(NOW + 4 * 60 * 60 * 1000).toISOString() }),
+    ];
+    const result = projectUpcoming(games, 2, NOW);
+    expect(result.games.map((g) => g.id)).toEqual(["a", "b"]);
+  });
+
+  it("returns games from d+2 when d+0 has no upcoming and d+1 is empty", () => {
+    const dPlus2 = new Date(NOW + 2 * 24 * 60 * 60 * 1000);
+    const dPlus2Morning = new Date(dPlus2);
+    dPlus2Morning.setUTCHours(13, 0, 0, 0);
+    const dPlus2Evening = new Date(dPlus2);
+    dPlus2Evening.setUTCHours(19, 0, 0, 0);
+
+    const dPlus3 = new Date(NOW + 3 * 24 * 60 * 60 * 1000);
+    dPlus3.setUTCHours(13, 0, 0, 0);
+
+    const games: Game[] = [
+      game({
+        id: "today-finished",
+        match_date: new Date(NOW + 60 * 60 * 1000).toISOString(),
+        official_score_a: 1,
+        official_score_b: 0,
+      }),
+      game({ id: "d2-1", match_date: dPlus2Morning.toISOString() }),
+      game({ id: "d2-2", match_date: dPlus2Evening.toISOString() }),
+      game({ id: "d3", match_date: dPlus3.toISOString() }),
+    ];
+    const result = projectUpcoming(games, 2, NOW);
+    expect(result.games.map((g) => g.id)).toEqual(["d2-1", "d2-2"]);
+  });
+
+  it("returns a single game when the next match day has only one fixture", () => {
+    const dPlus2 = new Date(NOW + 2 * 24 * 60 * 60 * 1000);
+    dPlus2.setUTCHours(16, 0, 0, 0);
+    const dPlus3 = new Date(NOW + 3 * 24 * 60 * 60 * 1000);
+    dPlus3.setUTCHours(13, 0, 0, 0);
+    const dPlus3b = new Date(NOW + 3 * 24 * 60 * 60 * 1000);
+    dPlus3b.setUTCHours(16, 0, 0, 0);
+
+    const games: Game[] = [
+      game({ id: "d2", match_date: dPlus2.toISOString() }),
+      game({ id: "d3-1", match_date: dPlus3.toISOString() }),
+      game({ id: "d3-2", match_date: dPlus3b.toISOString() }),
+    ];
+    const result = projectUpcoming(games, 2, NOW);
+    expect(result.games.map((g) => g.id)).toEqual(["d2"]);
+  });
+
+  it("returns empty when nothing is upcoming", () => {
+    const games: Game[] = [
+      game({
+        id: "past",
+        match_date: new Date(NOW - 60 * 60 * 1000).toISOString(),
+      }),
+      game({
+        id: "finished",
+        match_date: new Date(NOW + 60 * 60 * 1000).toISOString(),
+        official_score_a: 0,
+        official_score_b: 0,
+      }),
+    ];
+    expect(projectUpcoming(games, 2, NOW).games).toEqual([]);
+  });
 });
 
 describe("projectRecent", () => {

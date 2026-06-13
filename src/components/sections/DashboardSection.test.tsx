@@ -96,4 +96,53 @@ describe("DashboardSection", () => {
     expect(calledPaths).toContain("/api/dashboard/my-status");
     expect(calledPaths).toContain("/api/dashboard/group-leaders");
   });
+
+  it("hides the upcoming chips card while a live card is on screen", async () => {
+    const responses = baseResponses();
+    // Game scheduled for 'now' so it matches the live score by team-pair
+    // + time proximity inside findLiveScoreForGame.
+    const liveGame = {
+      id: "g-live",
+      phase: "groups",
+      group_name: "A",
+      match_order: 1,
+      match_date: new Date().toISOString(),
+      team_a: "Brasil",
+      team_b: "Argentina",
+      official_score_a: null,
+      official_score_b: null,
+      locked: false,
+    };
+    (responses["/api/live-scores"] as { matches: unknown[] }).matches = [
+      {
+        id: 999,
+        utcDate: liveGame.match_date,
+        status: "IN_PLAY",
+        homeTeam: "Brasil",
+        awayTeam: "Argentina",
+        homeScore: 0,
+        awayScore: 0,
+      },
+    ];
+
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = url.split("?")[0];
+      const body = responses[path as keyof typeof responses] ?? null;
+      return { ok: true, json: async () => body } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <DashboardSection
+        currentUserId="u1"
+        games={[liveGame]}
+        onNavigate={() => {}}
+      />
+    );
+
+    await vi.waitFor(() => {
+      // Live card surfaces team names; chip card heading is gone.
+      expect(screen.queryByText("Próximos jogos")).not.toBeInTheDocument();
+    });
+  });
 });

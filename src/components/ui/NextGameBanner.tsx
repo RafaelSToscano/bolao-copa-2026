@@ -3,24 +3,28 @@
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
 import { MatchCard } from "@/components/ui/MatchCard";
-import { getLiveGames, getNextGames } from "@/lib/liveGames";
+import { getNextMatchDayGames } from "@/lib/liveGames";
 
 interface NextGameBannerProps {
   games: Game[];
   predictions: Prediction[];
   currentUserId: string;
+  limit?: number;
 }
 
+/**
+ * Renders games from the next match day (the soonest UTC calendar
+ * date that still has at least one not-yet-finished, future fixture).
+ * The dashboard's hero slot defaults to 2 cards; /palpites passes
+ * `limit={Infinity}` to show every match scheduled for that day.
+ */
 export function NextGameBanner({
   games,
   predictions,
   currentUserId,
+  limit = 2,
 }: NextGameBannerProps) {
-  // Hide while a live game is in progress — LiveGameBanner takes that
-  // slot and the prediction card would just compete for attention.
-  if (getLiveGames(games).length > 0) return null;
-
-  const nextGames = getNextGames(games, 2);
+  const nextGames = getNextMatchDayGames(games, limit);
   if (nextGames.length === 0) return null;
 
   const label =

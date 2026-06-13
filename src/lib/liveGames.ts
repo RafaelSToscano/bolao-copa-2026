@@ -80,3 +80,42 @@ export function getNextGames(games: Game[], limit = 2): Game[] {
     })
     .slice(0, limit);
 }
+
+/**
+ * Returns the games belonging to the soonest UTC calendar date that
+ * still has at least one not-yet-finished, future fixture. The list is
+ * sorted by kickoff and capped at `limit` (omit / pass `Infinity` to
+ * return every game on that day).
+ *
+ * "Next match day" answers a different question than a flat list of
+ * future games: viewers want to know which day to tune in for and how
+ * many matches that day. If today still has upcoming kickoffs, today
+ * IS the next match day; otherwise it's d+N where N is the gap to the
+ * next fixture.
+ */
+export function getNextMatchDayGames(
+  games: Game[],
+  limit: number = Infinity,
+  refNow?: number
+): Game[] {
+  const now = refNow ?? Date.now();
+  const candidates = games
+    .filter((g) => {
+      if (!g.match_date) return false;
+      if (g.official_score_a !== null && g.official_score_b !== null) return false;
+      return new Date(g.match_date).getTime() > now;
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.match_date!).getTime() - new Date(b.match_date!).getTime()
+    );
+
+  if (candidates.length === 0) return [];
+
+  const dayKey = candidates[0].match_date!.slice(0, 10);
+  const sameDay = candidates.filter(
+    (g) => g.match_date!.slice(0, 10) === dayKey
+  );
+
+  return Number.isFinite(limit) ? sameDay.slice(0, limit) : sameDay;
+}

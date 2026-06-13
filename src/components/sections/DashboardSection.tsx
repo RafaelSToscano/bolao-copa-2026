@@ -98,6 +98,10 @@ export function DashboardSection({
 
   const data = useDashboardData(currentUserId, liveSignals);
 
+  const liveCardVisible =
+    liveSignals.liveGames.length > 0 ||
+    liveSignals.unmatchedLiveScores.length > 0;
+
   const [goalTrigger, setGoalTrigger] = useState<string | null>(null);
   const [scoringTeam, setScoringTeam] = useState<string | null>(null);
   const lastSnapshotRef = useRef<Map<string, TeamScore> | null>(null);
@@ -144,8 +148,7 @@ export function DashboardSection({
         </p>
       </div>
 
-      {liveSignals.liveGames.length > 0 ||
-      liveSignals.unmatchedLiveScores.length > 0 ? (
+      {liveCardVisible ? (
         <DashboardLiveCard
           liveGames={liveSignals.liveGames}
           liveScores={liveScores}
@@ -178,7 +181,9 @@ export function DashboardSection({
         </div>
 
         <div className="space-y-6">
-          <UpcomingMatchesCard games={data.upcoming?.games ?? []} />
+          {!liveCardVisible && (
+            <UpcomingMatchesCard games={data.upcoming?.games ?? []} />
+          )}
 
           <RecentResultsCard items={data.recent?.items ?? []} />
         </div>

@@ -5,7 +5,7 @@ import { Prediction } from "@/types/prediction";
 import { TeamStanding } from "@/types/standings";
 import { Card, CardContent } from "@/components/ui/card";
 import { Flag } from "@/components/ui/Flag";
-import { formatDate } from "@/lib/formatting";
+import { formatDate, isToday } from "@/lib/formatting";
 
 interface StandingsSectionProps {
   games: Game[];
@@ -146,10 +146,16 @@ export function StandingsSection({
     JOGOS - GRUPO {group}
   </div>
 
-  {groupGames.map((game: Game) => (
+  {groupGames.map((game: Game) => {
+    const today = isToday(game.match_date);
+    return (
     <div
       key={game.id}
-      className="border-b border-slate-800 bg-slate-950/40 hover:bg-slate-900/70 transition"
+      className={`border-b transition ${
+        today
+          ? "border-slate-800 bg-amber-500/[0.04] border-l-2 border-l-amber-500/60 hover:bg-amber-500/[0.07]"
+          : "border-slate-800 bg-slate-950/40 hover:bg-slate-900/70"
+      }`}
     >
       {/* Mobile */}
       <div className="md:hidden p-3 space-y-3">
@@ -223,7 +229,8 @@ export function StandingsSection({
         </div>
       </div>
     </div>
-  ))}
+    );
+  })}
 </div>
    </div>
         );
