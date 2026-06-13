@@ -110,4 +110,41 @@ describe("deriveLiveSignals", () => {
     ];
     expect(deriveLiveSignals([], liveScores, NOW).secondsUntilNextKickoff).toBeNull();
   });
+
+  it("surfaces unmatched IN_PLAY upstream rows so they can render as slim live cards", () => {
+    const games: Game[] = [];
+    const liveScores = [
+      score({
+        id: 99,
+        utcDate: new Date(NOW - 30 * 60 * 1000).toISOString(),
+        status: "IN_PLAY",
+        homeTeam: "Estados Unidos",
+        awayTeam: "Paraguai",
+      }),
+    ];
+    const r = deriveLiveSignals(games, liveScores, NOW);
+    expect(r.liveGames).toEqual([]);
+    expect(r.unmatchedLiveScores.map((m) => m.id)).toEqual([99]);
+  });
+
+  it("does not duplicate matched live rows in unmatchedLiveScores", () => {
+    const games = [
+      game({
+        id: "live",
+        match_date: new Date(NOW - 30 * 60 * 1000).toISOString(),
+        team_a: "Brasil",
+        team_b: "Argentina",
+      }),
+    ];
+    const liveScores = [
+      score({
+        id: 1,
+        utcDate: new Date(NOW - 30 * 60 * 1000).toISOString(),
+        status: "IN_PLAY",
+      }),
+    ];
+    const r = deriveLiveSignals(games, liveScores, NOW);
+    expect(r.liveGames.map((g) => g.id)).toEqual(["live"]);
+    expect(r.unmatchedLiveScores).toEqual([]);
+  });
 });

@@ -5,10 +5,12 @@ import { LiveScoreMatch, findLiveScoreForGame } from "@/hooks/useLiveScores";
 import { Prediction } from "@/types/prediction";
 import { MatchCard } from "@/components/ui/MatchCard";
 import { StickySectionHeader } from "./StickySectionHeader";
+import { DashboardUnmatchedLiveCard } from "./DashboardUnmatchedLiveCard";
 
 interface DashboardLiveCardProps {
   liveGames: Game[];
   liveScores: LiveScoreMatch[];
+  unmatchedLiveScores?: LiveScoreMatch[];
   myPredictions?: Prediction[];
   currentUserId?: string;
   onRefresh?: () => void | Promise<void>;
@@ -32,6 +34,7 @@ async function bumpMockScore(
 export function DashboardLiveCard({
   liveGames,
   liveScores,
+  unmatchedLiveScores = [],
   myPredictions = [],
   currentUserId,
   onRefresh,
@@ -51,9 +54,10 @@ export function DashboardLiveCard({
     }
   };
 
-  if (liveGames.length === 0) return null;
+  const totalCount = liveGames.length + unmatchedLiveScores.length;
+  if (totalCount === 0) return null;
 
-  const label = liveGames.length === 1 ? "Jogo do Momento" : "Jogos do Momento";
+  const label = totalCount === 1 ? "Jogo do Momento" : "Jogos do Momento";
 
   return (
     <div className="space-y-3">
@@ -66,15 +70,15 @@ export function DashboardLiveCard({
           <span className="text-base font-black text-amber-400 uppercase tracking-widest">
             {label}
           </span>
-          {liveGames.length > 1 && (
+          {totalCount > 1 && (
             <span className="text-base text-slate-400">
-              — {liveGames.length} jogos agora
+              — {totalCount} jogos agora
             </span>
           )}
         </div>
       </StickySectionHeader>
 
-      <div className={liveGames.length > 1 ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : ""}>
+      <div className={totalCount > 1 ? "grid grid-cols-1 sm:grid-cols-2 gap-3" : ""}>
         {liveGames.map((game) => {
           const prediction = currentUserId
             ? myPredictions.find(
@@ -94,6 +98,10 @@ export function DashboardLiveCard({
             />
           );
         })}
+
+        {unmatchedLiveScores.map((match) => (
+          <DashboardUnmatchedLiveCard key={`upstream:${match.id}`} match={match} />
+        ))}
       </div>
     </div>
   );

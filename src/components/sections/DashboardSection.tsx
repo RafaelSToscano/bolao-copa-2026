@@ -144,10 +144,12 @@ export function DashboardSection({
         </p>
       </div>
 
-      {liveSignals.liveGames.length > 0 ? (
+      {liveSignals.liveGames.length > 0 ||
+      liveSignals.unmatchedLiveScores.length > 0 ? (
         <DashboardLiveCard
           liveGames={liveSignals.liveGames}
           liveScores={liveScores}
+          unmatchedLiveScores={liveSignals.unmatchedLiveScores}
           myPredictions={myPredictions}
           currentUserId={currentUserId}
           onRefresh={data.refetch}

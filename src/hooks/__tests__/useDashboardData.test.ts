@@ -10,6 +10,7 @@ import {
 
 const baselineSignals = {
   liveGames: [],
+  unmatchedLiveScores: [],
   secondsUntilNextKickoff: null,
 };
 
@@ -35,6 +36,7 @@ describe("polling cadence pure logic", () => {
     expect(
       computePollIntervalMs({
         liveGames: [{} as never],
+        unmatchedLiveScores: [],
         secondsUntilNextKickoff: 9999,
       })
     ).toBe(POLL_LIVE_MS);
@@ -44,6 +46,7 @@ describe("polling cadence pure logic", () => {
     expect(
       computePollIntervalMs({
         liveGames: [],
+        unmatchedLiveScores: [],
         secondsUntilNextKickoff: 30,
       })
     ).toBe(POLL_LIVE_MS);
@@ -53,6 +56,7 @@ describe("polling cadence pure logic", () => {
     expect(
       computePollIntervalMs({
         liveGames: [],
+        unmatchedLiveScores: [],
         secondsUntilNextKickoff: 3600,
       })
     ).toBe(POLL_BASELINE_MS);
@@ -62,6 +66,7 @@ describe("polling cadence pure logic", () => {
     expect(
       shouldPollFast({
         liveGames: [],
+        unmatchedLiveScores: [],
         secondsUntilNextKickoff: null,
       })
     ).toBe(false);
