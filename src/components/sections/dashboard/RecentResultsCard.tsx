@@ -73,53 +73,49 @@ export function RecentResultsCard({ items }: RecentResultsCardProps) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
-                    <div className="flex flex-col items-center gap-1.5 min-w-0">
-                      <Flag team={game.team_a} size="medium" />
-                      <span className="text-sm font-black text-white text-center leading-tight">
-                        {game.team_a}
+                  <div className="grid grid-cols-[1fr_auto_1fr] grid-rows-[auto_auto] gap-x-4 gap-y-1 items-center justify-items-center">
+                    <Flag team={game.team_a} size="medium" />
+
+                    <div className="flex items-center gap-3">
+                      <span className="text-4xl font-black tabular-nums text-white">
+                        {game.official_score_a}
+                      </span>
+                      <span className="text-xl font-black text-slate-500">×</span>
+                      <span className="text-4xl font-black tabular-nums text-white">
+                        {game.official_score_b}
                       </span>
                     </div>
 
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="flex items-center gap-3">
-                        <span className="text-4xl font-black tabular-nums text-white">
-                          {game.official_score_a}
-                        </span>
-                        <span className="text-xl font-black text-slate-500">×</span>
-                        <span className="text-4xl font-black tabular-nums text-white">
-                          {game.official_score_b}
-                        </span>
-                      </div>
+                    <Flag team={game.team_b} size="medium" />
 
-                      {hasPrediction ? (
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-blue-300">
-                            Palpite
+                    <span className="text-sm font-black text-white text-center leading-tight min-w-0 truncate">
+                      {game.team_a}
+                    </span>
+
+                    {hasPrediction ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-300">
+                          Palpite
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-base font-black tabular-nums text-blue-200">
+                            {myPrediction!.predicted_score_a}
                           </span>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-base font-black tabular-nums text-blue-200">
-                              {myPrediction!.predicted_score_a}
-                            </span>
-                            <span className="text-sm font-black text-slate-500">×</span>
-                            <span className="text-base font-black tabular-nums text-blue-200">
-                              {myPrediction!.predicted_score_b}
-                            </span>
-                          </div>
+                          <span className="text-sm font-black text-slate-500">×</span>
+                          <span className="text-base font-black tabular-nums text-blue-200">
+                            {myPrediction!.predicted_score_b}
+                          </span>
                         </div>
-                      ) : (
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                          Sem palpite
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col items-center gap-1.5 min-w-0">
-                      <Flag team={game.team_b} size="medium" />
-                      <span className="text-sm font-black text-white text-center leading-tight">
-                        {game.team_b}
+                      </div>
+                    ) : (
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        Sem palpite
                       </span>
-                    </div>
+                    )}
+
+                    <span className="text-sm font-black text-white text-center leading-tight min-w-0 truncate">
+                      {game.team_b}
+                    </span>
                   </div>
                 </div>
               );
