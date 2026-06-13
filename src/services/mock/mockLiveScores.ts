@@ -3,6 +3,9 @@ import { MOCK_GAMES } from "./mockGames";
 import { MOCK_NOW } from "./mockNow";
 import { LiveScoreMatch } from "@/hooks/useLiveScores";
 
+const MOCK_DISABLE_LIVE =
+  process.env.NEXT_PUBLIC_MOCK_DISABLE_LIVE === "true";
+
 const LIVE_WINDOW_MINUTES = 180;
 
 function isLiveAt(game: Game, atMs: number): boolean {
@@ -88,6 +91,7 @@ function liveScoreFor(game: Game, atMs: number): { home: number; away: number } 
 }
 
 export function getMockLiveScores(): { matches: unknown[] } {
+  if (MOCK_DISABLE_LIVE) return { matches: [] };
   const now = MOCK_NOW;
   const matches = MOCK_GAMES.filter((game) => isLiveAt(game, now)).map((game) => {
     const score = liveScoreFor(game, now);
@@ -109,6 +113,7 @@ export function getMockLiveScores(): { matches: unknown[] } {
 }
 
 export function getMockLiveScoresNormalized(): LiveScoreMatch[] {
+  if (MOCK_DISABLE_LIVE) return [];
   const now = MOCK_NOW;
   return MOCK_GAMES.filter((game) => isLiveAt(game, now)).map((game) => {
     const score = liveScoreFor(game, now);

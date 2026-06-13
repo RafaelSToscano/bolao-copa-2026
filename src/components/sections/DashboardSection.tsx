@@ -10,6 +10,7 @@ import {
   useLiveScores,
 } from "@/hooks/useLiveScores";
 import { DashboardLiveCard } from "./dashboard/DashboardLiveCard";
+import { NextGameBanner } from "@/components/ui/NextGameBanner";
 import { RankingTopTen } from "./dashboard/RankingTopTen";
 import { UpcomingMatchesCard } from "./dashboard/UpcomingMatchesCard";
 import { RecentResultsCard } from "./dashboard/RecentResultsCard";
@@ -29,6 +30,11 @@ export type DashboardTab =
 interface DashboardSectionProps {
   currentUserId: string;
   myPredictions?: Prediction[];
+  // Full client-side games list, same source Palpites uses. Lets the
+  // "Próximos Jogos" cards on the dashboard pick from the exact same
+  // pool as Palpites instead of the cached, pre-filtered server
+  // payload, so the two screens always agree on which games come next.
+  games?: Game[];
   onNavigate: (tab: DashboardTab) => void;
 }
 
@@ -79,6 +85,7 @@ function detectScoringTeam(
 export function DashboardSection({
   currentUserId,
   myPredictions,
+  games,
   onNavigate,
 }: DashboardSectionProps) {
   const data = useDashboardData(currentUserId);
@@ -135,13 +142,19 @@ export function DashboardSection({
         </p>
       </div>
 
-      {data.live && (
+      {data.live && data.live.liveGames.length > 0 ? (
         <DashboardLiveCard
           liveGames={data.live.liveGames}
           liveScores={liveScores}
           myPredictions={myPredictions}
           currentUserId={currentUserId}
           onRefresh={data.refetch}
+        />
+      ) : (
+        <NextGameBanner
+          games={games ?? data.upcoming?.games ?? []}
+          predictions={myPredictions ?? []}
+          currentUserId={currentUserId}
         />
       )}
 

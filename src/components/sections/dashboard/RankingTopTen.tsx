@@ -27,11 +27,10 @@ interface RankingTopTenProps {
   top: LiveRankingRow[];
   lanterna: LiveRankingRow | null;
   /**
-   * Reserved: when the ranking includes provisional live-match points,
-   * the parent passes `true`. Currently the panel doesn't surface a
-   * visible "AO VIVO" badge here — the live indicator lives on the
-   * match cards instead — but keep the prop so callers don't have to
-   * change.
+   * When the ranking includes provisional live-match points, parents
+   * pass `true`. Drives which delta the row shows: the live-vs-DB
+   * delta during a match, or the "since last round" delta otherwise
+   * (matching the Ranking screen).
    */
   provisional?: boolean;
   onSeeAll?: () => void;
@@ -46,19 +45,20 @@ const podiumCards = [
 const ROW_HEIGHT_PX = 56;
 
 /**
- * Position delta vs the DB source-of-truth. Positive = the live
- * computation pushed the player UP from where they sit in the
- * official ranking. Stays the same throughout a live match instead
- * of resetting between polls.
+ * During a live match, show how the live computation moved the
+ * player vs the DB position (positive = climbed). Otherwise mirror
+ * the Ranking screen and show the "since last round" delta so both
+ * surfaces agree.
  */
-function deltaOf(row: { position: number; officialPosition: number }) {
-  return row.officialPosition - row.position;
+function deltaOf(row: LiveRankingRow, provisional: boolean) {
+  if (provisional) return row.officialPosition - row.position;
+  return row.lastRoundDelta;
 }
 
 export function RankingTopTen({
   top,
   lanterna,
-  provisional: _provisional,
+  provisional = false,
   onSeeAll,
 }: RankingTopTenProps) {
   const podium = top.slice(0, 3);
@@ -106,11 +106,15 @@ export function RankingTopTen({
         <div className="grid grid-cols-3 gap-2 md:gap-3">
           {podium.map((player, i) => {
             const card = podiumCards[i];
-            const delta = deltaOf(player);
+            const delta = deltaOf(player, provisional);
+            // Reserve the ring highlight for live-match swings — the
+            // "since last round" delta is informational, not a live
+            // event, so we keep it as a quiet arrow only.
+            const liveMove = provisional && delta !== 0;
             return (
               <Card
                 key={player.id}
-                data-moved={delta === 0 ? undefined : delta > 0 ? "up" : "down"}
+                data-moved={liveMove ? (delta > 0 ? "up" : "down") : undefined}
                 className="bg-slate-900 border-slate-800 text-white rounded-2xl md:rounded-3xl transition-all duration-500 data-[moved=up]:ring-2 data-[moved=up]:ring-emerald-400/60 data-[moved=down]:ring-2 data-[moved=down]:ring-red-400/60"
               >
                 <CardContent className="p-2 md:p-4 text-center space-y-1 md:space-y-2">
@@ -157,11 +161,12 @@ export function RankingTopTen({
                 .map((player) => {
                   const visualIdx = visualIndexById.get(player.id) ?? 0;
                   const tailIdx = visualIdx - 3;
-                  const delta = deltaOf(player);
+                  const delta = deltaOf(player, provisional);
+                  const liveMove = provisional && delta !== 0;
                   return (
                     <div
                       key={player.id}
-                      data-moved={delta === 0 ? undefined : delta > 0 ? "up" : "down"}
+                      data-moved={liveMove ? (delta > 0 ? "up" : "down") : undefined}
                       className="absolute left-0 right-0 grid grid-cols-12 px-3 border-b border-slate-800 items-center transition-all duration-500 data-[moved=up]:bg-emerald-500/10 data-[moved=down]:bg-red-500/10"
                       style={{
                         top: `${tailIdx * ROW_HEIGHT_PX}px`,

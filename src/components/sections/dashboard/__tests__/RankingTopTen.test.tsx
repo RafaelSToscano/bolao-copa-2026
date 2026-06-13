@@ -9,7 +9,8 @@ function row(
   position: number,
   exacts = 0,
   officialPosition?: number,
-  officialTotal?: number
+  officialTotal?: number,
+  lastRoundDelta = 0
 ): LiveRankingRow {
   return {
     id,
@@ -22,6 +23,7 @@ function row(
     position,
     officialPosition: officialPosition ?? position,
     officialTotal: officialTotal ?? total,
+    lastRoundDelta,
   };
 }
 
@@ -87,8 +89,27 @@ describe("RankingTopTen", () => {
       row("b", 40, 2, 0, 2, 40),
       row("a", 30, 3, 0, 1, 50),
     ];
-    render(<RankingTopTen top={top} lanterna={top[2]} />);
+    render(<RankingTopTen top={top} lanterna={top[2]} provisional />);
     expect(screen.getByText("+2")).toBeInTheDocument(); // c moved from 3 → 1
     expect(screen.getByText("-2")).toBeInTheDocument(); // a moved from 1 → 3
+  });
+
+  it("shows last-round delta when there is no live match", () => {
+    // No provisional points → arrows mirror the Ranking screen and
+    // report movement since the last completed round.
+    const top: LiveRankingRow[] = [
+      row("a", 50, 1, 0, 1, 50, 2), // climbed 2
+      row("b", 40, 2, 0, 2, 40, 0), // unchanged
+      row("c", 30, 3, 0, 3, 30, -1), // dropped 1
+    ];
+    render(<RankingTopTen top={top} lanterna={top[2]} />);
+    expect(screen.getByText("+2")).toBeInTheDocument();
+    expect(screen.getByText("-1")).toBeInTheDocument();
+  });
+
+  it("hides arrows when no movement has happened yet", () => {
+    const top: LiveRankingRow[] = [row("a", 0, 1), row("b", 0, 1)];
+    render(<RankingTopTen top={top} lanterna={top[1]} />);
+    expect(screen.queryByText(/^[+-]\d+$/)).toBeNull();
   });
 });
