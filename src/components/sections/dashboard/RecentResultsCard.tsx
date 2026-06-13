@@ -82,11 +82,11 @@ export function RecentResultsCard({ items }: RecentResultsCardProps) {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <span className="text-3xl font-black tabular-nums text-white">
+                      <span className="text-4xl font-black tabular-nums text-white">
                         {game.official_score_a}
                       </span>
                       <span className="text-xl font-black text-slate-500">×</span>
-                      <span className="text-3xl font-black tabular-nums text-white">
+                      <span className="text-4xl font-black tabular-nums text-white">
                         {game.official_score_b}
                       </span>
                     </div>
