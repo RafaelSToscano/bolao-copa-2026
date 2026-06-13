@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Prediction } from "@/types/prediction";
 import { Game } from "@/types/game";
@@ -9,6 +9,7 @@ import {
   LiveScoreMatch,
   useLiveScores,
 } from "@/hooks/useLiveScores";
+import { deriveLiveSignals } from "@/lib/liveSignals";
 import { DashboardLiveCard } from "./dashboard/DashboardLiveCard";
 import { NextGameBanner } from "@/components/ui/NextGameBanner";
 import { RankingTopTen } from "./dashboard/RankingTopTen";
@@ -88,8 +89,14 @@ export function DashboardSection({
   games,
   onNavigate,
 }: DashboardSectionProps) {
-  const data = useDashboardData(currentUserId);
-  const liveScores = useLiveScores(data.live?.liveGames ?? []);
+  const allGames = useMemo(() => games ?? [], [games]);
+  const liveScores = useLiveScores(allGames);
+  const liveSignals = useMemo(
+    () => deriveLiveSignals(allGames, liveScores),
+    [allGames, liveScores]
+  );
+
+  const data = useDashboardData(currentUserId, liveSignals);
 
   const [goalTrigger, setGoalTrigger] = useState<string | null>(null);
   const [scoringTeam, setScoringTeam] = useState<string | null>(null);
@@ -97,10 +104,10 @@ export function DashboardSection({
   const modalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Drop the deferred modal timer when the component unmounts. We
-  // intentionally do NOT clear it on every `data.live` change — a
-  // fresh poll arriving inside the 2.2s animation window must not
-  // cancel the pending modal-open call, otherwise the modal silently
-  // goes missing whenever a refetch lands quickly after a goal.
+  // intentionally do NOT clear it on every snapshot change — a fresh
+  // poll arriving inside the 2.2s animation window must not cancel
+  // the pending modal-open call, otherwise the modal silently goes
+  // missing whenever a refetch lands quickly after a goal.
   useEffect(() => {
     return () => {
       if (modalTimerRef.current) clearTimeout(modalTimerRef.current);
@@ -108,8 +115,7 @@ export function DashboardSection({
   }, []);
 
   useEffect(() => {
-    if (!data.live) return;
-    const next = snapshotScores(data.live.liveGames, liveScores);
+    const next = snapshotScores(liveSignals.liveGames, liveScores);
     const prev = lastSnapshotRef.current;
     lastSnapshotRef.current = next;
     if (prev === null) return; // first observation — establish baseline only
@@ -123,7 +129,7 @@ export function DashboardSection({
       setScoringTeam(team);
       modalTimerRef.current = null;
     }, MODAL_DELAY_MS);
-  }, [data.live, liveScores]);
+  }, [liveSignals, liveScores]);
 
   return (
     <div className="space-y-6">
@@ -138,9 +144,9 @@ export function DashboardSection({
         </p>
       </div>
 
-      {data.live && data.live.liveGames.length > 0 ? (
+      {liveSignals.liveGames.length > 0 ? (
         <DashboardLiveCard
-          liveGames={data.live.liveGames}
+          liveGames={liveSignals.liveGames}
           liveScores={liveScores}
           myPredictions={myPredictions}
           currentUserId={currentUserId}
@@ -148,7 +154,7 @@ export function DashboardSection({
         />
       ) : (
         <NextGameBanner
-          games={games ?? data.upcoming?.games ?? []}
+          games={allGames.length > 0 ? allGames : data.upcoming?.games ?? []}
           predictions={myPredictions ?? []}
           currentUserId={currentUserId}
         />

@@ -4,7 +4,6 @@ import { Prediction } from "@/types/prediction";
 import { LiveScoreMatch } from "@/hooks/useLiveScores";
 import {
   DashboardGroupLeadersPayload,
-  DashboardLivePayload,
   DashboardMyStatusPayload,
   DashboardRankingTopPayload,
   DashboardRecentPayload,
@@ -17,49 +16,8 @@ import {
 import { calculatePredictionPoints } from "@/services/predictions/predictionCalculations";
 import { calculateAllGroupStandings } from "@/services/standings/standingsCalculations";
 
-const LIVE_WINDOW_MINUTES = 180;
-
 function nowMs(refNow: number | undefined): number {
   return refNow ?? Date.now();
-}
-
-function liveGamesAt(games: Game[], at: number): Game[] {
-  return games.filter((game) => {
-    if (!game.match_date) return false;
-    const kickoff = new Date(game.match_date).getTime();
-    const elapsedMin = (at - kickoff) / 60000;
-    return elapsedMin >= 0 && elapsedMin <= LIVE_WINDOW_MINUTES;
-  });
-}
-
-export function projectLive(
-  games: Game[],
-  refNow?: number
-): DashboardLivePayload {
-  const t = nowMs(refNow);
-  // For live cards a null official score means "no goals yet", not
-  // "match never recorded" — coerce to 0 so the LIVE card renders
-  // 0 × 0 from the moment kickoff passes, instead of the empty
-  // — × — placeholder.
-  const liveGames = liveGamesAt(games, t).map((game) => ({
-    ...game,
-    official_score_a: game.official_score_a ?? 0,
-    official_score_b: game.official_score_b ?? 0,
-  }));
-
-  let secondsUntilNextKickoff: number | null = null;
-  for (const game of games) {
-    if (!game.match_date) continue;
-    const kickoff = new Date(game.match_date).getTime();
-    const diffSec = Math.floor((kickoff - t) / 1000);
-    if (diffSec >= 0) {
-      if (secondsUntilNextKickoff === null || diffSec < secondsUntilNextKickoff) {
-        secondsUntilNextKickoff = diffSec;
-      }
-    }
-  }
-
-  return { liveGames, secondsUntilNextKickoff };
 }
 
 /**

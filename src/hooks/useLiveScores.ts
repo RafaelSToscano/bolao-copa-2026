@@ -13,21 +13,37 @@ export type LiveScoreMatch = {
 
 export const LIVE_POLL_MS = 10_000;
 
+const KICKOFF_WARMUP_MS = 60 * 60 * 1000;
+
+const LIVE_STATUSES = new Set(["IN_PLAY", "PAUSED", "LIVE", "HALF_TIME"]);
+const UPCOMING_STATUSES = new Set(["TIMED", "SCHEDULED"]);
+
+export function isLiveStatus(status: string): boolean {
+  return LIVE_STATUSES.has(status);
+}
+
+export function isUpcomingStatus(status: string): boolean {
+  return UPCOMING_STATUSES.has(status);
+}
+
 /**
- * Single client-side reader for live football-data scores. Polls
+ * Single client-side reader for football-data scores. Polls
  * `/api/live-scores` (which serves the already-normalized
- * `LiveScoreMatch[]` shape) at 10s while at least one game is in the
- * live window. Goes silent (no polling, empty array) when no games
- * are live, so we don't burn requests off-matchday. Mounted by
- * `DashboardSection` and `LiveGameBanner`, which then pass `matches`
- * to `findLiveScoreForGame` per card.
+ * `LiveScoreMatch[]` shape) every 10s while there's a live game
+ * happening OR an imminent kickoff among the project's `games`. Goes
+ * silent (no polling, empty array) otherwise so we don't burn requests
+ * off-matchday.
+ *
+ * Mounted by `DashboardSection` and `LiveGameBanner`; the matches it
+ * returns drive the live cards, the goal-detection effect, AND the
+ * dashboard's fast-poll signal (live games + secondsUntilNextKickoff).
  */
-export function useLiveScores(activeGames: Game[]) {
+export function useLiveScores(games: Game[]) {
   const [matches, setMatches] = useState<LiveScoreMatch[]>([]);
-  const hasLive = activeGames.length > 0;
+  const shouldPoll = hasLiveOrImminent(games);
 
   useEffect(() => {
-    if (!hasLive) {
+    if (!shouldPoll) {
       setMatches([]);
       return;
     }
@@ -52,9 +68,27 @@ export function useLiveScores(activeGames: Game[]) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [hasLive]);
+  }, [shouldPoll]);
 
   return matches;
+}
+
+function hasLiveOrImminent(games: Game[]): boolean {
+  const now = Date.now();
+  for (const g of games) {
+    if (!g.match_date) continue;
+    const kickoff = new Date(g.match_date).getTime();
+    const elapsed = now - kickoff;
+    // Live window mirrors the football-data live state plus a safety
+    // buffer (180 min) so a finished-but-still-IN_PLAY match keeps
+    // polling until upstream flips it to FINISHED.
+    if (elapsed >= 0 && elapsed <= 180 * 60 * 1000) return true;
+    // Pre-kickoff warmup: start polling within the next hour so the
+    // first live frame lands on the dashboard the instant the upstream
+    // flips status, without burning requests off-matchday.
+    if (elapsed < 0 && -elapsed <= KICKOFF_WARMUP_MS) return true;
+  }
+  return false;
 }
 
 export function findLiveScoreForGame(

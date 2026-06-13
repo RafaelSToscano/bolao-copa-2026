@@ -2,12 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { DashboardSection } from "./DashboardSection";
 
-const baseResponses = (liveGames: unknown[] = []) => ({
-  "/api/dashboard/live": {
-    liveGames,
-    liveScores: [],
-    secondsUntilNextKickoff: 600,
-  },
+const baseResponses = () => ({
   "/api/dashboard/ranking-top": {
     top: [
       {
@@ -94,7 +89,7 @@ describe("DashboardSection", () => {
     const calledPaths = new Set(
       fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0])
     );
-    expect(calledPaths).toContain("/api/dashboard/live");
+    expect(calledPaths).not.toContain("/api/dashboard/live");
     expect(calledPaths).toContain("/api/dashboard/ranking-top");
     expect(calledPaths).toContain("/api/dashboard/upcoming");
     expect(calledPaths).toContain("/api/dashboard/recent");

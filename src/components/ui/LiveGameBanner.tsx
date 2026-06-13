@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
-import { getLiveGames } from "@/lib/liveGames";
 import { useLiveScores } from "@/hooks/useLiveScores";
+import { deriveLiveSignals } from "@/lib/liveSignals";
 import { DashboardLiveCard } from "@/components/sections/dashboard/DashboardLiveCard";
 
 interface LiveGameBannerProps {
@@ -20,15 +20,11 @@ interface LiveGameBannerProps {
  * is the source of truth for live-card UI/UX.
  */
 export function LiveGameBanner({ games, predictions, currentUserId }: LiveGameBannerProps) {
-  const [liveGames, setLiveGames] = useState<Game[]>([]);
-  const liveScores = useLiveScores(liveGames);
-
-  useEffect(() => {
-    const update = () => setLiveGames(getLiveGames(games));
-    update();
-    const id = setInterval(update, 60000);
-    return () => clearInterval(id);
-  }, [games]);
+  const liveScores = useLiveScores(games);
+  const { liveGames } = useMemo(
+    () => deriveLiveSignals(games, liveScores),
+    [games, liveScores]
+  );
 
   if (liveGames.length === 0) return null;
 

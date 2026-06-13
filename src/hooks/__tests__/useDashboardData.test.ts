@@ -8,11 +8,12 @@ import {
   POLL_BASELINE_MS,
 } from "@/hooks/useDashboardData";
 
-const baseResponses = (liveGames: unknown[] = []) => ({
-  "/api/dashboard/live": {
-    liveGames,
-    secondsUntilNextKickoff: 600,
-  },
+const baselineSignals = {
+  liveGames: [],
+  secondsUntilNextKickoff: null,
+};
+
+const baseResponses = () => ({
   "/api/dashboard/ranking-top": { top: [], lanterna: null },
   "/api/dashboard/upcoming": { games: [] },
   "/api/dashboard/recent": { items: [] },
@@ -26,7 +27,7 @@ const baseResponses = (liveGames: unknown[] = []) => ({
 });
 
 describe("polling cadence pure logic", () => {
-  it("baseline when no live data", () => {
+  it("baseline when no live signals", () => {
     expect(computePollIntervalMs(null)).toBe(POLL_BASELINE_MS);
   });
 
@@ -74,7 +75,7 @@ describe("useDashboardData", () => {
     vi.unstubAllGlobals();
   });
 
-  it("performs an initial fetch of all six endpoints", async () => {
+  it("performs an initial fetch of all five endpoints", async () => {
     const responses = baseResponses();
     const fetchMock = vi.fn(async (url: string) => {
       const path = url.split("?")[0];
@@ -83,18 +84,18 @@ describe("useDashboardData", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    renderHook(() => useDashboardData("user-1"));
+    renderHook(() => useDashboardData("user-1", baselineSignals));
 
     await vi.waitFor(() => {
       const seen = new Set(
         fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0])
       );
-      expect(seen.size).toBe(6);
+      expect(seen.size).toBe(5);
     });
   });
 
-  it("flags isLive=true when liveGames is non-empty", async () => {
-    const responses = baseResponses([{ id: "g1" }]);
+  it("never calls /api/dashboard/live", async () => {
+    const responses = baseResponses();
     const fetchMock = vi.fn(async (url: string) => {
       const path = url.split("?")[0];
       const body = responses[path as keyof typeof responses] ?? null;
@@ -102,11 +103,14 @@ describe("useDashboardData", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useDashboardData("u1"));
+    renderHook(() => useDashboardData("u1", baselineSignals));
 
     await vi.waitFor(() => {
-      expect(result.current.isLive).toBe(true);
+      expect(fetchMock).toHaveBeenCalled();
     });
+
+    const paths = fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0]);
+    expect(paths).not.toContain("/api/dashboard/live");
   });
 
   it("does not call my-status when no userId is provided", async () => {
@@ -118,7 +122,7 @@ describe("useDashboardData", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    renderHook(() => useDashboardData(undefined));
+    renderHook(() => useDashboardData(undefined, baselineSignals));
 
     await vi.waitFor(() => {
       expect(fetchMock).toHaveBeenCalled();
@@ -137,18 +141,17 @@ describe("useDashboardData", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    renderHook(() => useDashboardData("u1"));
+    renderHook(() => useDashboardData("u1", baselineSignals));
 
     await vi.waitFor(() => {
       const seen = new Set(
         fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0])
       );
-      expect(seen.size).toBe(6);
+      expect(seen.size).toBe(5);
     });
 
     const paths = fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0]);
-    // Fast group: live, ranking-top, my-status
-    expect(paths).toContain("/api/dashboard/live");
+    // Fast group: ranking-top, my-status
     expect(paths).toContain("/api/dashboard/ranking-top");
     expect(paths).toContain("/api/dashboard/my-status");
     // Slow group: upcoming, recent, group-leaders
@@ -166,13 +169,13 @@ describe("useDashboardData", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    renderHook(() => useDashboardData("u1"));
+    renderHook(() => useDashboardData("u1", baselineSignals));
 
     await vi.waitFor(() => {
       const seen = new Set(
         fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0])
       );
-      expect(seen.size).toBe(6);
+      expect(seen.size).toBe(5);
     });
 
     const upcomingBefore = fetchMock.mock.calls.filter((c) =>
