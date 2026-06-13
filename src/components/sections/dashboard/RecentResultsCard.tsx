@@ -81,14 +81,37 @@ export function RecentResultsCard({ items }: RecentResultsCardProps) {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <span className="text-4xl font-black tabular-nums text-white">
-                        {game.official_score_a}
-                      </span>
-                      <span className="text-xl font-black text-slate-500">×</span>
-                      <span className="text-4xl font-black tabular-nums text-white">
-                        {game.official_score_b}
-                      </span>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-3">
+                        <span className="text-4xl font-black tabular-nums text-white">
+                          {game.official_score_a}
+                        </span>
+                        <span className="text-xl font-black text-slate-500">×</span>
+                        <span className="text-4xl font-black tabular-nums text-white">
+                          {game.official_score_b}
+                        </span>
+                      </div>
+
+                      {hasPrediction ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-blue-300">
+                            Palpite
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-base font-black tabular-nums text-blue-200">
+                              {myPrediction!.predicted_score_a}
+                            </span>
+                            <span className="text-sm font-black text-slate-500">×</span>
+                            <span className="text-base font-black tabular-nums text-blue-200">
+                              {myPrediction!.predicted_score_b}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                          Sem palpite
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex flex-col items-center gap-1.5 min-w-0">
@@ -97,29 +120,6 @@ export function RecentResultsCard({ items }: RecentResultsCardProps) {
                         {game.team_b}
                       </span>
                     </div>
-                  </div>
-
-                  <div className="border-t border-slate-800 pt-3 flex items-center justify-center gap-3 flex-wrap">
-                    {hasPrediction ? (
-                      <>
-                        <span className="text-base font-black uppercase tracking-wider rounded-full px-3 py-1 bg-[#2A398D]/15 border border-[#2A398D]/40 text-blue-300">
-                          Palpite
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-2xl font-black tabular-nums text-blue-200">
-                            {myPrediction!.predicted_score_a}
-                          </span>
-                          <span className="text-lg font-black text-slate-500">×</span>
-                          <span className="text-2xl font-black tabular-nums text-blue-200">
-                            {myPrediction!.predicted_score_b}
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <span className="text-base font-black text-slate-500 uppercase tracking-wider bg-slate-800 border border-slate-700 rounded-full px-3 py-1">
-                        Sem palpite
-                      </span>
-                    )}
                   </div>
                 </div>
               );
