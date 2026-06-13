@@ -73,47 +73,53 @@ export function RecentResultsCard({ items }: RecentResultsCardProps) {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-center">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
+                    <div className="flex flex-col items-center gap-1.5 min-w-0">
                       <Flag team={game.team_a} size="medium" />
-                      <span className="font-bold truncate">{game.team_a}</span>
+                      <span className="text-sm font-black text-white text-center leading-tight">
+                        {game.team_a}
+                      </span>
                     </div>
 
-                    <span className="text-slate-500 text-sm font-bold">×</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl font-black tabular-nums text-white">
+                        {game.official_score_a}
+                      </span>
+                      <span className="text-xl font-black text-slate-500">×</span>
+                      <span className="text-3xl font-black tabular-nums text-white">
+                        {game.official_score_b}
+                      </span>
+                    </div>
 
-                    <div className="flex items-center gap-2 justify-end min-w-0">
-                      <span className="font-bold truncate text-right">
+                    <div className="flex flex-col items-center gap-1.5 min-w-0">
+                      <Flag team={game.team_b} size="medium" />
+                      <span className="text-sm font-black text-white text-center leading-tight">
                         {game.team_b}
                       </span>
-                      <Flag team={game.team_b} size="medium" />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-2xl bg-slate-950/60 border border-slate-800 p-3 flex flex-col items-center gap-1">
-                      <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                        Resultado
-                      </span>
-                      <span className="text-lg font-black tabular-nums text-white">
-                        {game.official_score_a} × {game.official_score_b}
-                      </span>
-                    </div>
-
-                    <div className="rounded-2xl bg-slate-950/60 border border-slate-800 p-3 flex flex-col items-center gap-1">
-                      <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                        Seu palpite
-                      </span>
-                      {hasPrediction ? (
-                        <span className="text-lg font-black tabular-nums text-amber-300">
-                          {myPrediction!.predicted_score_a} ×{" "}
-                          {myPrediction!.predicted_score_b}
+                  <div className="border-t border-slate-800 pt-3 flex items-center justify-center gap-3 flex-wrap">
+                    {hasPrediction ? (
+                      <>
+                        <span className="text-base font-black uppercase tracking-wider rounded-full px-3 py-1 bg-[#2A398D]/15 border border-[#2A398D]/40 text-blue-300">
+                          Seu palpite
                         </span>
-                      ) : (
-                        <span className="text-base font-bold text-slate-500">
-                          Sem palpite
-                        </span>
-                      )}
-                    </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-black tabular-nums text-blue-200">
+                            {myPrediction!.predicted_score_a}
+                          </span>
+                          <span className="text-lg font-black text-slate-500">×</span>
+                          <span className="text-2xl font-black tabular-nums text-blue-200">
+                            {myPrediction!.predicted_score_b}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <span className="text-base font-black text-slate-500 uppercase tracking-wider bg-slate-800 border border-slate-700 rounded-full px-3 py-1">
+                        Sem palpite
+                      </span>
+                    )}
                   </div>
                 </div>
               );

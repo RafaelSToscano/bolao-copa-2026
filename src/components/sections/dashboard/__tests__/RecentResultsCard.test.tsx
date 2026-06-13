@@ -36,38 +36,30 @@ function pred(gameId: string, a: number, b: number): Prediction {
 }
 
 describe("RecentResultsCard", () => {
-  it("renders teams, both score panels, weekday date, and points chip", () => {
+  it("renders teams, the official score, the prediction below, weekday date, and points chip", () => {
     const items = [
-      { game: game("g1", 1, 0), myPrediction: pred("g1", 1, 0), myPoints: 15 },
+      { game: game("g1", 2, 1), myPrediction: pred("g1", 2, 1), myPoints: 15 },
     ];
     render(<RecentResultsCard items={items} />);
     expect(screen.getByText("T1")).toBeInTheDocument();
     expect(screen.getByText("T2")).toBeInTheDocument();
-    expect(screen.getByText("Resultado")).toBeInTheDocument();
+    // Official score: digits split across spans for the home/away cells,
+    // so we look them up individually rather than as "2 × 1".
+    expect(screen.getAllByText("2").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("1").length).toBeGreaterThanOrEqual(1);
+    // Single "Seu palpite" pill below the matchup.
     expect(screen.getByText("Seu palpite")).toBeInTheDocument();
-    // Both Resultado and Seu palpite panels show 1 × 0 (exact match).
-    expect(screen.getAllByText("1 × 0")).toHaveLength(2);
     expect(screen.getByText(/\+15 pts/)).toBeInTheDocument();
     // Weekday + DD/MM · HH:mm header (15/06/2026 is a Monday → "Seg").
     expect(screen.getByText(/Seg 15\/06 · /)).toBeInTheDocument();
   });
 
-  it("renders distinct scores when the prediction differs from the result", () => {
-    const items = [
-      { game: game("g1", 2, 1), myPrediction: pred("g1", 1, 1), myPoints: 0 },
-    ];
-    render(<RecentResultsCard items={items} />);
-    expect(screen.getByText("2 × 1")).toBeInTheDocument(); // Resultado
-    expect(screen.getByText("1 × 1")).toBeInTheDocument(); // Seu palpite
-  });
-
-  it("shows 'Sem palpite' inside the prediction panel when myPrediction is null", () => {
+  it("renders 'Sem palpite' below the matchup when myPrediction is null", () => {
     const items = [{ game: game("g1", 1, 0), myPrediction: null, myPoints: 0 }];
     render(<RecentResultsCard items={items} />);
     expect(screen.getByText("Sem palpite")).toBeInTheDocument();
-    expect(screen.getByText("Seu palpite")).toBeInTheDocument();
-    // Result panel still shows the score even with no prediction.
-    expect(screen.getByText("1 × 0")).toBeInTheDocument();
+    // No "Seu palpite" pill when there's no prediction.
+    expect(screen.queryByText("Seu palpite")).not.toBeInTheDocument();
   });
 
   it("renders empty state with no items", () => {
