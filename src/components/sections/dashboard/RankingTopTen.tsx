@@ -23,7 +23,7 @@ function DeltaArrow({ delta }: { delta: number }) {
   );
 }
 
-interface RankingTopFiveProps {
+interface RankingTopTenProps {
   top: LiveRankingRow[];
   lanterna: LiveRankingRow | null;
   /**
@@ -55,14 +55,14 @@ function deltaOf(row: LiveRankingRow, provisional: boolean) {
   return row.lastRoundDelta;
 }
 
-export function RankingTopFive({
+export function RankingTopTen({
   top,
   lanterna,
   provisional = false,
   onSeeAll,
-}: RankingTopFiveProps) {
+}: RankingTopTenProps) {
   const podium = top.slice(0, 3);
-  const tail = top.slice(3, 5);
+  const tail = top.slice(3, 10);
 
   // Sort tail+podium ALL together by player id so the DOM order stays
   // stable across re-renders, then transform each row to its current
