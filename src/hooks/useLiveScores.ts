@@ -13,7 +13,12 @@ export type LiveScoreMatch = {
 
 export const LIVE_POLL_MS = 10_000;
 
-const KICKOFF_WARMUP_MS = 24 * 60 * 60 * 1000;
+// Live window: poll from 60 min before kickoff to 180 min after. The
+// pre-kickoff slice warms the feed so the live frame lands the moment
+// upstream flips status; the post-kickoff slice covers regulation +
+// extra time + upstream-FT lag without burning requests all day.
+export const LIVE_WINDOW_PRE_MS = 60 * 60 * 1000;
+export const LIVE_WINDOW_POST_MS = 180 * 60 * 1000;
 
 const LIVE_STATUSES = new Set(["IN_PLAY", "PAUSED", "LIVE", "HALF_TIME"]);
 const UPCOMING_STATUSES = new Set(["TIMED", "SCHEDULED"]);
@@ -29,14 +34,15 @@ export function isUpcomingStatus(status: string): boolean {
 /**
  * Single client-side reader for football-data scores. Polls
  * `/api/live-scores` (which serves the already-normalized
- * `LiveScoreMatch[]` shape) every 10s while there's a live game
- * happening OR an imminent kickoff among the project's `games`. Goes
- * silent (no polling, empty array) otherwise so we don't burn requests
- * off-matchday.
+ * `LiveScoreMatch[]` shape) every 10s while at least one project game
+ * is in its live window (kickoff −60 min to kickoff +180 min). Goes
+ * silent (no polling, empty array) outside that window so we don't
+ * burn requests off-matchday.
  *
- * Mounted by `DashboardSection` and `LiveGameBanner`; the matches it
- * returns drive the live cards, the goal-detection effect, AND the
- * dashboard's fast-poll signal (live games + secondsUntilNextKickoff).
+ * Mounted by `DashboardSection`; the matches it returns drive the
+ * live cards, the goal-detection effect, AND the dashboard's
+ * fast-poll signal (live games + secondsUntilNextKickoff). Live UI
+ * lives only on the dashboard now — /palpites is prediction-only.
  */
 export function useLiveScores(games: Game[]) {
   const [matches, setMatches] = useState<LiveScoreMatch[]>([]);
@@ -79,14 +85,8 @@ function hasLiveOrImminent(games: Game[]): boolean {
     if (!g.match_date) continue;
     const kickoff = new Date(g.match_date).getTime();
     const elapsed = now - kickoff;
-    // Live window mirrors the football-data live state plus a safety
-    // buffer (180 min) so a finished-but-still-IN_PLAY match keeps
-    // polling until upstream flips it to FINISHED.
-    if (elapsed >= 0 && elapsed <= 180 * 60 * 1000) return true;
-    // Pre-kickoff warmup: poll any time the next kickoff is within 24h
-    // so the dashboard sees status/score updates for matches happening
-    // today, and the live frame lands the instant upstream flips status.
-    if (elapsed < 0 && -elapsed <= KICKOFF_WARMUP_MS) return true;
+    if (elapsed < 0 && -elapsed <= LIVE_WINDOW_PRE_MS) return true;
+    if (elapsed >= 0 && elapsed <= LIVE_WINDOW_POST_MS) return true;
   }
   return false;
 }

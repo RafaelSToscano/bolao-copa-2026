@@ -2,6 +2,7 @@ import { Game } from "@/types/game";
 import { Player } from "@/types/player";
 import { Prediction } from "@/types/prediction";
 import { LiveScoreMatch } from "@/hooks/useLiveScores";
+import { getNextMatchDayGames } from "@/lib/liveGames";
 import {
   DashboardGroupLeadersPayload,
   DashboardMyStatusPayload,
@@ -110,24 +111,22 @@ export function projectRankingTop(
   return { top, lanterna, provisional };
 }
 
+/**
+ * Picks the next "match day" — the soonest UTC calendar date with at
+ * least one not-yet-finished future game — and returns up to `limit`
+ * games from that day, sorted by kickoff. See `getNextMatchDayGames`
+ * for the underlying selection rule.
+ *
+ * The dashboard's chip card uses `limit = 2`; the Palpites screen,
+ * which shows the same selection without a cap, calls
+ * `getNextMatchDayGames` directly.
+ */
 export function projectUpcoming(
   games: Game[],
-  limit = 5,
+  limit = 2,
   refNow?: number
 ): DashboardUpcomingPayload {
-  const t = nowMs(refNow);
-  const upcoming = games
-    .filter((g) => {
-      if (!g.match_date) return false;
-      if (g.official_score_a !== null && g.official_score_b !== null) return false;
-      return new Date(g.match_date).getTime() > t;
-    })
-    .sort(
-      (a, b) =>
-        new Date(a.match_date!).getTime() - new Date(b.match_date!).getTime()
-    )
-    .slice(0, limit);
-  return { games: upcoming };
+  return { games: getNextMatchDayGames(games, limit, nowMs(refNow)) };
 }
 
 export function projectRecent(

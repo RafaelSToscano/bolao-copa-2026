@@ -14,7 +14,7 @@ export async function GET() {
     TTL_SECONDS,
     async () => {
       const games = await gamesService.getAllGames();
-      return projectUpcoming(games, 5);
+      return projectUpcoming(games, 2);
     }
   );
 
