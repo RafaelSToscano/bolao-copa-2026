@@ -66,58 +66,74 @@ async function fetchJson<T>(url: string): Promise<T | null> {
   }
 }
 
+/**
+ * Polls the dashboard endpoints in two cadences:
+ *
+ * - Fast group (timer-driven, 10s during a live match / 60s otherwise):
+ *   `/api/dashboard/{live,ranking-top,my-status}` — payloads that
+ *   move with live scores.
+ *
+ * - Slow group (event-driven, no timer): `/api/dashboard/{upcoming,
+ *   recent,group-leaders}` — payloads that only change when a kickoff
+ *   passes or the admin records an official score. Refetched on
+ *   mount and whenever the tab regains focus, so a user returning to
+ *   the dashboard after a long break sees fresh data.
+ *
+ * `refetch()` (e.g. after a mock-goal bump) refreshes BOTH groups so
+ * manual refresh is always whole.
+ */
 export function useDashboardData(currentUserId: string | undefined) {
   const [data, setData] = useState<DashboardData>(initialState);
-  const dataRef = useRef(data);
-
-  useEffect(() => {
-    dataRef.current = data;
-  }, [data]);
-
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const refetch = useCallback(async () => {
+  const fetchFast = useCallback(async (): Promise<DashboardLivePayload | null> => {
+    const [live, rankingTop, myStatus] = await Promise.all([
+      fetchJson<DashboardLivePayload>("/api/dashboard/live"),
+      fetchJson<DashboardRankingTopPayload>("/api/dashboard/ranking-top"),
+      currentUserId
+        ? fetchJson<DashboardMyStatusPayload>(
+            `/api/dashboard/my-status?userId=${encodeURIComponent(currentUserId)}`
+          )
+        : Promise.resolve(null),
+    ]);
+
+    setData((prev) => ({
+      ...prev,
+      live,
+      rankingTop,
+      myStatus,
+      isLive: !!live && live.liveGames.length > 0,
+      lastUpdated: Date.now(),
+      error: null,
+    }));
+
+    return live;
+  }, [currentUserId]);
+
+  const fetchSlow = useCallback(async () => {
     const userParam = currentUserId
       ? `?userId=${encodeURIComponent(currentUserId)}`
       : "";
 
-    const [live, rankingTop, upcoming, recent, myStatus, groupLeaders] =
-      await Promise.all([
-        fetchJson<DashboardLivePayload>("/api/dashboard/live"),
-        fetchJson<DashboardRankingTopPayload>("/api/dashboard/ranking-top"),
-        fetchJson<DashboardUpcomingPayload>("/api/dashboard/upcoming"),
-        fetchJson<DashboardRecentPayload>(
-          `/api/dashboard/recent${userParam}`
-        ),
-        currentUserId
-          ? fetchJson<DashboardMyStatusPayload>(
-              `/api/dashboard/my-status?userId=${encodeURIComponent(currentUserId)}`
-            )
-          : Promise.resolve(null),
-        fetchJson<DashboardGroupLeadersPayload>("/api/dashboard/group-leaders"),
-      ]);
+    const [upcoming, recent, groupLeaders] = await Promise.all([
+      fetchJson<DashboardUpcomingPayload>("/api/dashboard/upcoming"),
+      fetchJson<DashboardRecentPayload>(`/api/dashboard/recent${userParam}`),
+      fetchJson<DashboardGroupLeadersPayload>("/api/dashboard/group-leaders"),
+    ]);
 
-    setData({
-      live,
-      rankingTop,
+    setData((prev) => ({
+      ...prev,
       upcoming,
       recent,
-      myStatus,
       groupLeaders,
-      isLive: !!live && live.liveGames.length > 0,
-      lastUpdated: Date.now(),
-      error: null,
-    });
+    }));
   }, [currentUserId]);
 
-  // Guard against overlapping fetches. If the polling timer fires
-  // while a manual refetch (e.g. from a goal-bump click) is still in
-  // flight, the second batch of fetches would race the first and the
-  // goal-detection effect would observe inconsistent intermediate
-  // snapshots. If a caller asks to refetch while one is already
-  // running, queue exactly one follow-up so their request isn't
-  // silently dropped — that fixes the case where a + click coincides
-  // with a polling tick and the user sees their goal lost.
+  // Guard against overlapping refetches. A timer tick that fires
+  // while a manual refetch (e.g. mock-goal bump) is in flight would
+  // race the goal-detection effect's snapshot comparison and lose a
+  // goal. Queue exactly one follow-up so a coinciding click isn't
+  // silently dropped.
   const fetchInFlightRef = useRef(false);
   const fetchQueuedRef = useRef(false);
 
@@ -128,15 +144,15 @@ export function useDashboardData(currentUserId: string | undefined) {
     }
     fetchInFlightRef.current = true;
     try {
-      await refetch();
+      await Promise.all([fetchFast(), fetchSlow()]);
       while (fetchQueuedRef.current) {
         fetchQueuedRef.current = false;
-        await refetch();
+        await Promise.all([fetchFast(), fetchSlow()]);
       }
     } finally {
       fetchInFlightRef.current = false;
     }
-  }, [refetch]);
+  }, [fetchFast, fetchSlow]);
 
   useEffect(() => {
     let cancelled = false;
@@ -146,15 +162,25 @@ export function useDashboardData(currentUserId: string | undefined) {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") {
         return;
       }
-      await safeRefetch();
+      // Use the fresh payload returned by fetchFast() rather than
+      // a state ref — state lags by a render commit and would force
+      // the FIRST tick to schedule a 60s baseline even when the
+      // response already says we're live.
+      const fresh = await fetchFast();
       if (cancelled) return;
-      const interval = shouldPollFast(dataRef.current.live)
-        ? POLL_LIVE_MS
-        : POLL_BASELINE_MS;
+      const interval = shouldPollFast(fresh) ? POLL_LIVE_MS : POLL_BASELINE_MS;
       timerRef.current = setTimeout(tick, interval);
     };
 
-    void tick();
+    // Slow group runs once on mount alongside the first fast tick;
+    // after that it only refires when the tab regains focus.
+    const initialKick = async () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
+      await Promise.all([fetchSlow(), tick()]);
+    };
+    void initialKick();
 
     const onVisibility = () => {
       if (typeof document === "undefined") return;
@@ -163,6 +189,7 @@ export function useDashboardData(currentUserId: string | undefined) {
           clearTimeout(timerRef.current);
           timerRef.current = null;
         }
+        void fetchSlow();
         void tick();
       } else if (timerRef.current) {
         clearTimeout(timerRef.current);
@@ -184,7 +211,7 @@ export function useDashboardData(currentUserId: string | undefined) {
         document.removeEventListener("visibilitychange", onVisibility);
       }
     };
-  }, [safeRefetch]);
+  }, [fetchFast, fetchSlow]);
 
   return { ...data, refetch: safeRefetch };
 }

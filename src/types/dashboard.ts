@@ -2,7 +2,6 @@ import { Game } from "./game";
 import { Player } from "./player";
 import { Prediction } from "./prediction";
 import { TeamStanding } from "./standings";
-import { LiveScoreMatch } from "@/hooks/useLiveScores";
 
 export type RankingRow = Player & {
   total: number;
@@ -29,7 +28,6 @@ export type LiveRankingRow = RankingRow & {
 
 export interface DashboardLivePayload {
   liveGames: Game[];
-  liveScores: LiveScoreMatch[];
   secondsUntilNextKickoff: number | null;
 }
 

@@ -94,4 +94,32 @@ describe("dashboard route handlers", () => {
     expect(body).toHaveProperty("groups");
     expect(Array.isArray(body.groups)).toBe(true);
   });
+
+  it("/api/live-scores returns the normalized LiveScoreMatch[] shape", async () => {
+    const { GET } = await import("@/app/api/live-scores/route");
+    const res = await GET();
+    const body = await res.json();
+    expect(body).toHaveProperty("matches");
+    expect(Array.isArray(body.matches)).toBe(true);
+    if (body.matches.length > 0) {
+      const m = body.matches[0];
+      // Server must ship the already-normalized shape so the client
+      // hook doesn't have to know about football-data's nested
+      // score.fullTime.{home,away} JSON.
+      expect(m).toHaveProperty("homeScore");
+      expect(m).toHaveProperty("awayScore");
+      expect(m).toHaveProperty("homeTeam");
+      expect(typeof m.homeTeam).toBe("string");
+    }
+    expect(res.headers.get("Cache-Control")).toMatch(/public/);
+  });
+
+  it("/api/dashboard/live no longer carries liveScores", async () => {
+    const { GET } = await import("@/app/api/dashboard/live/route");
+    const res = await GET();
+    const body = await res.json();
+    expect(body).toHaveProperty("liveGames");
+    expect(body).toHaveProperty("secondsUntilNextKickoff");
+    expect(body).not.toHaveProperty("liveScores");
+  });
 });

@@ -11,40 +11,48 @@ export type LiveScoreMatch = {
   awayScore: number | null;
 };
 
+export const LIVE_POLL_MS = 10_000;
+
+/**
+ * Single client-side reader for live football-data scores. Polls
+ * `/api/live-scores` (which serves the already-normalized
+ * `LiveScoreMatch[]` shape) at 10s while at least one game is in the
+ * live window. Goes silent (no polling, empty array) when no games
+ * are live, so we don't burn requests off-matchday. Mounted by
+ * `DashboardSection` and `LiveGameBanner`, which then pass `matches`
+ * to `findLiveScoreForGame` per card.
+ */
 export function useLiveScores(activeGames: Game[]) {
   const [matches, setMatches] = useState<LiveScoreMatch[]>([]);
+  const hasLive = activeGames.length > 0;
 
   useEffect(() => {
-    if (activeGames.length === 0) {
+    if (!hasLive) {
       setMatches([]);
       return;
     }
 
+    let cancelled = false;
+
     async function load() {
       try {
-        const res = await fetch("/api/live-scores", { cache: "no-store" });
-        const data = await res.json();
-
-        const normalized = (data.matches || []).map((m: any) => ({
-          id: m.id,
-          utcDate: m.utcDate,
-          status: m.status,
-          homeTeam: m.homeTeam?.name,
-          awayTeam: m.awayTeam?.name,
-          homeScore: m.score?.fullTime?.home,
-          awayScore: m.score?.fullTime?.away,
-        }));
-
-        setMatches(normalized);
+        const res = await fetch("/api/live-scores");
+        if (!res.ok) return;
+        const data = (await res.json()) as { matches?: LiveScoreMatch[] };
+        if (cancelled) return;
+        setMatches(data.matches ?? []);
       } catch {
-        setMatches([]);
+        if (!cancelled) setMatches([]);
       }
     }
 
     load();
-    const id = setInterval(load, 60000);
-    return () => clearInterval(id);
-  }, [activeGames.length]);
+    const id = setInterval(load, LIVE_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [hasLive]);
 
   return matches;
 }

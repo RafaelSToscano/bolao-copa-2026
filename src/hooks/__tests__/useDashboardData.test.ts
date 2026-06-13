@@ -11,7 +11,6 @@ import {
 const baseResponses = (liveGames: unknown[] = []) => ({
   "/api/dashboard/live": {
     liveGames,
-    liveScores: [],
     secondsUntilNextKickoff: 600,
   },
   "/api/dashboard/ranking-top": { top: [], lanterna: null },
@@ -35,7 +34,6 @@ describe("polling cadence pure logic", () => {
     expect(
       computePollIntervalMs({
         liveGames: [{} as never],
-        liveScores: [],
         secondsUntilNextKickoff: 9999,
       })
     ).toBe(POLL_LIVE_MS);
@@ -45,7 +43,6 @@ describe("polling cadence pure logic", () => {
     expect(
       computePollIntervalMs({
         liveGames: [],
-        liveScores: [],
         secondsUntilNextKickoff: 30,
       })
     ).toBe(POLL_LIVE_MS);
@@ -55,7 +52,6 @@ describe("polling cadence pure logic", () => {
     expect(
       computePollIntervalMs({
         liveGames: [],
-        liveScores: [],
         secondsUntilNextKickoff: 3600,
       })
     ).toBe(POLL_BASELINE_MS);
@@ -65,7 +61,6 @@ describe("polling cadence pure logic", () => {
     expect(
       shouldPollFast({
         liveGames: [],
-        liveScores: [],
         secondsUntilNextKickoff: null,
       })
     ).toBe(false);
@@ -131,5 +126,71 @@ describe("useDashboardData", () => {
 
     const paths = fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0]);
     expect(paths).not.toContain("/api/dashboard/my-status");
+  });
+
+  it("calls fast and slow endpoints on mount in distinct groups", async () => {
+    const responses = baseResponses();
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = url.split("?")[0];
+      const body = responses[path as keyof typeof responses] ?? null;
+      return { ok: true, json: async () => body } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderHook(() => useDashboardData("u1"));
+
+    await vi.waitFor(() => {
+      const seen = new Set(
+        fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0])
+      );
+      expect(seen.size).toBe(6);
+    });
+
+    const paths = fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0]);
+    // Fast group: live, ranking-top, my-status
+    expect(paths).toContain("/api/dashboard/live");
+    expect(paths).toContain("/api/dashboard/ranking-top");
+    expect(paths).toContain("/api/dashboard/my-status");
+    // Slow group: upcoming, recent, group-leaders
+    expect(paths).toContain("/api/dashboard/upcoming");
+    expect(paths).toContain("/api/dashboard/recent");
+    expect(paths).toContain("/api/dashboard/group-leaders");
+  });
+
+  it("slow group refetches when the tab regains focus", async () => {
+    const responses = baseResponses();
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = url.split("?")[0];
+      const body = responses[path as keyof typeof responses] ?? null;
+      return { ok: true, json: async () => body } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderHook(() => useDashboardData("u1"));
+
+    await vi.waitFor(() => {
+      const seen = new Set(
+        fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0])
+      );
+      expect(seen.size).toBe(6);
+    });
+
+    const upcomingBefore = fetchMock.mock.calls.filter((c) =>
+      (c[0] as string).startsWith("/api/dashboard/upcoming")
+    ).length;
+
+    // Simulate tab focus return — visibilitychange to "visible".
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => "visible",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    await vi.waitFor(() => {
+      const upcomingAfter = fetchMock.mock.calls.filter((c) =>
+        (c[0] as string).startsWith("/api/dashboard/upcoming")
+      ).length;
+      expect(upcomingAfter).toBeGreaterThan(upcomingBefore);
+    });
   });
 });
