@@ -1,6 +1,7 @@
 import { withCache } from "./memoryCache";
 import { USE_MOCK_DATA, getMockLiveScoresNormalized } from "@/services/mock";
 import { LiveScoreMatch } from "@/hooks/useLiveScores";
+import { toCanonicalTeamName } from "./teamNames";
 
 const TTL_SECONDS = 8;
 const CACHE_KEY = "footballData:matches";
@@ -29,8 +30,8 @@ async function fetchUpstream(): Promise<LiveScoreMatch[]> {
       id: m.id,
       utcDate: m.utcDate,
       status: m.status,
-      homeTeam: m.homeTeam?.name ?? "",
-      awayTeam: m.awayTeam?.name ?? "",
+      homeTeam: toCanonicalTeamName(m.homeTeam?.name ?? ""),
+      awayTeam: toCanonicalTeamName(m.awayTeam?.name ?? ""),
       homeScore: m.score?.fullTime?.home ?? null,
       awayScore: m.score?.fullTime?.away ?? null,
     }));

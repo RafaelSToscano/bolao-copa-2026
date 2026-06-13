@@ -26,11 +26,6 @@ export type LiveRankingRow = RankingRow & {
   lastRoundDelta: number;
 };
 
-export interface DashboardLivePayload {
-  liveGames: Game[];
-  secondsUntilNextKickoff: number | null;
-}
-
 export interface DashboardRankingTopPayload {
   top: LiveRankingRow[];
   lanterna: LiveRankingRow | null;

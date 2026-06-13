@@ -24,15 +24,6 @@ describe("dashboard route handlers", () => {
     vi.clearAllMocks();
   });
 
-  it("/api/dashboard/live sets public Cache-Control with s-maxage", async () => {
-    const { GET } = await import("@/app/api/dashboard/live/route");
-    const res = await GET();
-    const cc = res.headers.get("Cache-Control") ?? "";
-    expect(cc).toMatch(/public/);
-    expect(cc).toMatch(/s-maxage=/);
-    expect(cc).toMatch(/stale-while-revalidate=/);
-  });
-
   it("/api/dashboard/ranking-top returns shaped payload", async () => {
     const { GET } = await import("@/app/api/dashboard/ranking-top/route");
     const res = await GET();
@@ -114,12 +105,4 @@ describe("dashboard route handlers", () => {
     expect(res.headers.get("Cache-Control")).toMatch(/public/);
   });
 
-  it("/api/dashboard/live no longer carries liveScores", async () => {
-    const { GET } = await import("@/app/api/dashboard/live/route");
-    const res = await GET();
-    const body = await res.json();
-    expect(body).toHaveProperty("liveGames");
-    expect(body).toHaveProperty("secondsUntilNextKickoff");
-    expect(body).not.toHaveProperty("liveScores");
-  });
 });

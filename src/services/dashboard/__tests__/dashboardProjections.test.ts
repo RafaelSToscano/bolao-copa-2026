@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import {
-  projectLive,
   projectRankingTop,
   projectUpcoming,
   projectRecent,
@@ -38,69 +37,6 @@ function player(id: string, name: string): Player {
     approved: true,
   };
 }
-
-describe("projectLive", () => {
-  it("returns liveGames + scores + secondsUntilNextKickoff", () => {
-    const games: Game[] = [
-      game({
-        id: "live",
-        match_date: new Date(NOW - 30 * 60 * 1000).toISOString(),
-      }),
-      game({
-        id: "future",
-        match_date: new Date(NOW + 5 * 60 * 1000).toISOString(),
-      }),
-      game({
-        id: "past",
-        match_date: new Date(NOW - 5 * 60 * 60 * 1000).toISOString(),
-        official_score_a: 1,
-        official_score_b: 0,
-      }),
-    ];
-    const result = projectLive(games, NOW);
-    expect(result.liveGames.map((g) => g.id)).toEqual(["live"]);
-    expect(result.secondsUntilNextKickoff).toBe(5 * 60);
-  });
-
-  it("coerces null official scores to 0 on liveGames so the LIVE card never renders empty dashes", () => {
-    const games: Game[] = [
-      game({
-        id: "live",
-        match_date: new Date(NOW - 30 * 60 * 1000).toISOString(),
-        official_score_a: null,
-        official_score_b: null,
-      }),
-    ];
-    const result = projectLive(games, NOW);
-    expect(result.liveGames[0].official_score_a).toBe(0);
-    expect(result.liveGames[0].official_score_b).toBe(0);
-  });
-
-  it("preserves recorded official scores on liveGames (does not overwrite with 0)", () => {
-    const games: Game[] = [
-      game({
-        id: "live",
-        match_date: new Date(NOW - 30 * 60 * 1000).toISOString(),
-        official_score_a: 2,
-        official_score_b: 1,
-      }),
-    ];
-    const result = projectLive(games, NOW);
-    expect(result.liveGames[0].official_score_a).toBe(2);
-    expect(result.liveGames[0].official_score_b).toBe(1);
-  });
-
-  it("returns null secondsUntilNextKickoff when no future games", () => {
-    const games: Game[] = [
-      game({
-        id: "past",
-        match_date: new Date(NOW - 24 * 60 * 60 * 1000).toISOString(),
-      }),
-    ];
-    const result = projectLive(games, NOW);
-    expect(result.secondsUntilNextKickoff).toBeNull();
-  });
-});
 
 describe("projectRankingTop", () => {
   it("returns at most topN entries plus the lanterna", () => {

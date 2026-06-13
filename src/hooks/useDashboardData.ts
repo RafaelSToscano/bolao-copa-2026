@@ -3,55 +3,49 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DashboardGroupLeadersPayload,
-  DashboardLivePayload,
   DashboardMyStatusPayload,
   DashboardRankingTopPayload,
   DashboardRecentPayload,
   DashboardUpcomingPayload,
 } from "@/types/dashboard";
+import { LiveSignals } from "@/lib/liveSignals";
 
 export const POLL_LIVE_MS = 10_000;
 export const POLL_BASELINE_MS = 60_000;
 export const FAST_KICKOFF_THRESHOLD_SEC = 60;
 
-export function shouldPollFast(live: DashboardLivePayload | null): boolean {
-  if (!live) return false;
-  if (live.liveGames.length > 0) return true;
+export function shouldPollFast(signals: LiveSignals | null): boolean {
+  if (!signals) return false;
+  if (signals.liveGames.length > 0) return true;
   if (
-    live.secondsUntilNextKickoff !== null &&
-    live.secondsUntilNextKickoff <= FAST_KICKOFF_THRESHOLD_SEC
+    signals.secondsUntilNextKickoff !== null &&
+    signals.secondsUntilNextKickoff <= FAST_KICKOFF_THRESHOLD_SEC
   ) {
     return true;
   }
   return false;
 }
 
-export function computePollIntervalMs(
-  live: DashboardLivePayload | null
-): number {
-  return shouldPollFast(live) ? POLL_LIVE_MS : POLL_BASELINE_MS;
+export function computePollIntervalMs(signals: LiveSignals | null): number {
+  return shouldPollFast(signals) ? POLL_LIVE_MS : POLL_BASELINE_MS;
 }
 
 export interface DashboardData {
-  live: DashboardLivePayload | null;
   rankingTop: DashboardRankingTopPayload | null;
   upcoming: DashboardUpcomingPayload | null;
   recent: DashboardRecentPayload | null;
   myStatus: DashboardMyStatusPayload | null;
   groupLeaders: DashboardGroupLeadersPayload | null;
-  isLive: boolean;
   lastUpdated: number | null;
   error: string | null;
 }
 
 const initialState: DashboardData = {
-  live: null,
   rankingTop: null,
   upcoming: null,
   recent: null,
   myStatus: null,
   groupLeaders: null,
-  isLive: false,
   lastUpdated: null,
   error: null,
 };
@@ -69,9 +63,11 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 /**
  * Polls the dashboard endpoints in two cadences:
  *
- * - Fast group (timer-driven, 10s during a live match / 60s otherwise):
- *   `/api/dashboard/{live,ranking-top,my-status}` — payloads that
- *   move with live scores.
+ * - Fast group (timer-driven, 10s when a live signal says so / 60s
+ *   otherwise): `/api/dashboard/{ranking-top,my-status}` — payloads
+ *   that move with live scores. The "is anything live / when's the
+ *   next kickoff" signal is read from the football-data feed via
+ *   `useLiveScores` instead of a dedicated server route.
  *
  * - Slow group (event-driven, no timer): `/api/dashboard/{upcoming,
  *   recent,group-leaders}` — payloads that only change when a kickoff
@@ -82,13 +78,15 @@ async function fetchJson<T>(url: string): Promise<T | null> {
  * `refetch()` (e.g. after a mock-goal bump) refreshes BOTH groups so
  * manual refresh is always whole.
  */
-export function useDashboardData(currentUserId: string | undefined) {
+export function useDashboardData(
+  currentUserId: string | undefined,
+  liveSignals: LiveSignals
+) {
   const [data, setData] = useState<DashboardData>(initialState);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchFast = useCallback(async (): Promise<DashboardLivePayload | null> => {
-    const [live, rankingTop, myStatus] = await Promise.all([
-      fetchJson<DashboardLivePayload>("/api/dashboard/live"),
+  const fetchFast = useCallback(async () => {
+    const [rankingTop, myStatus] = await Promise.all([
       fetchJson<DashboardRankingTopPayload>("/api/dashboard/ranking-top"),
       currentUserId
         ? fetchJson<DashboardMyStatusPayload>(
@@ -99,15 +97,11 @@ export function useDashboardData(currentUserId: string | undefined) {
 
     setData((prev) => ({
       ...prev,
-      live,
       rankingTop,
       myStatus,
-      isLive: !!live && live.liveGames.length > 0,
       lastUpdated: Date.now(),
       error: null,
     }));
-
-    return live;
   }, [currentUserId]);
 
   const fetchSlow = useCallback(async () => {
@@ -154,6 +148,12 @@ export function useDashboardData(currentUserId: string | undefined) {
     }
   }, [fetchFast, fetchSlow]);
 
+  // Always read the latest liveSignals inside the timer tick so the
+  // poll cadence reacts to upstream score/kick-off updates without
+  // tearing down and rebuilding the timer effect on every change.
+  const liveSignalsRef = useRef(liveSignals);
+  liveSignalsRef.current = liveSignals;
+
   useEffect(() => {
     let cancelled = false;
 
@@ -162,13 +162,11 @@ export function useDashboardData(currentUserId: string | undefined) {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") {
         return;
       }
-      // Use the fresh payload returned by fetchFast() rather than
-      // a state ref — state lags by a render commit and would force
-      // the FIRST tick to schedule a 60s baseline even when the
-      // response already says we're live.
-      const fresh = await fetchFast();
+      await fetchFast();
       if (cancelled) return;
-      const interval = shouldPollFast(fresh) ? POLL_LIVE_MS : POLL_BASELINE_MS;
+      const interval = shouldPollFast(liveSignalsRef.current)
+        ? POLL_LIVE_MS
+        : POLL_BASELINE_MS;
       timerRef.current = setTimeout(tick, interval);
     };
 
