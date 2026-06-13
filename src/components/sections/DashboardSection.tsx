@@ -89,10 +89,6 @@ export function DashboardSection({
   onNavigate,
 }: DashboardSectionProps) {
   const data = useDashboardData(currentUserId);
-  // Use the same client-side polling hook the Palpites banner uses,
-  // rather than the server-cached `data.live.liveScores` snapshot. The
-  // server path was sometimes returning empty/stale scores in
-  // production while the same upstream worked fine through this hook.
   const liveScores = useLiveScores(data.live?.liveGames ?? []);
 
   const [goalTrigger, setGoalTrigger] = useState<string | null>(null);
