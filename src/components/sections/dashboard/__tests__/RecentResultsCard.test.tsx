@@ -47,8 +47,8 @@ describe("RecentResultsCard", () => {
     // so we look them up individually rather than as "2 × 1".
     expect(screen.getAllByText("2").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("1").length).toBeGreaterThanOrEqual(1);
-    // Single "Seu palpite" pill below the matchup.
-    expect(screen.getByText("Seu palpite")).toBeInTheDocument();
+    // Single "Palpite" pill below the matchup.
+    expect(screen.getByText("Palpite")).toBeInTheDocument();
     expect(screen.getByText(/\+15 pts/)).toBeInTheDocument();
     // Weekday + DD/MM · HH:mm header (15/06/2026 is a Monday → "Seg").
     expect(screen.getByText(/Seg 15\/06 · /)).toBeInTheDocument();
@@ -58,8 +58,8 @@ describe("RecentResultsCard", () => {
     const items = [{ game: game("g1", 1, 0), myPrediction: null, myPoints: 0 }];
     render(<RecentResultsCard items={items} />);
     expect(screen.getByText("Sem palpite")).toBeInTheDocument();
-    // No "Seu palpite" pill when there's no prediction.
-    expect(screen.queryByText("Seu palpite")).not.toBeInTheDocument();
+    // No "Palpite" pill when there's no prediction.
+    expect(screen.queryByText("Palpite")).not.toBeInTheDocument();
   });
 
   it("renders empty state with no items", () => {

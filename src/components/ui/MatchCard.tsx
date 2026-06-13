@@ -168,7 +168,7 @@ export function MatchCard({
             <span
               className={`text-base font-black uppercase tracking-wider rounded-full px-3 py-1 ${theme.predictionLabel} ${theme.predictionLabelText}`}
             >
-              Seu palpite
+              Palpite
             </span>
             <div className="flex items-center gap-2">
               <span

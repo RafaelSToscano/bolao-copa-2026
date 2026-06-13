@@ -103,7 +103,7 @@ export function RecentResultsCard({ items }: RecentResultsCardProps) {
                     {hasPrediction ? (
                       <>
                         <span className="text-base font-black uppercase tracking-wider rounded-full px-3 py-1 bg-[#2A398D]/15 border border-[#2A398D]/40 text-blue-300">
-                          Seu palpite
+                          Palpite
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="text-2xl font-black tabular-nums text-blue-200">
