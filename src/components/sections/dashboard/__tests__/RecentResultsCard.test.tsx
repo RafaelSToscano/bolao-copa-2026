@@ -36,20 +36,30 @@ function pred(gameId: string, a: number, b: number): Prediction {
 }
 
 describe("RecentResultsCard", () => {
-  it("renders official score and prediction with exact-match badge", () => {
+  it("renders teams, the official score, the prediction below, weekday date, and points chip", () => {
     const items = [
-      { game: game("g1", 1, 0), myPrediction: pred("g1", 1, 0), myPoints: 15 },
+      { game: game("g1", 2, 1), myPrediction: pred("g1", 2, 1), myPoints: 15 },
     ];
     render(<RecentResultsCard items={items} />);
     expect(screen.getByText("T1")).toBeInTheDocument();
+    expect(screen.getByText("T2")).toBeInTheDocument();
+    // Official score: digits split across spans for the home/away cells,
+    // so we look them up individually rather than as "2 × 1".
+    expect(screen.getAllByText("2").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("1").length).toBeGreaterThanOrEqual(1);
+    // Single "Palpite" pill below the matchup.
+    expect(screen.getByText("Palpite")).toBeInTheDocument();
     expect(screen.getByText(/\+15 pts/)).toBeInTheDocument();
-    expect(screen.getByText(/Seu palpite/)).toBeInTheDocument();
+    // Weekday + DD/MM · HH:mm header (15/06/2026 is a Monday → "Seg").
+    expect(screen.getByText(/Seg 15\/06 · /)).toBeInTheDocument();
   });
 
-  it("shows 'Sem palpite' when myPrediction is null", () => {
+  it("renders 'Sem palpite' below the matchup when myPrediction is null", () => {
     const items = [{ game: game("g1", 1, 0), myPrediction: null, myPoints: 0 }];
     render(<RecentResultsCard items={items} />);
     expect(screen.getByText("Sem palpite")).toBeInTheDocument();
+    // No "Palpite" pill when there's no prediction.
+    expect(screen.queryByText("Palpite")).not.toBeInTheDocument();
   });
 
   it("renders empty state with no items", () => {

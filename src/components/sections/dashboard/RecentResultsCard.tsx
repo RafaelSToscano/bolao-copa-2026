@@ -5,7 +5,7 @@ import { Flag } from "@/components/ui/Flag";
 import { Clock } from "lucide-react";
 import { DashboardRecentItem } from "@/types/dashboard";
 import { calculatePredictionPointsBreakdown } from "@/services/predictions/predictionCalculations";
-import { isToday } from "@/lib/formatting";
+import { formatWeekdayDate, isToday } from "@/lib/formatting";
 import { StickySectionHeader } from "./StickySectionHeader";
 import { PointsChip } from "./PointsChip";
 
@@ -39,72 +39,83 @@ export function RecentResultsCard({ items }: RecentResultsCardProps) {
               return (
                 <div
                   key={game.id}
-                  className={`p-4 border-b border-slate-800 last:border-b-0 space-y-2 ${
+                  className={`p-4 border-b border-slate-800 last:border-b-0 space-y-3 ${
                     today
                       ? "bg-amber-500/[0.04] border-l-2 border-l-amber-500/60"
                       : ""
                   }`}
                 >
-                  {today && (
-                    <div className="flex items-center justify-end">
-                      <span className="text-[11px] font-black uppercase tracking-widest text-amber-400">
-                        Hoje
-                      </span>
+                  <div className="flex items-center justify-between gap-3 text-sm text-slate-400">
+                    <span className="font-semibold tabular-nums">
+                      {formatWeekdayDate(game.match_date)}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {today && (
+                        <span className="text-[11px] font-black uppercase tracking-widest text-amber-400">
+                          Hoje
+                        </span>
+                      )}
+                      {hasPrediction && (
+                        <PointsChip
+                          breakdown={calculatePredictionPointsBreakdown(
+                            myPrediction,
+                            game
+                          )}
+                          label={
+                            myPoints === 15
+                              ? "🔥 +15 pts"
+                              : myPoints > 0
+                                ? `+${myPoints} pts`
+                                : "0 pts"
+                          }
+                        />
+                      )}
                     </div>
-                  )}
-                  <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-center">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Flag team={game.team_a} size="medium" />
-                      <span className="font-bold truncate">{game.team_a}</span>
-                    </div>
+                  </div>
 
-                    <div className="flex items-center gap-2 text-xl font-black">
-                      <span className="tabular-nums text-white">
+                  <div className="grid grid-cols-[1fr_auto_1fr] grid-rows-[auto_auto] gap-x-4 gap-y-1 items-center justify-items-center">
+                    <Flag team={game.team_a} size="medium" />
+
+                    <div className="flex items-center gap-3">
+                      <span className="text-4xl font-black tabular-nums text-white">
                         {game.official_score_a}
                       </span>
-                      <span className="text-slate-500">×</span>
-                      <span className="tabular-nums text-white">
+                      <span className="text-xl font-black text-slate-500">×</span>
+                      <span className="text-4xl font-black tabular-nums text-white">
                         {game.official_score_b}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 justify-end min-w-0">
-                      <span className="font-bold truncate text-right">
-                        {game.team_b}
-                      </span>
-                      <Flag team={game.team_b} size="medium" />
-                    </div>
-                  </div>
+                    <Flag team={game.team_b} size="medium" />
 
-                  <div className="flex items-center justify-between text-base">
-                    <div className="text-slate-400">
-                      {hasPrediction ? (
-                        <>
-                          Seu palpite:{" "}
-                          <span className="font-bold text-amber-300 tabular-nums">
-                            {myPrediction!.predicted_score_a} ×{" "}
+                    <span className="text-sm font-black text-white text-center leading-tight min-w-0 truncate">
+                      {game.team_a}
+                    </span>
+
+                    {hasPrediction ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-blue-300">
+                          Palpite
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-base font-black tabular-nums text-blue-200">
+                            {myPrediction!.predicted_score_a}
+                          </span>
+                          <span className="text-sm font-black text-slate-500">×</span>
+                          <span className="text-base font-black tabular-nums text-blue-200">
                             {myPrediction!.predicted_score_b}
                           </span>
-                        </>
-                      ) : (
-                        <span className="text-slate-500">Sem palpite</span>
-                      )}
-                    </div>
-                    {hasPrediction && (
-                      <PointsChip
-                        breakdown={calculatePredictionPointsBreakdown(
-                          myPrediction,
-                          game
-                        )}
-                        label={
-                          myPoints === 15
-                            ? "🔥 +15 pts"
-                            : myPoints > 0
-                              ? `+${myPoints} pts`
-                              : "0 pts"
-                        }
-                      />
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        Sem palpite
+                      </span>
                     )}
+
+                    <span className="text-sm font-black text-white text-center leading-tight min-w-0 truncate">
+                      {game.team_b}
+                    </span>
                   </div>
                 </div>
               );

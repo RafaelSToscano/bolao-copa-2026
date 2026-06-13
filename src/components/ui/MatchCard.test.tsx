@@ -59,12 +59,12 @@ describe("MatchCard", () => {
       const { rerender } = render(
         <MatchCard game={game} prediction={prediction} mode="live" />
       );
-      expect(screen.getByText("Seu palpite")).toBeInTheDocument();
+      expect(screen.getByText("Palpite")).toBeInTheDocument();
       expect(screen.getByText("3")).toBeInTheDocument();
       expect(screen.getByText("2")).toBeInTheDocument();
 
       rerender(<MatchCard game={game} prediction={prediction} mode="prediction" />);
-      expect(screen.getByText("Seu palpite")).toBeInTheDocument();
+      expect(screen.getByText("Palpite")).toBeInTheDocument();
       expect(screen.getByText("3")).toBeInTheDocument();
       expect(screen.getByText("2")).toBeInTheDocument();
     });

@@ -151,7 +151,7 @@ export function CrowdPredictionsSection({
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4">
                     <div className="text-xs uppercase text-slate-400 font-black">
-                        Seu palpite
+                        Palpite
                     </div>
                     <div className="text-3xl font-black text-yellow-400 mt-2">
                         {scoreKey(userPrediction?.scoreA ?? null, userPrediction?.scoreB ?? null)}
