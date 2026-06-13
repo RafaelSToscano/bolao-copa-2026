@@ -42,6 +42,36 @@ export function formatDate(value: string | null): string {
 }
 
 /**
+ * Long form: short weekday + day/month · HH:mm in pt-BR (e.g. "Sex
+ * 20/06 · 17:00"). Used in recent-results headers where a quick "what
+ * day was this?" cue is more useful than the bare DD/MM.
+ */
+export function formatWeekdayDate(value: string | null): string {
+  if (!value) return "Data a definir";
+
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "Data a definir";
+    const weekday = d
+      .toLocaleString("pt-BR", { weekday: "short" })
+      .replace(/\.$/, "");
+    const day = d.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+    });
+    const time = d.toLocaleString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const capitalizedWeekday =
+      weekday.charAt(0).toUpperCase() + weekday.slice(1);
+    return `${capitalizedWeekday} ${day} · ${time}`;
+  } catch {
+    return "Data a definir";
+  }
+}
+
+/**
  * Exports audit CSV with all predictions and results
  */
 export function exportAuditCsv(

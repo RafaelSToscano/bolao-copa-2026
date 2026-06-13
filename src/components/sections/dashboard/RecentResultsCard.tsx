@@ -5,7 +5,7 @@ import { Flag } from "@/components/ui/Flag";
 import { Clock } from "lucide-react";
 import { DashboardRecentItem } from "@/types/dashboard";
 import { calculatePredictionPointsBreakdown } from "@/services/predictions/predictionCalculations";
-import { isToday } from "@/lib/formatting";
+import { formatWeekdayDate, isToday } from "@/lib/formatting";
 import { StickySectionHeader } from "./StickySectionHeader";
 import { PointsChip } from "./PointsChip";
 
@@ -39,34 +39,47 @@ export function RecentResultsCard({ items }: RecentResultsCardProps) {
               return (
                 <div
                   key={game.id}
-                  className={`p-4 border-b border-slate-800 last:border-b-0 space-y-2 ${
+                  className={`p-4 border-b border-slate-800 last:border-b-0 space-y-3 ${
                     today
                       ? "bg-amber-500/[0.04] border-l-2 border-l-amber-500/60"
                       : ""
                   }`}
                 >
-                  {today && (
-                    <div className="flex items-center justify-end">
-                      <span className="text-[11px] font-black uppercase tracking-widest text-amber-400">
-                        Hoje
-                      </span>
+                  <div className="flex items-center justify-between gap-3 text-sm text-slate-400">
+                    <span className="font-semibold tabular-nums">
+                      {formatWeekdayDate(game.match_date)}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {today && (
+                        <span className="text-[11px] font-black uppercase tracking-widest text-amber-400">
+                          Hoje
+                        </span>
+                      )}
+                      {hasPrediction && (
+                        <PointsChip
+                          breakdown={calculatePredictionPointsBreakdown(
+                            myPrediction,
+                            game
+                          )}
+                          label={
+                            myPoints === 15
+                              ? "🔥 +15 pts"
+                              : myPoints > 0
+                                ? `+${myPoints} pts`
+                                : "0 pts"
+                          }
+                        />
+                      )}
                     </div>
-                  )}
+                  </div>
+
                   <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-center">
                     <div className="flex items-center gap-2 min-w-0">
                       <Flag team={game.team_a} size="medium" />
                       <span className="font-bold truncate">{game.team_a}</span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-xl font-black">
-                      <span className="tabular-nums text-white">
-                        {game.official_score_a}
-                      </span>
-                      <span className="text-slate-500">×</span>
-                      <span className="tabular-nums text-white">
-                        {game.official_score_b}
-                      </span>
-                    </div>
+                    <span className="text-slate-500 text-sm font-bold">×</span>
 
                     <div className="flex items-center gap-2 justify-end min-w-0">
                       <span className="font-bold truncate text-right">
@@ -76,35 +89,31 @@ export function RecentResultsCard({ items }: RecentResultsCardProps) {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-base">
-                    <div className="text-slate-400">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-2xl bg-slate-950/60 border border-slate-800 p-3 flex flex-col items-center gap-1">
+                      <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                        Resultado
+                      </span>
+                      <span className="text-lg font-black tabular-nums text-white">
+                        {game.official_score_a} × {game.official_score_b}
+                      </span>
+                    </div>
+
+                    <div className="rounded-2xl bg-slate-950/60 border border-slate-800 p-3 flex flex-col items-center gap-1">
+                      <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">
+                        Seu palpite
+                      </span>
                       {hasPrediction ? (
-                        <>
-                          Seu palpite:{" "}
-                          <span className="font-bold text-amber-300 tabular-nums">
-                            {myPrediction!.predicted_score_a} ×{" "}
-                            {myPrediction!.predicted_score_b}
-                          </span>
-                        </>
+                        <span className="text-lg font-black tabular-nums text-amber-300">
+                          {myPrediction!.predicted_score_a} ×{" "}
+                          {myPrediction!.predicted_score_b}
+                        </span>
                       ) : (
-                        <span className="text-slate-500">Sem palpite</span>
+                        <span className="text-base font-bold text-slate-500">
+                          Sem palpite
+                        </span>
                       )}
                     </div>
-                    {hasPrediction && (
-                      <PointsChip
-                        breakdown={calculatePredictionPointsBreakdown(
-                          myPrediction,
-                          game
-                        )}
-                        label={
-                          myPoints === 15
-                            ? "🔥 +15 pts"
-                            : myPoints > 0
-                              ? `+${myPoints} pts`
-                              : "0 pts"
-                        }
-                      />
-                    )}
                   </div>
                 </div>
               );
