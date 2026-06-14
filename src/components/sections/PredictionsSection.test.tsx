@@ -88,6 +88,9 @@ describe('PredictionsSection Component', () => {
 
   it('should render group sections', () => {
     render(<PredictionsSection {...baseProps} />);
-    expect(screen.getByText('Grupo A')).toBeInTheDocument();
+    // "Grupo A" also appears inside NextGameBanner's MatchCards now
+    // that no-score games surface regardless of kickoff timing — use
+    // getAllByText so the assertion is robust to the banner content.
+    expect(screen.getAllByText('Grupo A').length).toBeGreaterThanOrEqual(1);
   });
 });
