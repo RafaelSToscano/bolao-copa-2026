@@ -34,6 +34,7 @@ const EN_TO_PT: Record<string, string> = {
   "Germany": "Alemanha",
   "Curacao": "Curaçao",
   "Curaçao": "Curaçao",
+  "Curaçau": "Curaçao",
   "Ivory Coast": "Costa do Marfim",
   "Côte d'Ivoire": "Costa do Marfim",
   "Ecuador": "Equador",
