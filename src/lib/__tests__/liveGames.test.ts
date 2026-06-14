@@ -117,8 +117,6 @@ describe("describeLiveMinute", () => {
 });
 
 describe("getNextMatchDayGames", () => {
-  const NOW = new Date("2026-06-20T12:00:00.000Z").getTime();
-
   it("returns every game on the next match day when no limit is given", () => {
     const games = [
       makeGame({ id: "a", match_date: "2026-06-20T13:00:00.000Z" }),
@@ -126,9 +124,11 @@ describe("getNextMatchDayGames", () => {
       makeGame({ id: "c", match_date: "2026-06-20T20:00:00.000Z" }),
       makeGame({ id: "d", match_date: "2026-06-21T13:00:00.000Z" }),
     ];
-    expect(
-      getNextMatchDayGames(games, Infinity, NOW).map((g) => g.id)
-    ).toEqual(["a", "b", "c"]);
+    expect(getNextMatchDayGames(games, Infinity).map((g) => g.id)).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
   });
 
   it("respects the limit when provided", () => {
@@ -137,13 +137,10 @@ describe("getNextMatchDayGames", () => {
       makeGame({ id: "b", match_date: "2026-06-20T16:00:00.000Z" }),
       makeGame({ id: "c", match_date: "2026-06-20T20:00:00.000Z" }),
     ];
-    expect(getNextMatchDayGames(games, 2, NOW).map((g) => g.id)).toEqual([
-      "a",
-      "b",
-    ]);
+    expect(getNextMatchDayGames(games, 2).map((g) => g.id)).toEqual(["a", "b"]);
   });
 
-  it("skips today entirely when all today's matches are finished or past", () => {
+  it("excludes finished games and surfaces the next day's matches", () => {
     const games = [
       makeGame({
         id: "today-finished",
@@ -151,37 +148,41 @@ describe("getNextMatchDayGames", () => {
         official_score_a: 1,
         official_score_b: 0,
       }),
+      makeGame({ id: "tomorrow", match_date: "2026-06-21T16:00:00.000Z" }),
+    ];
+    expect(getNextMatchDayGames(games, Infinity).map((g) => g.id)).toEqual([
+      "tomorrow",
+    ]);
+  });
+
+  it("keeps a no-score game whose kickoff has slipped into the past", () => {
+    // Upstream football-data lags behind the real-world kickoff
+    // (status still TIMED a few minutes after match time). The game
+    // has no official score yet, so it MUST stay surfaced as the
+    // next match — otherwise it vanishes from the dashboard until
+    // the API catches up.
+    const games = [
       makeGame({
-        id: "today-past",
+        id: "delayed-today",
         match_date: "2026-06-20T11:00:00.000Z",
       }),
       makeGame({ id: "tomorrow", match_date: "2026-06-21T16:00:00.000Z" }),
     ];
-    expect(
-      getNextMatchDayGames(games, Infinity, NOW).map((g) => g.id)
-    ).toEqual(["tomorrow"]);
+    expect(getNextMatchDayGames(games, Infinity).map((g) => g.id)).toEqual([
+      "delayed-today",
+    ]);
   });
 
-  it("jumps over an empty d+1 to d+2 when d+0 is exhausted", () => {
+  it("returns [] when every game is finished", () => {
     const games = [
       makeGame({
-        id: "today-past",
+        id: "done",
         match_date: "2026-06-20T11:00:00.000Z",
+        official_score_a: 0,
+        official_score_b: 0,
       }),
-      makeGame({ id: "d2-1", match_date: "2026-06-22T13:00:00.000Z" }),
-      makeGame({ id: "d2-2", match_date: "2026-06-22T19:00:00.000Z" }),
-      makeGame({ id: "d3", match_date: "2026-06-23T13:00:00.000Z" }),
     ];
-    expect(
-      getNextMatchDayGames(games, Infinity, NOW).map((g) => g.id)
-    ).toEqual(["d2-1", "d2-2"]);
-  });
-
-  it("returns [] when nothing is upcoming", () => {
-    const games = [
-      makeGame({ id: "past", match_date: "2026-06-20T11:00:00.000Z" }),
-    ];
-    expect(getNextMatchDayGames(games, Infinity, NOW)).toEqual([]);
+    expect(getNextMatchDayGames(games, Infinity)).toEqual([]);
   });
 });
 
