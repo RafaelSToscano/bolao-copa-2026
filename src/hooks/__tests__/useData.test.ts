@@ -23,6 +23,8 @@ const mockPredictions = [{ player_id: 'p1', game_id: 'g1', predicted_score_a: 2,
 describe('useData Hook', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Clear the SWR snapshot so each test starts from a cold cache.
+    sessionStorage.clear();
   });
 
   it('should initialize with empty state', () => {
@@ -92,5 +94,130 @@ describe('useData Hook', () => {
       result.current.setPlayers(mockPlayers);
     });
     expect(result.current.players).toEqual(mockPlayers);
+  });
+
+  it('hydrates synchronously from sessionStorage on mount', () => {
+    sessionStorage.setItem(
+      'bolao_cache_v1:appData',
+      JSON.stringify({
+        ts: Date.now(),
+        data: {
+          players: mockPlayers,
+          games: mockGames,
+          predictions: mockPredictions,
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useData());
+
+    // Synchronous: no act/await needed.
+    expect(result.current.players).toEqual(mockPlayers);
+    expect(result.current.games).toEqual(mockGames);
+    expect(result.current.predictions).toEqual(mockPredictions);
+  });
+
+  it('skips refetch when hydrated cache is fresh', async () => {
+    sessionStorage.setItem(
+      'bolao_cache_v1:appData',
+      JSON.stringify({
+        ts: Date.now(),
+        data: { players: [], games: [], predictions: [] },
+      })
+    );
+    vi.mocked(playersService.getAllPlayers).mockResolvedValue(mockPlayers);
+    vi.mocked(gamesService.getAllGames).mockResolvedValue(mockGames as any);
+    vi.mocked(predictionsService.getAllPredictions).mockResolvedValue(
+      mockPredictions as any
+    );
+
+    const { result } = renderHook(() => useData());
+
+    await act(async () => {
+      await result.current.loadData();
+    });
+
+    expect(playersService.getAllPlayers).not.toHaveBeenCalled();
+    expect(gamesService.getAllGames).not.toHaveBeenCalled();
+    expect(predictionsService.getAllPredictions).not.toHaveBeenCalled();
+  });
+
+  it('refetches when cache is stale', async () => {
+    const elevenMinutesAgo = Date.now() - 11 * 60 * 1000;
+    sessionStorage.setItem(
+      'bolao_cache_v1:appData',
+      JSON.stringify({
+        ts: elevenMinutesAgo,
+        data: { players: [], games: [], predictions: [] },
+      })
+    );
+    vi.mocked(playersService.getAllPlayers).mockResolvedValue(mockPlayers);
+    vi.mocked(gamesService.getAllGames).mockResolvedValue(mockGames as any);
+    vi.mocked(predictionsService.getAllPredictions).mockResolvedValue(
+      mockPredictions as any
+    );
+
+    const { result } = renderHook(() => useData());
+
+    await act(async () => {
+      await result.current.loadData();
+    });
+
+    expect(playersService.getAllPlayers).toHaveBeenCalled();
+    expect(result.current.players).toEqual(mockPlayers);
+  });
+
+  it('invalidateCache forces the next loadData to refetch', async () => {
+    sessionStorage.setItem(
+      'bolao_cache_v1:appData',
+      JSON.stringify({
+        ts: Date.now(),
+        data: { players: [], games: [], predictions: [] },
+      })
+    );
+    vi.mocked(playersService.getAllPlayers).mockResolvedValue(mockPlayers);
+    vi.mocked(gamesService.getAllGames).mockResolvedValue(mockGames as any);
+    vi.mocked(predictionsService.getAllPredictions).mockResolvedValue(
+      mockPredictions as any
+    );
+
+    const { result } = renderHook(() => useData());
+
+    await act(async () => {
+      await result.current.loadData();
+    });
+    expect(playersService.getAllPlayers).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.invalidateCache();
+    });
+
+    await act(async () => {
+      await result.current.loadData();
+    });
+
+    expect(playersService.getAllPlayers).toHaveBeenCalledOnce();
+    expect(sessionStorage.getItem('bolao_cache_v1:appData')).toBeTruthy();
+  });
+
+  it('writes the latest snapshot to sessionStorage after a fetch', async () => {
+    vi.mocked(playersService.getAllPlayers).mockResolvedValue(mockPlayers);
+    vi.mocked(gamesService.getAllGames).mockResolvedValue(mockGames as any);
+    vi.mocked(predictionsService.getAllPredictions).mockResolvedValue(
+      mockPredictions as any
+    );
+
+    const { result } = renderHook(() => useData());
+
+    await act(async () => {
+      await result.current.loadData();
+    });
+
+    const raw = sessionStorage.getItem('bolao_cache_v1:appData');
+    expect(raw).toBeTruthy();
+    const cached = JSON.parse(raw!);
+    expect(cached.data.players).toEqual(mockPlayers);
+    expect(cached.data.games).toEqual(mockGames);
+    expect(cached.data.predictions).toEqual(mockPredictions);
   });
 });

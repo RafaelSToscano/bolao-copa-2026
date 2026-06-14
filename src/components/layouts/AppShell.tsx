@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { usePathname } from "next/navigation";
 import { Player } from "@/types/player";
 import { Game } from "@/types/game";
@@ -41,7 +47,7 @@ type AppShellContextValue = {
   message: string;
   setMessage: React.Dispatch<React.SetStateAction<string>>;
   dataError: string | null;
-  loadData: (userId?: string) => Promise<void>;
+  loadData: () => Promise<void>;
   logout: () => void;
   handleUpdateOfficialResult: (
     gameId: string,
@@ -88,9 +94,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     loading: dataLoading,
     error: dataError,
     loadData,
+    invalidateCache,
     setPredictions,
     setGames,
   } = useData();
+
+  // Wrap each prediction mutation so the sessionStorage snapshot is
+  // evicted before useData's optimistic state update — that way a
+  // navigation in the next ~60s revalidates against supabase instead
+  // of serving the now-stale snapshot.
+  const setPredictionsAndInvalidate = useCallback<typeof setPredictions>(
+    (updater) => {
+      invalidateCache();
+      setPredictions(updater);
+    },
+    [invalidateCache, setPredictions]
+  );
 
   const {
     drafts,
@@ -98,7 +117,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     saveSinglePrediction,
     saveBatchPredictions,
     clearPlayerPredictions,
-  } = usePredictions(currentUser?.id, games, predictions, setPredictions);
+  } = usePredictions(
+    currentUser?.id,
+    games,
+    predictions,
+    setPredictionsAndInvalidate
+  );
 
   const [message, setMessage] = useState("");
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -114,32 +138,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { round32 } = useKnockout(games, predictions, currentUser?.id);
   const stats = useAppStats(players, games, predictions, currentUser?.id);
 
+  // Refresh on login and on route changes (preserves the historical
+  // `handleTabChange` reload-on-tab-switch behavior) in a single
+  // effect, so initial mount — where both deps populate together —
+  // doesn't fire twice and double the supabase round-trips.
   useEffect(() => {
     if (currentUser?.id) {
-      loadData(currentUser.id);
+      loadData();
     }
-  }, [currentUser?.id]);
-
-  // Refresh data on route changes — preserves the historical behavior
-  // of `handleTabChange` which always re-loaded data when the user
-  // switched tabs.
-  useEffect(() => {
-    if (currentUser?.id) {
-      loadData(currentUser.id);
-    }
-  }, [pathname]);
+  }, [currentUser?.id, pathname, loadData]);
 
   const handleLogin = async (accessCode: string, password: string) => {
     const success = await login(accessCode, password);
     if (success) {
-      let user = null;
       try {
         const savedUser = localStorage.getItem("bolao_user");
-        user = savedUser ? JSON.parse(savedUser) : null;
+        if (savedUser) JSON.parse(savedUser);
       } catch {
         localStorage.removeItem("bolao_user");
       }
-      await loadData(user?.id);
+      await loadData();
     }
   };
 
@@ -160,6 +178,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const parsed = value === "" ? null : Number(value);
       await gamesService.updateOfficialResult(gameId, field, parsed);
 
+      invalidateCache();
       setGames((prev) =>
         prev.map((g) =>
           g.id === gameId
@@ -255,12 +274,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const handleApprovePlayer = async (playerId: string) => {
     await playersService.approvePlayer(playerId);
-    await loadData(currentUser?.id);
+    invalidateCache();
+    await loadData();
   };
 
   const handleRejectPlayer = async (playerId: string) => {
     await playersService.rejectPlayer(playerId);
-    await loadData(currentUser?.id);
+    invalidateCache();
+    await loadData();
   };
 
   const handleClearPredictions = () => {

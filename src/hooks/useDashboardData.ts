@@ -9,6 +9,7 @@ import {
   DashboardUpcomingPayload,
 } from "@/types/dashboard";
 import { LiveSignals } from "@/lib/liveSignals";
+import { fetchJson } from "@/lib/fetchJson";
 
 export const POLL_LIVE_MS = 10_000;
 export const POLL_BASELINE_MS = 60_000;
@@ -49,16 +50,6 @@ const initialState: DashboardData = {
   lastUpdated: null,
   error: null,
 };
-
-async function fetchJson<T>(url: string): Promise<T | null> {
-  try {
-    const res = await fetch(url, { cache: "default" });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
-  } catch {
-    return null;
-  }
-}
 
 /**
  * Polls the dashboard endpoints in two cadences:

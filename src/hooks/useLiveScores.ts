@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Game } from "@/types/game";
+import { fetchJson } from "@/lib/fetchJson";
 
 export type LiveScoreMatch = {
   id: number;
@@ -57,15 +58,11 @@ export function useLiveScores(games: Game[]) {
     let cancelled = false;
 
     async function load() {
-      try {
-        const res = await fetch("/api/live-scores");
-        if (!res.ok) return;
-        const data = (await res.json()) as { matches?: LiveScoreMatch[] };
-        if (cancelled) return;
-        setMatches(data.matches ?? []);
-      } catch {
-        if (!cancelled) setMatches([]);
-      }
+      const data = await fetchJson<{ matches?: LiveScoreMatch[] }>(
+        "/api/live-scores"
+      );
+      if (cancelled) return;
+      setMatches(data?.matches ?? []);
     }
 
     load();
