@@ -10,6 +10,10 @@ import {
   useLiveScores,
 } from "@/hooks/useLiveScores";
 import { deriveLiveSignals } from "@/lib/liveSignals";
+import {
+  getMostRecentFinishedGame,
+  getNextMatchDayGames,
+} from "@/lib/liveGames";
 import { DashboardLiveCard } from "./dashboard/DashboardLiveCard";
 import { NextGameBanner } from "@/components/ui/NextGameBanner";
 import { RankingTopTen } from "./dashboard/RankingTopTen";
@@ -91,6 +95,7 @@ export function DashboardSection({
 }: DashboardSectionProps) {
   const allGames = useMemo(() => games ?? [], [games]);
   const liveScores = useLiveScores(allGames);
+
   const liveSignals = useMemo(
     () => deriveLiveSignals(allGames, liveScores),
     [allGames, liveScores]
@@ -98,9 +103,42 @@ export function DashboardSection({
 
   const data = useDashboardData(currentUserId, liveSignals);
 
-  const liveCardVisible =
+  const liveOnlyVisible =
     liveSignals.liveGames.length > 0 ||
     liveSignals.unmatchedLiveScores.length > 0;
+
+  // Hero list rules (cap = 2):
+  //  - Live game(s) running → keep all live cards (cap doesn't apply;
+  //    the live UI is the priority).
+  //  - No live game → derive ONE finished + ONE upcoming card from the
+  //    LOCAL games list (official_score for FINISHED, soonest future
+  //    kickoff for UPCOMING). This means once `allGames` is loaded the
+  //    section doesn't re-render every poll tick when nothing is live.
+  //  - While `allGames` is still loading (cold first paint), reach
+  //    into the dashboard server payloads — `data.recent` for the
+  //    finished card, `data.upcoming` for the upcoming card — so
+  //    first paint matches the eventual local-derived state instead
+  //    of flashing "two upcoming → finished+upcoming" on hydration.
+  //  - Nothing finished within the grace window AND nothing live →
+  //    fall through to the NextGameBanner (2 upcoming).
+  const upcomingPool =
+    allGames.length > 0 ? allGames : data.upcoming?.games ?? [];
+  const recentFromPayload = data.recent?.items?.[0]?.game ?? null;
+  const heroFinishedGame = liveOnlyVisible
+    ? null
+    : getMostRecentFinishedGame(allGames) ??
+      (allGames.length === 0 && recentFromPayload
+        ? // Apply the same grace cutoff so we don't flash a stale
+          // recent-result on the dashboard before /api/dashboard/recent
+          // catches up (its TTL is 2 min).
+          (getMostRecentFinishedGame([recentFromPayload]) ?? null)
+        : null);
+  const heroUpcomingGame = heroFinishedGame
+    ? getNextMatchDayGames(upcomingPool, 1)[0] ?? null
+    : null;
+
+  const liveCardVisible =
+    liveOnlyVisible || heroFinishedGame !== null;
 
   const [goalTrigger, setGoalTrigger] = useState<string | null>(null);
   const [scoringTeam, setScoringTeam] = useState<string | null>(null);
@@ -140,17 +178,13 @@ export function DashboardSection({
       <GoalAnimation trigger={goalTrigger} />
       <GoalScorerModal team={scoringTeam} onClose={() => setScoringTeam(null)} />
 
-      <div>
-        <h1 className="text-3xl font-black">Dashboard</h1>
-        <p className="text-slate-400 text-base">
-          Visão geral do bolão — ao vivo, ranking, próximos jogos e seus
-          resultados.
-        </p>
-      </div>
-
       {liveCardVisible ? (
         <DashboardLiveCard
           liveGames={liveSignals.liveGames}
+          recentlyFinishedGames={
+            heroFinishedGame ? [heroFinishedGame] : []
+          }
+          upcomingGame={heroUpcomingGame}
           liveScores={liveScores}
           unmatchedLiveScores={liveSignals.unmatchedLiveScores}
           myPredictions={myPredictions}
@@ -159,7 +193,7 @@ export function DashboardSection({
         />
       ) : (
         <NextGameBanner
-          games={allGames.length > 0 ? allGames : data.upcoming?.games ?? []}
+          games={upcomingPool}
           predictions={myPredictions ?? []}
           currentUserId={currentUserId}
         />
@@ -181,7 +215,7 @@ export function DashboardSection({
         </div>
 
         <div className="space-y-6">
-          {!liveCardVisible && (
+          {!liveOnlyVisible && (
             <UpcomingMatchesCard games={data.upcoming?.games ?? []} />
           )}
 

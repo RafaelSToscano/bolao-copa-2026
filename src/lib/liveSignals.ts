@@ -12,6 +12,16 @@ export interface LiveSignals {
   secondsUntilNextKickoff: number | null;
 }
 
+export const RECENT_FINISHED_GRACE_MS = 60 * 60 * 1000;
+
+// Generous regulation + stoppage + extra time + penalties cushion.
+// Used together with kickoff to bracket "the match has plausibly
+// ended by now" — we don't get a final-whistle timestamp from
+// upstream, so we treat `kickoff + this` as the earliest moment a
+// match could be considered finished. The hero card stays visible
+// for `RECENT_FINISHED_GRACE_MS` past that point.
+export const ESTIMATED_MATCH_DURATION_MS = 2 * 60 * 60 * 1000;
+
 /**
  * Derives the dashboard's live signals — which `Game[]` are live right
  * now and how long until the next kickoff — from the football-data
@@ -22,7 +32,10 @@ export interface LiveSignals {
  * when its football-data row's status is IN_PLAY/PAUSED/LIVE/HALF_TIME.
  * Finished matches drop off immediately (no DB-side 180-min window),
  * matching how the rest of the app already treats the upstream as
- * source of truth.
+ * source of truth. The dashboard's "what just finished?" card is
+ * sourced separately from the local games list (see
+ * `getMostRecentFinishedGame` in lib/liveGames) so first paint already
+ * has the right card without waiting for /api/live-scores.
  *
  * `unmatchedLiveScores` are upstream IN_PLAY/PAUSED/LIVE/HALF_TIME rows
  * that did NOT find a corresponding `Game` row (typically a team-name
@@ -69,5 +82,9 @@ export function deriveLiveSignals(
     }
   }
 
-  return { liveGames, unmatchedLiveScores, secondsUntilNextKickoff };
+  return {
+    liveGames,
+    unmatchedLiveScores,
+    secondsUntilNextKickoff,
+  };
 }

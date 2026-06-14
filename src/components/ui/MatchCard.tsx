@@ -16,7 +16,7 @@ import { formatDate } from "@/lib/formatting";
 
 const USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true";
 
-export type MatchCardMode = "live" | "prediction";
+export type MatchCardMode = "live" | "prediction" | "finished";
 
 interface MatchCardProps {
   game: Game;
@@ -56,8 +56,19 @@ const PREDICTION_THEME: Theme = {
   predictionScoreText: "text-blue-200",
 };
 
+const FINISHED_THEME: Theme = {
+  container:
+    "border border-emerald-500/30 shadow-[0_0_24px_rgba(16,185,129,0.12)]",
+  glow: "bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent",
+  predictionLabel: "bg-emerald-500/10 border border-emerald-500/25",
+  predictionLabelText: "text-emerald-300",
+  predictionScoreText: "text-emerald-200",
+};
+
 function themeFor(mode: MatchCardMode): Theme {
-  return mode === "live" ? LIVE_THEME : PREDICTION_THEME;
+  if (mode === "live") return LIVE_THEME;
+  if (mode === "finished") return FINISHED_THEME;
+  return PREDICTION_THEME;
 }
 
 export function MatchCard({
@@ -73,14 +84,14 @@ export function MatchCard({
     prediction?.predicted_score_a != null &&
     prediction?.predicted_score_b != null;
 
-  const { home: homeScore, away: awayScore } =
-    mode === "live"
-      ? resolveLiveScore(game, liveScore)
-      : { home: null, away: null };
+  const showsScore = mode === "live" || mode === "finished";
+  const { home: homeScore, away: awayScore } = showsScore
+    ? resolveLiveScore(game, liveScore)
+    : { home: null, away: null };
   const hasScore = homeScore != null && awayScore != null;
 
-  const liveBreakdown: PredictionPointsBreakdown | null =
-    mode === "live" && hasScore && prediction
+  const scoredBreakdown: PredictionPointsBreakdown | null =
+    showsScore && hasScore && prediction
       ? calculatePredictionPointsBreakdown(prediction, {
           ...game,
           official_score_a: homeScore,
@@ -101,6 +112,8 @@ export function MatchCard({
       <div className="flex flex-wrap items-start justify-between gap-2 mb-4">
         {mode === "live" ? (
           <LivePill />
+        ) : mode === "finished" ? (
+          <FinishedPill matchDate={game.match_date} />
         ) : (
           <NextMatchPill matchDate={game.match_date} />
         )}
@@ -136,9 +149,13 @@ export function MatchCard({
         />
 
         <div className="flex flex-col items-center gap-2">
-          {mode === "live" ? (
+          {showsScore ? (
             hasScore ? (
-              <ScoreNumbers home={homeScore!} away={awayScore!} />
+              <ScoreNumbers
+                home={homeScore!}
+                away={awayScore!}
+                tone={mode === "finished" ? "finished" : "live"}
+              />
             ) : (
               <ScoreDashes />
             )
@@ -183,8 +200,11 @@ export function MatchCard({
                 {prediction!.predicted_score_b}
               </span>
             </div>
-            {mode === "live" && (
-              <PointsChip breakdown={liveBreakdown} provisional />
+            {showsScore && (
+              <PointsChip
+                breakdown={scoredBreakdown}
+                provisional={mode === "live"}
+              />
             )}
           </div>
         ) : (
@@ -217,14 +237,23 @@ function TeamColumn({
   );
 }
 
-function ScoreNumbers({ home, away }: { home: number; away: number }) {
+function ScoreNumbers({
+  home,
+  away,
+  tone = "live",
+}: {
+  home: number;
+  away: number;
+  tone?: "live" | "finished";
+}) {
+  const color = tone === "finished" ? "text-emerald-200" : "text-red-300";
   return (
     <div className="flex items-center gap-3">
-      <span className="text-5xl font-black text-red-300 tabular-nums">
+      <span className={`text-5xl font-black ${color} tabular-nums`}>
         {home}
       </span>
       <span className="text-3xl font-black text-slate-500">×</span>
-      <span className="text-5xl font-black text-red-300 tabular-nums">
+      <span className={`text-5xl font-black ${color} tabular-nums`}>
         {away}
       </span>
     </div>
@@ -238,6 +267,27 @@ function ScoreDashes() {
       <span className="text-3xl font-black">×</span>
       <span className="text-5xl font-black tabular-nums">—</span>
     </div>
+  );
+}
+
+function FinishedPill({ matchDate }: { matchDate: string | null }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-3 py-1 shrink-0">
+      <span className="relative flex h-2.5 w-2.5">
+        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400" />
+      </span>
+      <span className="text-base font-black text-emerald-300 uppercase tracking-wider whitespace-nowrap">
+        Encerrado
+      </span>
+      {matchDate && (
+        <>
+          <span className="text-emerald-900 text-base mx-0.5">·</span>
+          <span className="text-base font-semibold text-slate-300 whitespace-nowrap">
+            {formatDate(matchDate)}
+          </span>
+        </>
+      )}
+    </span>
   );
 }
 

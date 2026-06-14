@@ -122,19 +122,25 @@ export function AppLayout({
             <Menu size={20} />
           </button>
 
-          <img
-            src="/brand/bolao-logo.jpg"
-            alt="Bolão Copa 2026"
-            className="h-9 w-9 rounded-xl object-cover shadow"
-          />
-          <div className="flex-1 min-w-0">
-            <h1 className="text-base font-black tracking-tight truncate">
-              Bolão Copa 2026
-            </h1>
-            <p className="text-slate-400 text-xs truncate">
-              Olá, {currentUser.name}
-            </p>
-          </div>
+          <Link
+            href="/"
+            aria-label="Ir para o dashboard"
+            className="flex items-center gap-3 flex-1 min-w-0 rounded-xl"
+          >
+            <img
+              src="/brand/bolao-logo.jpg"
+              alt="Bolão Copa 2026"
+              className="h-9 w-9 rounded-xl object-cover shadow shrink-0"
+            />
+            <div className="flex-1 min-w-0">
+              <h1 className="text-base font-black tracking-tight truncate">
+                Bolão Copa 2026
+              </h1>
+              <p className="text-slate-400 text-xs truncate">
+                Olá, {currentUser.name}
+              </p>
+            </div>
+          </Link>
         </div>
       </header>
 
