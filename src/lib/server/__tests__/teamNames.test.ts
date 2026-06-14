@@ -22,4 +22,8 @@ describe("toCanonicalTeamName", () => {
     expect(toCanonicalTeamName("Türkiye")).toBe("Turquia");
     expect(toCanonicalTeamName("Côte d'Ivoire")).toBe("Costa do Marfim");
   });
+
+  it("normalizes the historical Curaçau misspelling to Curaçao", () => {
+    expect(toCanonicalTeamName("Curaçau")).toBe("Curaçao");
+  });
 });
