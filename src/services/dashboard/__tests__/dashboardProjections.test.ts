@@ -221,7 +221,7 @@ describe("projectRankingTop", () => {
 });
 
 describe("projectUpcoming", () => {
-  it("filters out finished and past games, sorts ascending, respects limit", () => {
+  it("filters out finished games, sorts ascending, respects limit", () => {
     const games: Game[] = [
       game({
         id: "u3",
@@ -236,10 +236,6 @@ describe("projectUpcoming", () => {
         match_date: new Date(NOW + 2 * 60 * 60 * 1000).toISOString(),
       }),
       game({
-        id: "past",
-        match_date: new Date(NOW - 10 * 60 * 1000).toISOString(),
-      }),
-      game({
         id: "finished",
         match_date: new Date(NOW + 10 * 60 * 1000).toISOString(),
         official_score_a: 1,
@@ -250,8 +246,30 @@ describe("projectUpcoming", () => {
         match_date: new Date(NOW + 4 * 60 * 60 * 1000).toISOString(),
       }),
     ];
-    const result = projectUpcoming(games, 3, NOW);
+    const result = projectUpcoming(games, 3);
     expect(result.games.map((g) => g.id)).toEqual(["u1", "u2", "u3"]);
+  });
+
+  it("keeps games whose kickoff is in the past but have no official score", () => {
+    // The football-data feed lags real kickoff time — the game's
+    // status is still TIMED while the match has actually started.
+    // Since the local DB has no official score yet, the game must
+    // remain surfaced as upcoming until either the API flips to
+    // IN_PLAY or an admin finalizes the score.
+    const games: Game[] = [
+      game({
+        id: "delayed",
+        match_date: new Date(NOW - 6 * 60 * 1000).toISOString(),
+      }),
+      game({
+        id: "later-today",
+        match_date: new Date(NOW + 3 * 60 * 60 * 1000).toISOString(),
+      }),
+    ];
+    expect(projectUpcoming(games, 5).games.map((g) => g.id)).toEqual([
+      "delayed",
+      "later-today",
+    ]);
   });
 
   it("spans multiple match days up to the limit (default 5)", () => {
@@ -267,7 +285,7 @@ describe("projectUpcoming", () => {
       game({ id: "d3-2", match_date: dayOffset(3, 16) }),
       game({ id: "d4-1", match_date: dayOffset(4, 13) }),
     ];
-    expect(projectUpcoming(games, 5, NOW).games.map((g) => g.id)).toEqual([
+    expect(projectUpcoming(games, 5).games.map((g) => g.id)).toEqual([
       "d0-1",
       "d0-2",
       "d2-1",
@@ -276,12 +294,8 @@ describe("projectUpcoming", () => {
     ]);
   });
 
-  it("returns empty when nothing is upcoming", () => {
+  it("returns empty when every game is finished", () => {
     const games: Game[] = [
-      game({
-        id: "past",
-        match_date: new Date(NOW - 60 * 60 * 1000).toISOString(),
-      }),
       game({
         id: "finished",
         match_date: new Date(NOW + 60 * 60 * 1000).toISOString(),
@@ -289,7 +303,7 @@ describe("projectUpcoming", () => {
         official_score_b: 0,
       }),
     ];
-    expect(projectUpcoming(games, 5, NOW).games).toEqual([]);
+    expect(projectUpcoming(games, 5).games).toEqual([]);
   });
 });
 

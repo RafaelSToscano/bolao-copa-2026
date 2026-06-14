@@ -16,10 +16,6 @@ import {
 import { calculatePredictionPoints } from "@/services/predictions/predictionCalculations";
 import { calculateAllGroupStandings } from "@/services/standings/standingsCalculations";
 
-function nowMs(refNow: number | undefined): number {
-  return refNow ?? Date.now();
-}
-
 /**
  * Folds live scores into games so that an in-progress match contributes
  * its provisional score to the ranking computation. A game with an
@@ -111,23 +107,28 @@ export function projectRankingTop(
 }
 
 /**
- * Returns the next `limit` not-yet-finished, future games sorted by
- * kickoff — a flat list spanning multiple match days. Powers the
- * dashboard's tabled "Próximos jogos" card; the chip strip uses
+ * Returns the next `limit` not-yet-finished games sorted by kickoff —
+ * a flat list spanning multiple match days. Powers the dashboard's
+ * tabled "Próximos jogos" card; the chip strip uses
  * `getNextMatchDayGames` directly to stay scoped to the next match
  * day.
+ *
+ * "Not yet finished" is decided locally — both `official_score_*`
+ * columns null. We deliberately do NOT exclude games whose kickoff has
+ * already passed: when football-data lags (status still TIMED after
+ * the kickoff time), the game would otherwise vanish from the
+ * dashboard until either upstream flips IN_PLAY or the admin records
+ * a final score.
  */
 export function projectUpcoming(
   games: Game[],
-  limit = 5,
-  refNow?: number
+  limit = 5
 ): DashboardUpcomingPayload {
-  const t = nowMs(refNow);
   const upcoming = games
     .filter((g) => {
       if (!g.match_date) return false;
       if (g.official_score_a !== null && g.official_score_b !== null) return false;
-      return new Date(g.match_date).getTime() > t;
+      return true;
     })
     .sort(
       (a, b) =>
