@@ -1,7 +1,47 @@
 import { Game } from "@/types/game";
 import { LiveScoreMatch } from "@/hooks/useLiveScores";
+import {
+  ESTIMATED_MATCH_DURATION_MS,
+  RECENT_FINISHED_GRACE_MS,
+} from "@/lib/liveSignals";
 
 const LIVE_WINDOW_MINUTES = 180;
+
+/**
+ * Returns the most-recently finished game from the local games list,
+ * or null if no game with an official score sits inside the
+ * `kickoff + match-duration + grace` window. Used by the dashboard
+ * when there are no live games — first paint already has the right
+ * card without waiting for /api/live-scores to come back.
+ *
+ * "Finished" is decided locally: both `official_score_*` columns are
+ * set. Kickoff is the only stable timestamp we have (no final-whistle
+ * timestamp upstream), so the grace cutoff is measured from
+ * `kickoff + ESTIMATED_MATCH_DURATION_MS` to keep a card on screen
+ * for ~`RECENT_FINISHED_GRACE_MS` past the realistic end-of-match.
+ */
+export function getMostRecentFinishedGame(
+  games: Game[],
+  refNow?: number
+): Game | null {
+  const now = refNow ?? Date.now();
+  const cutoff = now - (ESTIMATED_MATCH_DURATION_MS + RECENT_FINISHED_GRACE_MS);
+
+  let best: Game | null = null;
+  let bestKickoff = -Infinity;
+  for (const g of games) {
+    if (g.official_score_a == null || g.official_score_b == null) continue;
+    if (!g.match_date) continue;
+    const kickoff = new Date(g.match_date).getTime();
+    if (Number.isNaN(kickoff)) continue;
+    if (kickoff < cutoff) continue;
+    if (kickoff > bestKickoff) {
+      best = g;
+      bestKickoff = kickoff;
+    }
+  }
+  return best;
+}
 
 /**
  * Resolve the score to display for a live-window game. Prefer the

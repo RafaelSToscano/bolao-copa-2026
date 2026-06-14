@@ -1,9 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   describeLiveMinute,
+  getMostRecentFinishedGame,
   getNextMatchDayGames,
   resolveLiveScore,
 } from "@/lib/liveGames";
+import {
+  ESTIMATED_MATCH_DURATION_MS,
+  RECENT_FINISHED_GRACE_MS,
+} from "@/lib/liveSignals";
 import { Game } from "@/types/game";
 import { LiveScoreMatch } from "@/hooks/useLiveScores";
 
@@ -177,5 +182,69 @@ describe("getNextMatchDayGames", () => {
       makeGame({ id: "past", match_date: "2026-06-20T11:00:00.000Z" }),
     ];
     expect(getNextMatchDayGames(games, Infinity, NOW)).toEqual([]);
+  });
+});
+
+describe("getMostRecentFinishedGame", () => {
+  const NOW = new Date("2026-06-20T20:34:00.000Z").getTime();
+
+  it("returns the latest-kickoff game with both official scores", () => {
+    const games = [
+      makeGame({
+        id: "early",
+        match_date: new Date(NOW - 5 * 60 * 60 * 1000).toISOString(),
+        official_score_a: 1,
+        official_score_b: 0,
+      }),
+      makeGame({
+        id: "late",
+        match_date: new Date(NOW - 3 * 60 * 60 * 1000).toISOString(),
+        official_score_a: 7,
+        official_score_b: 1,
+      }),
+    ];
+    expect(getMostRecentFinishedGame(games, NOW)?.id).toBe("late");
+  });
+
+  it("ignores games without official scores", () => {
+    const games = [
+      makeGame({
+        id: "no-score",
+        match_date: new Date(NOW - 30 * 60 * 1000).toISOString(),
+        official_score_a: null,
+        official_score_b: null,
+      }),
+    ];
+    expect(getMostRecentFinishedGame(games, NOW)).toBeNull();
+  });
+
+  it("drops games whose estimated end is older than the grace window", () => {
+    const games = [
+      makeGame({
+        id: "stale",
+        match_date: new Date(
+          NOW - (ESTIMATED_MATCH_DURATION_MS + RECENT_FINISHED_GRACE_MS + 60_000)
+        ).toISOString(),
+        official_score_a: 1,
+        official_score_b: 0,
+      }),
+    ];
+    expect(getMostRecentFinishedGame(games, NOW)).toBeNull();
+  });
+
+  it("keeps a finished game whose estimated end is within the grace window", () => {
+    // 3.5h-old kickoff → estimated end 1.5h ago → inside the 1h grace
+    // (the grace clock starts at kickoff + 2h, so we have 30min left).
+    const games = [
+      makeGame({
+        id: "fresh",
+        match_date: new Date(
+          NOW - (ESTIMATED_MATCH_DURATION_MS + 30 * 60 * 1000)
+        ).toISOString(),
+        official_score_a: 0,
+        official_score_b: 0,
+      }),
+    ];
+    expect(getMostRecentFinishedGame(games, NOW)?.id).toBe("fresh");
   });
 });

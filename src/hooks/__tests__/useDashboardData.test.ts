@@ -36,27 +36,37 @@ describe("polling cadence pure logic", () => {
     expect(
       computePollIntervalMs({
         liveGames: [{} as never],
-        unmatchedLiveScores: [],
+              unmatchedLiveScores: [],
         secondsUntilNextKickoff: 9999,
       })
     ).toBe(POLL_LIVE_MS);
   });
 
-  it("fast when next kickoff is within 60s", () => {
+  it("fast when there is an unmatched live upstream row", () => {
     expect(
       computePollIntervalMs({
         liveGames: [],
-        unmatchedLiveScores: [],
-        secondsUntilNextKickoff: 30,
+              unmatchedLiveScores: [{} as never],
+        secondsUntilNextKickoff: null,
       })
     ).toBe(POLL_LIVE_MS);
+  });
+
+  it("baseline when next kickoff is within 60s but nothing is live", () => {
+    expect(
+      computePollIntervalMs({
+        liveGames: [],
+              unmatchedLiveScores: [],
+        secondsUntilNextKickoff: 30,
+      })
+    ).toBe(POLL_BASELINE_MS);
   });
 
   it("baseline when next kickoff far away", () => {
     expect(
       computePollIntervalMs({
         liveGames: [],
-        unmatchedLiveScores: [],
+              unmatchedLiveScores: [],
         secondsUntilNextKickoff: 3600,
       })
     ).toBe(POLL_BASELINE_MS);
@@ -66,7 +76,7 @@ describe("polling cadence pure logic", () => {
     expect(
       shouldPollFast({
         liveGames: [],
-        unmatchedLiveScores: [],
+              unmatchedLiveScores: [],
         secondsUntilNextKickoff: null,
       })
     ).toBe(false);

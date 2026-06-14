@@ -13,17 +13,18 @@ import { fetchJson } from "@/lib/fetchJson";
 
 export const POLL_LIVE_MS = 10_000;
 export const POLL_BASELINE_MS = 60_000;
-export const FAST_KICKOFF_THRESHOLD_SEC = 60;
 
+/**
+ * Fast cadence runs ONLY while at least one match is live (or a live
+ * upstream row hasn't been matched to a Game). Imminent kickoffs and
+ * recently-finished games no longer trigger fast polling — the
+ * ranking section only needs to move when scores are actually
+ * changing.
+ */
 export function shouldPollFast(signals: LiveSignals | null): boolean {
   if (!signals) return false;
   if (signals.liveGames.length > 0) return true;
-  if (
-    signals.secondsUntilNextKickoff !== null &&
-    signals.secondsUntilNextKickoff <= FAST_KICKOFF_THRESHOLD_SEC
-  ) {
-    return true;
-  }
+  if (signals.unmatchedLiveScores.length > 0) return true;
   return false;
 }
 

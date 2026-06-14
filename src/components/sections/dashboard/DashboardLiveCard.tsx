@@ -9,6 +9,14 @@ import { DashboardUnmatchedLiveCard } from "./DashboardUnmatchedLiveCard";
 
 interface DashboardLiveCardProps {
   liveGames: Game[];
+  recentlyFinishedGames?: Game[];
+  /**
+   * Optional next-upcoming card to render inside the hero list. Only
+   * passed in by the dashboard when there's a recently-finished card
+   * but nothing live, so users see "what just happened" alongside
+   * "what's next" in the same hero row.
+   */
+  upcomingGame?: Game | null;
   liveScores: LiveScoreMatch[];
   unmatchedLiveScores?: LiveScoreMatch[];
   myPredictions?: Prediction[];
@@ -33,6 +41,8 @@ async function bumpMockScore(
 
 export function DashboardLiveCard({
   liveGames,
+  recentlyFinishedGames = [],
+  upcomingGame = null,
   liveScores,
   unmatchedLiveScores = [],
   myPredictions = [],
@@ -54,23 +64,41 @@ export function DashboardLiveCard({
     }
   };
 
-  const totalCount = liveGames.length + unmatchedLiveScores.length;
+  const liveCount = liveGames.length + unmatchedLiveScores.length;
+  const totalCount =
+    liveCount + recentlyFinishedGames.length + (upcomingGame ? 1 : 0);
   if (totalCount === 0) return null;
 
-  const label = totalCount === 1 ? "Jogo do Momento" : "Jogos do Momento";
+  // Header reflects the live state — once everything has finished and
+  // we're only showing recently-finished (+ optional upcoming) cards,
+  // drop the pulsing "Ao vivo" framing.
+  const hasLive = liveCount > 0;
+  const label = hasLive
+    ? liveCount === 1
+      ? "Jogo do Momento"
+      : "Jogos do Momento"
+    : upcomingGame && recentlyFinishedGames.length > 0
+      ? "Encerrado · A seguir"
+      : "Encerrado há pouco";
 
   return (
     <div className="space-y-3">
       <StickySectionHeader>
         <div className="flex items-center gap-2">
           <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500" />
+            {hasLive && (
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+            )}
+            <span
+              className={`relative inline-flex rounded-full h-3 w-3 ${hasLive ? "bg-amber-500" : "bg-emerald-500"}`}
+            />
           </span>
-          <span className="text-base font-black text-amber-400 uppercase tracking-widest">
+          <span
+            className={`text-base font-black uppercase tracking-widest ${hasLive ? "text-amber-400" : "text-emerald-400"}`}
+          >
             {label}
           </span>
-          {totalCount > 1 && (
+          {hasLive && totalCount > 1 && (
             <span className="text-base text-slate-400">
               — {totalCount} jogos agora
             </span>
@@ -102,6 +130,44 @@ export function DashboardLiveCard({
         {unmatchedLiveScores.map((match) => (
           <DashboardUnmatchedLiveCard key={`upstream:${match.id}`} match={match} />
         ))}
+
+        {recentlyFinishedGames.map((game) => {
+          const prediction = currentUserId
+            ? myPredictions.find(
+                (p) => p.player_id === currentUserId && p.game_id === game.id
+              )
+            : undefined;
+          const liveScore = findLiveScoreForGame(game, liveScores);
+
+          return (
+            <MatchCard
+              key={`finished:${game.id}`}
+              game={game}
+              prediction={prediction}
+              mode="finished"
+              liveScore={liveScore}
+            />
+          );
+        })}
+
+        {upcomingGame &&
+          (() => {
+            const prediction = currentUserId
+              ? myPredictions.find(
+                  (p) =>
+                    p.player_id === currentUserId &&
+                    p.game_id === upcomingGame.id
+                )
+              : undefined;
+            return (
+              <MatchCard
+                key={`upcoming:${upcomingGame.id}`}
+                game={upcomingGame}
+                prediction={prediction}
+                mode="prediction"
+              />
+            );
+          })()}
       </div>
     </div>
   );
