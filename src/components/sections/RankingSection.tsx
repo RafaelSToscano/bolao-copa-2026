@@ -59,72 +59,83 @@ export function RankingSection({ ranking, positionChanges }: RankingSectionProps
       </div>
 
       {/* Podium + Lantern */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {ranking.slice(0, 3).map((player, index) => {
-          const card = podiumCards[index];
+<div className="space-y-3">
+  <div className="grid grid-cols-3 gap-2 md:grid-cols-2 xl:grid-cols-3 md:gap-4">
+    {ranking.slice(0, 3).map((player, index) => {
+      const card = podiumCards[index];
 
-          return (
-            <Card
-              key={player.id}
-              className="bg-slate-900 border-slate-800 text-white rounded-3xl"
+      return (
+        <Card
+          key={player.id}
+          className="bg-slate-900 border-slate-800 text-white rounded-2xl md:rounded-3xl"
+        >
+          <CardContent className="p-2 md:p-5 text-center space-y-1 md:space-y-3">
+            <div className="text-2xl md:text-7xl leading-none drop-shadow-lg">
+              {card.icon}
+            </div>
+
+            <div
+              className={`text-base md:text-3xl font-black ${card.color} flex items-center justify-center gap-1`}
             >
-              <CardContent className="p-5 text-center space-y-3">
-                <div className="text-7xl drop-shadow-lg">
-                  {card.icon}
-                </div>
+              {player.position}º
+              <PositionBadge change={positionChanges?.get(player.id)} />
+            </div>
 
-                <div className={`text-4xl md:text-3xl font-black ${card.color}`}>
-                  {player.position}º
-                </div>
+            <div className="hidden md:block text-xs uppercase tracking-wide text-slate-400 font-black">
+              {player.position === 1 ? "LÍDER" : card.title}
+            </div>
 
-                <div className="text-xs uppercase tracking-wide text-slate-400 font-black">
-                  {player.position === 1 ? "LÍDER" : card.title}
-                </div>
+            <div className="text-base md:text-lg font-bold truncate">
+              {player.name}
+            </div>
 
-                <div className="font-bold">{player.name}</div>
+            <div className="text-yellow-400 font-black text-base md:text-xl">
+              {player.total} pts
+            </div>
 
-                <div className="text-yellow-400 font-black text-xl">
-                  {player.total} pts
-                </div>
+            <div className="hidden md:flex items-center justify-center gap-2 text-xs text-slate-400">
+              <span>{player.exacts} placares exatos</span>
+            </div>
 
-                <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
-                  <span>{player.exacts} placares exatos</span>
-                  <PositionBadge change={positionChanges?.get(player.id)} />
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+            <div className="md:hidden text-base text-slate-400">
+              {player.exacts}✓
+            </div>
+          </CardContent>
+        </Card>
+      );
+    })}
+  </div>
 
-        {lastPlayer && (
-          <Card className="bg-slate-900 border-red-900/60 text-white rounded-3xl">
-            <CardContent className="p-5 text-center space-y-3">
-              <div className="text-7xl drop-shadow-lg">
-                🔦
-              </div>
+  {lastPlayer && (
+    <Card className="bg-slate-900 border-red-900/60 text-white rounded-3xl">
+      <CardContent className="p-3 md:p-5 grid grid-cols-12 md:block items-center md:text-center md:space-y-3">
+        <div className="col-span-2 text-2xl md:text-7xl drop-shadow-lg">
+          🔦
+        </div>
 
-              <div className="text-4xl md:text-3xl font-black text-red-400">
-                {lastPlayer.position}º
-              </div>
+        <div className="col-span-2 font-black text-red-400 md:text-3xl">
+          {lastPlayer.position}º
+        </div>
 
-              <div className="text-xs uppercase tracking-wide text-red-300 font-black">
-                Lanterna
-              </div>
+        <div className="col-span-6 font-semibold truncate md:space-y-3">
+          <span className="text-base uppercase tracking-wider text-red-300 font-black mr-2">
+            Lanterna
+          </span>
+          {lastPlayer.name}
+        </div>
 
-              <div className="font-bold">{lastPlayer.name}</div>
+        <div className="col-span-2 text-right font-bold text-red-400 md:text-center md:text-xl">
+          {lastPlayer.total}
+        </div>
 
-              <div className="text-red-400 font-black text-xl">
-                {lastPlayer.total} pts
-              </div>
-
-              <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
-                <span>Prêmio consolação 😅</span>
-                <PositionBadge change={positionChanges?.get(lastPlayer.id)} />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+        <div className="hidden md:flex items-center justify-center gap-2 text-xs text-slate-400">
+          <span>Prêmio consolação 😅</span>
+          <PositionBadge change={positionChanges?.get(lastPlayer.id)} />
+        </div>
+      </CardContent>
+    </Card>
+  )}
+</div>
 
       {/* Full Ranking Table */}
       <Card className="bg-slate-900 border-slate-800 text-white rounded-3xl">
