@@ -82,15 +82,13 @@ function RankingRow({
 
       <div className="col-span-5 font-semibold truncate">
         {isLanterna && (
-          <span className="text-xs md:text-sm text-red-300 font-bold mr-1">
-        Lanterna
-        </span>
+       <span className="text-xs md:text-sm text-red-300 font-bold mr-1">
+       Lanterna
+       </span>
         )}
-        {!isLanterna && isRelegation && (
-          <span className="mr-1 text-red-300">⬇</span>
-        )}
-        {player.name}
-      </div>
+
+  {player.name}
+</div>
 
       <div className="col-span-2 flex justify-center">
         <DeltaArrow delta={delta} />
