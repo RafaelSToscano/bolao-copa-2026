@@ -26,4 +26,8 @@ describe("toCanonicalTeamName", () => {
   it("normalizes the historical Curaçau misspelling to Curaçao", () => {
     expect(toCanonicalTeamName("Curaçau")).toBe("Curaçao");
   });
+
+  it("normalizes the upstream 'Cape Verde Islands' variant to Cabo Verde", () => {
+    expect(toCanonicalTeamName("Cape Verde Islands")).toBe("Cabo Verde");
+  });
 });
