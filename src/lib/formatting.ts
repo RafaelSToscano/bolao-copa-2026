@@ -1,4 +1,5 @@
 import { TEAM_FLAG_CODES } from "@/config/scoring";
+import { getSupabaseClient } from "@/services/supabase/supabaseClient";
 
 /**
  * Gets the flag country code for a team name
@@ -74,12 +75,25 @@ export function formatWeekdayDate(value: string | null): string {
 /**
  * Exports audit CSV with all predictions and results
  */
-export function exportAuditCsv(
+export async function exportAuditCsv(
   players: any[],
   games: any[],
   predictions: any[],
   calculatePoints: (pred: any, game: any) => any
-): void {
+): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const { data: finalPredictions, error } = await supabase
+    .from("final_predictions")
+    .select("player_id, champion, runner_up, third_place");
+
+  if (error) {
+    throw new Error(`Erro ao buscar palpites finais: ${error.message}`);
+  }
+
+  const finalPredictionsByPlayer = new Map(
+    (finalPredictions ?? []).map((fp: any) => [fp.player_id, fp])
+  );
   const rows: (string | number)[][] = [
     [
       "Participante",
@@ -94,10 +108,15 @@ export function exportAuditCsv(
       "Resultado Oficial B",
       "Pontos",
       "Placar Exato",
+      "Campeão",
+      "Vice",
+      "Terceiro",
     ],
   ];
 
-  players.forEach((player) => {
+    players.forEach((player) => {
+    const finalPrediction = finalPredictionsByPlayer.get(player.id);
+
     games.forEach((game) => {
       const prediction = predictions.find(
         (p: any) => p.player_id === player.id && p.game_id === game.id
@@ -118,6 +137,9 @@ export function exportAuditCsv(
         game.official_score_b?.toString() ?? "",
         result.points.toString(),
         result.exact.toString(),
+        finalPrediction?.champion ?? "",
+        finalPrediction?.runner_up ?? "",
+        finalPrediction?.third_place ?? "",
       ]);
     });
   });

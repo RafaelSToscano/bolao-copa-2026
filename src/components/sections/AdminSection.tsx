@@ -47,8 +47,13 @@ export function AdminSection({
 }: AdminSectionProps) {
   const [shareMode, setShareMode] = useState<"highlight" | "full" | null>(null);
 
-  const handleExportCsv = () => {
-    exportAuditCsv(players, games, predictions, calculatePredictionPoints);
+    const handleExportCsv = async () => {
+    try {
+      await exportAuditCsv(players, games, predictions, calculatePredictionPoints);
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao exportar auditoria CSV.");
+    }
   };
 
   return (
