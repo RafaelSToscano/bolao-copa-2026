@@ -50,6 +50,7 @@ const EN_TO_PT: Record<string, string> = {
   "New Zealand": "Nova Zelândia",
   "Spain": "Espanha",
   "Cape Verde": "Cabo Verde",
+  "Cape Verde Islands": "Cabo Verde",
   "Cabo Verde": "Cabo Verde",
   "Saudi Arabia": "Arábia Saudita",
   "Uruguay": "Uruguai",
