@@ -158,9 +158,7 @@ export function RankingSection({
                 </div>
 
                 <div className="col-span-5 font-semibold truncate">
-                  {isRelegationZone && (
-                    <span className="mr-1 text-red-300">⬇</span>
-                  )}
+                  
                   {player.name}
                   {isCurrentUser && (
                     <span className="ml-1 text-yellow-400 font-black">
