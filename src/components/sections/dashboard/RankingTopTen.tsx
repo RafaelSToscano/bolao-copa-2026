@@ -82,9 +82,9 @@ function RankingRow({
 
       <div className="col-span-5 font-semibold truncate">
         {isLanterna && (
-          <span className="text-base uppercase tracking-wider text-red-300 font-black mr-2">
-            Lanterna
-          </span>
+          <span className="text-xs md:text-sm uppercase tracking-wide text-red-300 font-black mr-1">
+          Lanterna
+        </span>
         )}
         {!isLanterna && isRelegation && (
           <span className="mr-1 text-red-300">⬇</span>

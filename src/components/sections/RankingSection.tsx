@@ -108,15 +108,15 @@ export function RankingSection({
             <div className="grid grid-cols-12 p-4 items-center">
               <div className="col-span-2 flex items-center gap-2">
                 <span className="text-2xl">🔦</span>
-                <span className="font-black text-yellow-400">
-                  {lastPlayer.position}º
-                </span>
+                <span className="font-black text-red-400">
+                {lastPlayer.position}º
+              </span>
               </div>
 
               <div className="col-span-5 font-semibold truncate">
-                <span className="text-base uppercase tracking-wider text-slate-300 font-black mr-2">
-                  Lanterna
-                </span>
+                <span className="text-sm uppercase tracking-wide text-red-300 font-black mr-2">
+               Lanterna
+              </span>
                 {lastPlayer.name}
               </div>
 
@@ -124,8 +124,8 @@ export function RankingSection({
                 <PositionBadge change={positionChanges?.get(lastPlayer.id)} />
               </div>
 
-              <div className="col-span-2 text-right font-bold">
-                {lastPlayer.total}
+              <div className="col-span-2 text-right font-bold text-red-400">
+              {lastPlayer.total}
               </div>
 
               <div className="col-span-1 text-right text-xs text-slate-500">
