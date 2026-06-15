@@ -29,6 +29,7 @@ export type LiveRankingRow = RankingRow & {
 export interface DashboardRankingTopPayload {
   top: LiveRankingRow[];
   lanterna: LiveRankingRow | null;
+  relegationZone: LiveRankingRow[];
   /** True when at least one in-progress game contributed live points */
   provisional: boolean;
 }

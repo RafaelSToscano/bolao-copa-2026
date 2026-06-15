@@ -1,13 +1,20 @@
 "use client";
 
 import { useMemo } from "react";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { LiveRankingRow } from "@/types/dashboard";
 import { StickySectionHeader } from "./StickySectionHeader";
 
 function DeltaArrow({ delta }: { delta: number }) {
-  if (delta === 0) return null;
+  if (delta === 0) {
+    return (
+      <span className="inline-flex items-center gap-0.5 text-slate-600 text-xs font-black">
+        <Minus size={12} />
+      </span>
+    );
+  }
+
   if (delta > 0) {
     return (
       <span className="inline-flex items-center gap-0.5 text-emerald-400 text-base font-black bg-emerald-500/10 border border-emerald-500/30 rounded-full px-2 py-0.5">
@@ -15,6 +22,7 @@ function DeltaArrow({ delta }: { delta: number }) {
       </span>
     );
   }
+
   return (
     <span className="inline-flex items-center gap-0.5 text-red-400 text-base font-black bg-red-500/10 border border-red-500/30 rounded-full px-2 py-0.5">
       <TrendingDown size={14} />
@@ -26,12 +34,7 @@ function DeltaArrow({ delta }: { delta: number }) {
 interface RankingTopTenProps {
   top: LiveRankingRow[];
   lanterna: LiveRankingRow | null;
-  /**
-   * When the ranking includes provisional live-match points, parents
-   * pass `true`. Drives which delta the row shows: the live-vs-DB
-   * delta during a match, or the "since last round" delta otherwise
-   * (matching the Ranking screen).
-   */
+  relegationZone?: LiveRankingRow[];
   provisional?: boolean;
   onSeeAll?: () => void;
 }
@@ -44,30 +47,80 @@ const podiumCards = [
 
 const ROW_HEIGHT_PX = 56;
 
-/**
- * During a live match, show how the live computation moved the
- * player vs the DB position (positive = climbed). Otherwise mirror
- * the Ranking screen and show the "since last round" delta so both
- * surfaces agree.
- */
 function deltaOf(row: LiveRankingRow, provisional: boolean) {
   if (provisional) return row.officialPosition - row.position;
   return row.lastRoundDelta;
 }
 
+function RankingRow({
+  player,
+  provisional,
+  variant = "default",
+}: {
+  player: LiveRankingRow;
+  provisional: boolean;
+  variant?: "default" | "relegation" | "lanterna";
+}) {
+  const delta = deltaOf(player, provisional);
+  const isLanterna = variant === "lanterna";
+  const isRelegation = variant === "relegation" || isLanterna;
+
+  return (
+    <div
+      className={`grid grid-cols-12 px-3 border-b border-slate-800 items-center min-h-14 ${
+        isRelegation ? "bg-red-500/10" : ""
+      }`}
+    >
+      <div
+        className={`col-span-2 font-black flex items-center gap-1 ${
+          isRelegation ? "text-red-300" : "text-yellow-400"
+        }`}
+      >
+        {isLanterna && <span className="text-xl">🔦</span>}
+        {player.position}º
+      </div>
+
+      <div className="col-span-5 font-semibold truncate">
+        {isLanterna && (
+          <span className="text-base uppercase tracking-wider text-red-300 font-black mr-2">
+            Lanterna
+          </span>
+        )}
+        {!isLanterna && isRelegation && (
+          <span className="mr-1 text-red-300">⬇</span>
+        )}
+        {player.name}
+      </div>
+
+      <div className="col-span-2 flex justify-center">
+        <DeltaArrow delta={delta} />
+      </div>
+
+      <div
+        className={`col-span-2 text-right font-bold ${
+          isRelegation ? "text-red-300" : ""
+        }`}
+      >
+        {player.total}
+      </div>
+
+      <div className="col-span-1 text-right text-base text-slate-500">
+        {player.exacts}✓
+      </div>
+    </div>
+  );
+}
+
 export function RankingTopTen({
   top,
   lanterna,
+  relegationZone = [],
   provisional = false,
   onSeeAll,
 }: RankingTopTenProps) {
   const podium = top.slice(0, 3);
   const tail = top.slice(3, 10);
 
-  // Sort tail+podium ALL together by player id so the DOM order stays
-  // stable across re-renders, then transform each row to its current
-  // visual slot. This is the FLIP idiom and lets CSS transitions
-  // animate the slide.
   const allRows = useMemo(() => [...podium, ...tail], [podium, tail]);
   const stable = useMemo(
     () => [...allRows].sort((a, b) => a.id.localeCompare(b.id)),
@@ -78,6 +131,10 @@ export function RankingTopTen({
     allRows.forEach((row, idx) => m.set(row.id, idx));
     return m;
   }, [allRows]);
+
+  const relegationWithoutLanterna = relegationZone.filter(
+    (player) => player.id !== lanterna?.id
+  );
 
   return (
     <div className="space-y-3">
@@ -107,10 +164,8 @@ export function RankingTopTen({
           {podium.map((player, i) => {
             const card = podiumCards[i];
             const delta = deltaOf(player, provisional);
-            // Reserve the ring highlight for live-match swings — the
-            // "since last round" delta is informational, not a live
-            // event, so we keep it as a quiet arrow only.
             const liveMove = provisional && delta !== 0;
+
             return (
               <Card
                 key={player.id}
@@ -121,24 +176,30 @@ export function RankingTopTen({
                   <div className="text-2xl md:text-5xl leading-none">
                     {card.icon}
                   </div>
+
                   <div
                     className={`text-base md:text-2xl font-black ${card.color} flex items-center justify-center gap-1 md:gap-2`}
                   >
                     {player.position}º
                     <DeltaArrow delta={delta} />
                   </div>
+
                   <div className="hidden md:block text-base uppercase tracking-wide text-slate-400 font-black">
                     {card.title}
                   </div>
+
                   <div className="text-base font-bold truncate">
                     {player.name}
                   </div>
+
                   <div className="text-yellow-400 font-black text-base md:text-lg">
                     {player.total} pts
                   </div>
+
                   <div className="hidden md:block text-base text-slate-400">
                     {player.exacts} placares exatos
                   </div>
+
                   <div className="md:hidden text-base text-slate-400">
                     {player.exacts}✓
                   </div>
@@ -163,31 +224,21 @@ export function RankingTopTen({
                   const tailIdx = visualIdx - 3;
                   const delta = deltaOf(player, provisional);
                   const liveMove = provisional && delta !== 0;
+
                   return (
                     <div
                       key={player.id}
                       data-moved={liveMove ? (delta > 0 ? "up" : "down") : undefined}
-                      className="absolute left-0 right-0 grid grid-cols-12 px-3 border-b border-slate-800 items-center transition-all duration-500 data-[moved=up]:bg-emerald-500/10 data-[moved=down]:bg-red-500/10"
+                      className="absolute left-0 right-0 transition-all duration-500 data-[moved=up]:bg-emerald-500/10 data-[moved=down]:bg-red-500/10"
                       style={{
                         top: `${tailIdx * ROW_HEIGHT_PX}px`,
                         height: `${ROW_HEIGHT_PX}px`,
                       }}
                     >
-                      <div className="col-span-2 font-black text-yellow-400 flex items-center gap-1">
-                        {player.position}º
-                      </div>
-                      <div className="col-span-5 font-semibold truncate">
-                        {player.name}
-                      </div>
-                      <div className="col-span-2 flex justify-center">
-                        <DeltaArrow delta={delta} />
-                      </div>
-                      <div className="col-span-2 text-right font-bold">
-                        {player.total}
-                      </div>
-                      <div className="col-span-1 text-right text-base text-slate-500">
-                        {player.exacts}✓
-                      </div>
+                      <RankingRow
+                        player={player}
+                        provisional={provisional}
+                      />
                     </div>
                   );
                 })}
@@ -196,24 +247,38 @@ export function RankingTopTen({
         </Card>
       )}
 
-      {lanterna && top.length > 0 && top[top.length - 1].id !== lanterna.id && (
-        <Card className="bg-slate-900 border-red-900/60 text-white rounded-3xl">
-          <CardContent className="p-3 grid grid-cols-12 items-center">
-            <div className="col-span-2 text-2xl">🔦</div>
-            <div className="col-span-2 font-black text-red-400">
-              {lanterna.position}º
-            </div>
-            <div className="col-span-6 font-semibold truncate">
-              <span className="text-base uppercase tracking-wider text-red-300 font-black mr-2">
-                Lanterna
-              </span>
-              {lanterna.name}
-            </div>
-            <div className="col-span-2 text-right font-bold text-red-400">
-              {lanterna.total}
-            </div>
-          </CardContent>
-        </Card>
+      {relegationZone.length > 0 && (
+        <div className="space-y-2 pt-1">
+          <div>
+            <h3 className="text-base font-black text-red-300">
+              Zona do Rebaixamento
+            </h3>
+            <p className="text-xs text-slate-500">
+              Os 5 últimos colocados do bolão.
+            </p>
+          </div>
+
+          <Card className="bg-slate-900 border-red-900/60 text-white rounded-3xl">
+            <CardContent className="p-0 overflow-hidden">
+              {relegationWithoutLanterna.map((player) => (
+                <RankingRow
+                  key={player.id}
+                  player={player}
+                  provisional={provisional}
+                  variant="relegation"
+                />
+              ))}
+
+              {lanterna && (
+                <RankingRow
+                  player={lanterna}
+                  provisional={provisional}
+                  variant="lanterna"
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

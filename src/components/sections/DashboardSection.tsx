@@ -201,12 +201,13 @@ export function DashboardSection({
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="space-y-6">
-          <RankingTopTen
+            <RankingTopTen
             top={data.rankingTop?.top ?? []}
             lanterna={data.rankingTop?.lanterna ?? null}
+            relegationZone={data.rankingTop?.relegationZone ?? []}
             provisional={data.rankingTop?.provisional ?? false}
             onSeeAll={() => onNavigate("/ranking")}
-          />
+            />
 
           <MyStatusCard
             myStatus={data.myStatus}

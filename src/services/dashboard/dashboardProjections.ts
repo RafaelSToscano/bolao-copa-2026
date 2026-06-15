@@ -97,13 +97,14 @@ export function projectRankingTop(
     lastRoundDelta: lastRoundDeltas.get(row.id) ?? 0,
   });
 
-  const top = liveRanking.slice(0, topN).map(decorate);
+    const top = liveRanking.slice(0, topN).map(decorate);
+  const relegationZone = liveRanking.slice(-5).map(decorate);
 
   const lanternaRow =
     liveRanking.length > 0 ? liveRanking[liveRanking.length - 1] : null;
   const lanterna = lanternaRow ? decorate(lanternaRow) : null;
 
-  return { top, lanterna, provisional };
+  return { top, lanterna, relegationZone, provisional };
 }
 
 /**

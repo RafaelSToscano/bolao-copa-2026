@@ -47,6 +47,7 @@ export function RankingSection({
   currentUserId,
 }: RankingSectionProps) {
   const lastPlayer = ranking.length > 0 ? ranking[ranking.length - 1] : null;
+  const relegationZoneIds = new Set(ranking.slice(-5).map((p) => p.id));
 
   return (
     <div className="space-y-4">
@@ -55,7 +56,6 @@ export function RankingSection({
         <p className="text-slate-400 text-sm">Classificação atual do bolão.</p>
       </div>
 
-      {/* Podium */}
       <div className="grid grid-cols-3 gap-2 md:gap-4">
         {ranking.slice(0, 3).map((player, index) => {
           const card = podiumCards[index];
@@ -102,59 +102,65 @@ export function RankingSection({
         })}
       </div>
 
-      {/* Lantern */}
-{lastPlayer && (
-  <Card className="bg-slate-900 border-red-900/60 text-white rounded-3xl">
-    <CardContent className="p-0 overflow-hidden">
-      <div className="grid grid-cols-12 p-4 items-center">
-        <div className="col-span-2 flex items-center gap-2">
-          <span className="text-2xl">🔦</span>
-          <span className="font-black text-red-400">
-            {lastPlayer.position}º
-          </span>
-        </div>
+      {lastPlayer && (
+        <Card className="bg-slate-900 border-slate-800 text-white rounded-3xl">
+          <CardContent className="p-0 overflow-hidden">
+            <div className="grid grid-cols-12 p-4 items-center">
+              <div className="col-span-2 flex items-center gap-2">
+                <span className="text-2xl">🔦</span>
+                <span className="font-black text-yellow-400">
+                  {lastPlayer.position}º
+                </span>
+              </div>
 
-        <div className="col-span-5 font-semibold truncate">
-          <span className="text-base uppercase tracking-wider text-red-300 font-black mr-2">
-            Lanterna
-          </span>
-          {lastPlayer.name}
-        </div>
+              <div className="col-span-5 font-semibold truncate">
+                <span className="text-base uppercase tracking-wider text-slate-300 font-black mr-2">
+                  Lanterna
+                </span>
+                {lastPlayer.name}
+              </div>
 
-        <div className="col-span-2 flex justify-center">
-          <PositionBadge change={positionChanges?.get(lastPlayer.id)} />
-        </div>
+              <div className="col-span-2 flex justify-center">
+                <PositionBadge change={positionChanges?.get(lastPlayer.id)} />
+              </div>
 
-        <div className="col-span-2 text-right font-bold text-red-400">
-          {lastPlayer.total}
-        </div>
+              <div className="col-span-2 text-right font-bold">
+                {lastPlayer.total}
+              </div>
 
-        <div className="col-span-1 text-right text-xs text-slate-500">
-          {lastPlayer.exacts}✓
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-)}
+              <div className="col-span-1 text-right text-xs text-slate-500">
+                {lastPlayer.exacts}✓
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Full Ranking Table */}
       <Card className="bg-slate-900 border-slate-800 text-white rounded-3xl">
         <CardContent className="p-0 overflow-hidden">
           {ranking.map((player) => {
             const isCurrentUser = player.id === currentUserId;
+            const isRelegationZone = relegationZoneIds.has(player.id);
 
             return (
               <div
                 key={player.id}
                 className={`grid grid-cols-12 p-4 border-b border-slate-800 items-center ${
-                  isCurrentUser ? "bg-yellow-500/10" : ""
-                }`}
+                  isRelegationZone ? "bg-red-500/10" : ""
+                } ${isCurrentUser ? "bg-yellow-500/10" : ""}`}
               >
-                <div className="col-span-2 font-black text-yellow-400">
+                <div
+                  className={`col-span-2 font-black ${
+                    isRelegationZone ? "text-red-300" : "text-yellow-400"
+                  }`}
+                >
                   {player.position}º
                 </div>
 
                 <div className="col-span-5 font-semibold truncate">
+                  {isRelegationZone && (
+                    <span className="mr-1 text-red-300">⬇</span>
+                  )}
                   {player.name}
                   {isCurrentUser && (
                     <span className="ml-1 text-yellow-400 font-black">
@@ -167,7 +173,11 @@ export function RankingSection({
                   <PositionBadge change={positionChanges?.get(player.id)} />
                 </div>
 
-                <div className="col-span-2 text-right font-bold">
+                <div
+                  className={`col-span-2 text-right font-bold ${
+                    isRelegationZone ? "text-red-300" : ""
+                  }`}
+                >
                   {player.total}
                 </div>
 
