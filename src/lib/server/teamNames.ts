@@ -64,6 +64,7 @@ const EN_TO_PT: Record<string, string> = {
   "Jordan": "Jordânia",
   "Portugal": "Portugal",
   "DR Congo": "RD Congo",
+  "Congo DR": "RD Congo",
   "Democratic Republic of the Congo": "RD Congo",
   "Uzbekistan": "Uzbequistão",
   "Colombia": "Colômbia",

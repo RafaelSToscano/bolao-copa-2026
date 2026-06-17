@@ -30,4 +30,8 @@ describe("toCanonicalTeamName", () => {
   it("normalizes the upstream 'Cape Verde Islands' variant to Cabo Verde", () => {
     expect(toCanonicalTeamName("Cape Verde Islands")).toBe("Cabo Verde");
   });
+
+  it("normalizes the upstream 'Congo DR' variant to RD Congo", () => {
+    expect(toCanonicalTeamName("Congo DR")).toBe("RD Congo");
+  });
 });
