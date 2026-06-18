@@ -73,6 +73,25 @@ export function formatWeekdayDate(value: string | null): string {
 }
 
 /**
+ * Time-only kickoff in pt-BR (e.g. "17:00"). Used by the upcoming-
+ * matches list as the row headline when there's no score yet — the
+ * meta row above it already shows the weekday+date.
+ */
+export function formatKickoffTime(value: string | null): string {
+  if (!value) return "—";
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+/**
  * Exports audit CSV with all predictions and results
  */
 export async function exportAuditCsv(

@@ -72,27 +72,27 @@ function MatchRow({ item }: { item: DashboardMatchListItem }) {
       }`}
     >
       <div className="flex items-center justify-between gap-3 text-sm text-slate-400">
-        <span className="font-semibold tabular-nums">
-          {formatWeekdayDate(game.match_date)}
-        </span>
         <div className="flex items-center gap-2">
+          <span className="font-semibold tabular-nums">
+            {formatWeekdayDate(game.match_date)}
+          </span>
           {today && (
             <span className="text-[11px] font-black uppercase tracking-widest text-amber-400">
               Hoje
             </span>
           )}
-          {metaRight}
         </div>
+        {metaRight}
       </div>
 
       <div className="grid grid-cols-[1fr_auto_1fr] grid-rows-[auto_auto] gap-x-4 gap-y-1 items-center justify-items-center">
-        <Flag team={game.team_a} size="medium" />
+        <Flag team={game.team_a} size="large" />
 
         <div className="flex items-center justify-center">{headline}</div>
 
-        <Flag team={game.team_b} size="medium" />
+        <Flag team={game.team_b} size="large" />
 
-        <span className="text-sm font-black text-white text-center leading-tight min-w-0 truncate">
+        <span className="text-base font-black text-white text-center leading-tight min-w-0 truncate">
           {game.team_a}
         </span>
 
@@ -117,7 +117,7 @@ function MatchRow({ item }: { item: DashboardMatchListItem }) {
           </span>
         )}
 
-        <span className="text-sm font-black text-white text-center leading-tight min-w-0 truncate">
+        <span className="text-base font-black text-white text-center leading-tight min-w-0 truncate">
           {game.team_b}
         </span>
       </div>
