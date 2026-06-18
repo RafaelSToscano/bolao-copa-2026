@@ -1,6 +1,6 @@
 "use client";
 
-import { LiveScoreMatch } from "@/hooks/useLiveScores";
+import { LiveScoreMatch, isLiveStatus } from "@/hooks/useLiveScores";
 import { Flag } from "@/components/ui/Flag";
 import { LivePill } from "./LivePill";
 
@@ -18,7 +18,14 @@ interface DashboardUnmatchedLiveCardProps {
 export function DashboardUnmatchedLiveCard({
   match,
 }: DashboardUnmatchedLiveCardProps) {
-  const hasScore = match.homeScore != null && match.awayScore != null;
+  // Upstream sends null scores for a brief window after IN_PLAY flips
+  // and before the first goal is reported. Treat that as 0-0 so the
+  // card shows real numbers instead of dashes during kickoff lag.
+  const homeScore =
+    match.homeScore ?? (isLiveStatus(match.status) ? 0 : null);
+  const awayScore =
+    match.awayScore ?? (isLiveStatus(match.status) ? 0 : null);
+  const hasScore = homeScore != null && awayScore != null;
 
   return (
     <div className="relative bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 rounded-3xl p-5 overflow-hidden border border-amber-500/30 shadow-[0_0_24px_rgba(245,158,11,0.12)]">
@@ -35,11 +42,11 @@ export function DashboardUnmatchedLiveCard({
           {hasScore ? (
             <div className="flex items-center gap-3">
               <span className="text-5xl font-black text-red-300 tabular-nums">
-                {match.homeScore}
+                {homeScore}
               </span>
               <span className="text-3xl font-black text-slate-500">×</span>
               <span className="text-5xl font-black text-red-300 tabular-nums">
-                {match.awayScore}
+                {awayScore}
               </span>
             </div>
           ) : (
