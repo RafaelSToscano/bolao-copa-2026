@@ -20,7 +20,7 @@ export function Flag({ team, size = "small" }: FlagProps) {
     <img
       src={`https://flagcdn.com/w40/${code}.png`}
       alt={team}
-      className={`inline-block rounded-sm object-cover mr-2 ${sizeMap[size]}`}
+      className={`inline-block rounded-sm object-cover ${sizeMap[size]}`}
     />
   );
 }

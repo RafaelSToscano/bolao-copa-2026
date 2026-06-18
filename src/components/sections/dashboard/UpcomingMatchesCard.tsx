@@ -1,75 +1,55 @@
 "use client";
 
 import { Game } from "@/types/game";
-import { Card, CardContent } from "@/components/ui/card";
-import { Flag } from "@/components/ui/Flag";
+import { Prediction } from "@/types/prediction";
 import { Calendar } from "lucide-react";
-import { formatDate, isToday } from "@/lib/formatting";
-import { StickySectionHeader } from "./StickySectionHeader";
+import { formatKickoffTime, formatWeekdayShort } from "@/lib/formatting";
+import {
+  DashboardMatchListCard,
+  DashboardMatchListItem,
+} from "./DashboardMatchListCard";
 
 interface UpcomingMatchesCardProps {
   games: Game[];
+  predictions?: Prediction[];
+  currentUserId?: string;
 }
 
-export function UpcomingMatchesCard({ games }: UpcomingMatchesCardProps) {
+export function UpcomingMatchesCard({
+  games,
+  predictions = [],
+  currentUserId,
+}: UpcomingMatchesCardProps) {
+  const listItems: DashboardMatchListItem[] = games.map((game) => {
+    const prediction = currentUserId
+      ? predictions.find(
+          (p) => p.player_id === currentUserId && p.game_id === game.id
+        )
+      : undefined;
+
+    return {
+      game,
+      prediction,
+      headline: (
+        <span className="text-2xl font-black tabular-nums text-slate-200">
+          {formatKickoffTime(game.match_date)}
+        </span>
+      ),
+      metaInline: game.group_name ? (
+        <span className="font-semibold whitespace-nowrap">
+          · Grupo {game.group_name}
+        </span>
+      ) : null,
+    };
+  });
+
   return (
-    <div className="space-y-3">
-      <StickySectionHeader>
-        <h2 className="text-xl font-black flex items-center gap-2">
-          <Calendar className="text-yellow-400" size={20} />
-          Próximos jogos
-        </h2>
-      </StickySectionHeader>
-
-      <Card className="bg-slate-900 border-slate-800 text-white rounded-3xl">
-        <CardContent className="p-0 overflow-hidden">
-          {games.length === 0 ? (
-            <div className="p-5 text-center text-base text-slate-400">
-              Nenhum jogo agendado.
-            </div>
-          ) : (
-            games.map((game) => {
-              const today = isToday(game.match_date);
-              return (
-                <div
-                  key={game.id}
-                  className={`grid grid-cols-[1fr_auto_1fr] gap-3 items-center p-4 border-b border-slate-800 last:border-b-0 ${
-                    today
-                      ? "bg-amber-500/[0.04] border-l-2 border-l-amber-500/60"
-                      : ""
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Flag team={game.team_a} size="medium" />
-                    <span className="font-bold truncate">{game.team_a}</span>
-                  </div>
-
-                  <div className="flex flex-col items-center text-base gap-0.5">
-                    {today && (
-                      <span className="text-[11px] font-black uppercase tracking-widest text-amber-400">
-                        Hoje
-                      </span>
-                    )}
-                    <span className="text-slate-400 font-semibold">
-                      {formatDate(game.match_date)}
-                    </span>
-                    {game.group_name && (
-                      <span className="text-yellow-400 font-bold">
-                        Grupo {game.group_name}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 justify-end min-w-0">
-                    <span className="font-bold truncate text-right">{game.team_b}</span>
-                    <Flag team={game.team_b} size="medium" />
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </CardContent>
-      </Card>
-    </div>
+    <DashboardMatchListCard
+      icon={<Calendar className="text-yellow-400" size={20} />}
+      title="Próximos jogos"
+      emptyMessage="Nenhum jogo agendado."
+      items={listItems}
+      formatDate={formatWeekdayShort}
+    />
   );
 }

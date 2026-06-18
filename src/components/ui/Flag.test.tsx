@@ -75,10 +75,10 @@ describe('Flag Component', () => {
     expect(img.className).toContain('object-cover');
   });
 
-  it('should have mr-2 class', () => {
+  it('should not have a mr-2 class (callers control spacing via flex gap)', () => {
     render(<Flag team="Brasil" />);
     const img = screen.getByAltText('Brasil');
-    expect(img.className).toContain('mr-2');
+    expect(img.className).not.toContain('mr-2');
   });
 
   it('should render as inline-block', () => {
@@ -110,7 +110,6 @@ describe('Flag Component', () => {
     expect(classes).toContain('inline-block');
     expect(classes).toContain('rounded-sm');
     expect(classes).toContain('object-cover');
-    expect(classes).toContain('mr-2');
     expect(classes).toContain('h-4');
     expect(classes).toContain('w-6');
   });
@@ -122,7 +121,6 @@ describe('Flag Component', () => {
     expect(classes).toContain('inline-block');
     expect(classes).toContain('rounded-sm');
     expect(classes).toContain('object-cover');
-    expect(classes).toContain('mr-2');
     expect(classes).toContain('h-6');
     expect(classes).toContain('w-9');
   });
@@ -134,7 +132,6 @@ describe('Flag Component', () => {
     expect(classes).toContain('inline-block');
     expect(classes).toContain('rounded-sm');
     expect(classes).toContain('object-cover');
-    expect(classes).toContain('mr-2');
     expect(classes).toContain('h-8');
     expect(classes).toContain('w-12');
   });

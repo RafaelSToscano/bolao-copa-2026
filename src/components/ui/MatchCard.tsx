@@ -226,9 +226,7 @@ function TeamColumn({
 }) {
   return (
     <div className="flex flex-col items-center gap-2 min-w-0">
-      <span className="inline-flex [&>img]:!mr-0">
-        <Flag team={team} size="large" />
-      </span>
+      <Flag team={team} size="large" />
       <span className="text-base font-black text-white text-center leading-tight">
         {team}
       </span>

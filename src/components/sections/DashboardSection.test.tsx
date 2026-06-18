@@ -97,7 +97,7 @@ describe("DashboardSection", () => {
     expect(calledPaths).toContain("/api/dashboard/group-leaders");
   });
 
-  it("hides the upcoming chips card while a live card is on screen", async () => {
+  it("keeps the upcoming matches list visible while a live card is on screen", async () => {
     const responses = baseResponses();
     // Game scheduled for 'now' so it matches the live score by team-pair
     // + time proximity inside findLiveScoreForGame.
@@ -141,8 +141,10 @@ describe("DashboardSection", () => {
     );
 
     await vi.waitFor(() => {
-      // Live card surfaces team names; chip card heading is gone.
-      expect(screen.queryByText("Próximos jogos")).not.toBeInTheDocument();
+      // Live card is on screen AND the upcoming matches list still
+      // renders alongside it — the live card replaces the next-match
+      // banner, not the right-column list.
+      expect(screen.getByText("Próximos jogos")).toBeInTheDocument();
     });
   });
 });
