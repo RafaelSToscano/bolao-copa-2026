@@ -11,7 +11,7 @@ import { Flag } from "@/components/ui/Flag";
 import { formatDate, isToday } from "@/lib/formatting";
 import { calculateGroupStandingsFromPredictions } from "@/services/standings/predictionSimulation";
 import { FinalPredictionsCard } from "@/components/sections/FinalPredictionsCard";
-import { NextGameBanner } from "@/components/ui/NextGameBanner";
+import { PalpitesHero } from "@/components/sections/predictions/PalpitesHero";
 interface PredictionsSectionProps {
   games: Game[];
   predictions: Prediction[];
@@ -60,11 +60,10 @@ export function PredictionsSection({
 
   return (
     <div className="space-y-4">
-      <NextGameBanner
+      <PalpitesHero
         games={games}
         predictions={predictions}
         currentUserId={currentUserId}
-        limit={Infinity}
       />
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
