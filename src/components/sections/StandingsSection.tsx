@@ -5,7 +5,7 @@ import { Prediction } from "@/types/prediction";
 import { TeamStanding } from "@/types/standings";
 import { Card, CardContent } from "@/components/ui/card";
 import { Flag } from "@/components/ui/Flag";
-import { formatDate, isToday } from "@/lib/formatting";
+import { formatDate, isPast, isToday } from "@/lib/formatting";
 
 interface StandingsSectionProps {
   games: Game[];
@@ -31,6 +31,9 @@ export function StandingsSection({
     acc[group].push(game);
     return acc;
   }, {});
+  Object.values(groupedGames).forEach((g) =>
+    g.sort((a, b) => (a.match_date ?? "").localeCompare(b.match_date ?? ""))
+  );
 
   return (
     <div className="space-y-8">
@@ -147,15 +150,17 @@ export function StandingsSection({
   </div>
 
   {groupGames.map((game: Game) => {
-    const today = isToday(game.match_date);
+    const past = isPast(game.match_date);
+    const today = !past && isToday(game.match_date);
+    const rowTone = past
+      ? "border-slate-800 bg-emerald-500/[0.05] border-l-2 border-l-emerald-500/60 hover:bg-emerald-500/[0.08]"
+      : today
+        ? "border-slate-800 bg-amber-500/[0.04] border-l-2 border-l-amber-500/60 hover:bg-amber-500/[0.07]"
+        : "border-slate-800 bg-slate-950/40 hover:bg-slate-900/70";
     return (
     <div
       key={game.id}
-      className={`border-b transition ${
-        today
-          ? "border-slate-800 bg-amber-500/[0.04] border-l-2 border-l-amber-500/60 hover:bg-amber-500/[0.07]"
-          : "border-slate-800 bg-slate-950/40 hover:bg-slate-900/70"
-      }`}
+      className={`border-b transition ${rowTone}`}
     >
       {/* Mobile */}
       <div className="md:hidden p-3 space-y-3">
