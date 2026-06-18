@@ -1,5 +1,5 @@
 import { Game } from "@/types/game";
-import { LiveScoreMatch } from "@/hooks/useLiveScores";
+import { LiveScoreMatch, isLiveStatus } from "@/hooks/useLiveScores";
 import {
   ESTIMATED_MATCH_DURATION_MS,
   RECENT_FINISHED_GRACE_MS,
@@ -48,6 +48,11 @@ export function getMostRecentFinishedGame(
  * football-data feed, fall back to the admin-recorded official score
  * once the API stops returning the finished match. Returns nulls when
  * neither source has a score yet.
+ *
+ * Upstream returns null homeScore/awayScore on a freshly-flipped
+ * IN_PLAY row before the first goal is reported. We treat that as 0-0
+ * so the card renders real numbers instead of dashes — otherwise the
+ * UI looks broken between kickoff and the first scoring event.
  */
 export function resolveLiveScore(
   game: Game,
@@ -57,6 +62,9 @@ export function resolveLiveScore(
     liveScore?.homeScore != null && liveScore?.awayScore != null;
   if (liveAvailable) {
     return { home: liveScore!.homeScore, away: liveScore!.awayScore };
+  }
+  if (liveScore && isLiveStatus(liveScore.status)) {
+    return { home: 0, away: 0 };
   }
   const officialAvailable =
     game.official_score_a != null && game.official_score_b != null;

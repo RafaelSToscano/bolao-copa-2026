@@ -60,12 +60,31 @@ describe("resolveLiveScore", () => {
     expect(r).toEqual({ home: 3, away: 0 });
   });
 
-  it("falls back to official score when live score is partially null", () => {
+  it("falls back to official score when live score is partially null and status is finished", () => {
     const r = resolveLiveScore(
       makeGame({ official_score_a: 1, official_score_b: 2 }),
-      makeLiveScore({ homeScore: null, awayScore: 1 })
+      makeLiveScore({ status: "FINISHED", homeScore: null, awayScore: 1 })
     );
     expect(r).toEqual({ home: 1, away: 2 });
+  });
+
+  it("treats null upstream scores as 0-0 when the match is IN_PLAY", () => {
+    // football-data returns null homeScore/awayScore on a freshly-flipped
+    // IN_PLAY row before the first goal is reported. The card must show
+    // 0-0 instead of dashes during that window.
+    const r = resolveLiveScore(
+      makeGame(),
+      makeLiveScore({ homeScore: null, awayScore: null })
+    );
+    expect(r).toEqual({ home: 0, away: 0 });
+  });
+
+  it("does not coerce nulls to 0-0 when upstream status is not live", () => {
+    const r = resolveLiveScore(
+      makeGame(),
+      makeLiveScore({ status: "TIMED", homeScore: null, awayScore: null })
+    );
+    expect(r).toEqual({ home: null, away: null });
   });
 
   it("returns nulls when neither source has a score", () => {
