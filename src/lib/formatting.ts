@@ -25,6 +25,18 @@ export function isToday(value: string | null, now: Date = new Date()): boolean {
 }
 
 /**
+ * True when `value` is strictly before `now`. Used by /palpites to tint
+ * already-kicked-off match rows (the user can no longer change the
+ * palpite for them, regardless of the lock state).
+ */
+export function isPast(value: string | null, now: Date = new Date()): boolean {
+  if (!value) return false;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return false;
+  return d.getTime() < now.getTime();
+}
+
+/**
  * Formats a date string for display
  */
 export function formatDate(value: string | null): string {

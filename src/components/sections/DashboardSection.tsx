@@ -10,10 +10,7 @@ import {
   useLiveScores,
 } from "@/hooks/useLiveScores";
 import { deriveLiveSignals } from "@/lib/liveSignals";
-import {
-  getMostRecentFinishedGame,
-  getNextMatchDayGames,
-} from "@/lib/liveGames";
+import { selectHero } from "@/lib/heroSelection";
 import { DashboardLiveCard } from "./dashboard/DashboardLiveCard";
 import { NextGameBanner } from "@/components/ui/NextGameBanner";
 import { RankingTopTen } from "./dashboard/RankingTopTen";
@@ -103,42 +100,37 @@ export function DashboardSection({
 
   const data = useDashboardData(currentUserId, liveSignals);
 
-  const liveOnlyVisible =
-    liveSignals.liveGames.length > 0 ||
-    liveSignals.unmatchedLiveScores.length > 0;
+  // Cold-paint fallback: while `allGames` is still loading, splice the
+  // server payloads into the games pool so selectHero sees the same
+  // shape it'll see post-hydration. Without this, first paint flashes
+  // "2 upcoming" before settling on "finished + upcoming" once allGames
+  // arrives. The same grace cutoff in getMostRecentFinishedGame keeps
+  // /api/dashboard/recent from showing stale results past its TTL.
+  const heroPool = useMemo(() => {
+    if (allGames.length > 0) return allGames;
+    const recentFromPayload = data.recent?.items?.[0]?.game ?? null;
+    const upcomingFromPayload = data.upcoming?.games ?? [];
+    return recentFromPayload
+      ? [recentFromPayload, ...upcomingFromPayload]
+      : upcomingFromPayload;
+  }, [allGames, data.recent, data.upcoming]);
 
-  // Hero list rules (cap = 2):
-  //  - Live game(s) running → keep all live cards (cap doesn't apply;
-  //    the live UI is the priority).
-  //  - No live game → derive ONE finished + ONE upcoming card from the
-  //    LOCAL games list (official_score for FINISHED, soonest future
-  //    kickoff for UPCOMING). This means once `allGames` is loaded the
-  //    section doesn't re-render every poll tick when nothing is live.
-  //  - While `allGames` is still loading (cold first paint), reach
-  //    into the dashboard server payloads — `data.recent` for the
-  //    finished card, `data.upcoming` for the upcoming card — so
-  //    first paint matches the eventual local-derived state instead
-  //    of flashing "two upcoming → finished+upcoming" on hydration.
-  //  - Nothing finished within the grace window AND nothing live →
-  //    fall through to the NextGameBanner (2 upcoming).
+  const hero = useMemo(
+    () =>
+      selectHero(heroPool, liveSignals, {
+        mode: "with-live",
+        upcomingFallbackLimit: 2,
+      }),
+    [heroPool, liveSignals]
+  );
+
+  const liveCardVisible = hero.kind !== "upcoming-only";
+  const heroFinishedGame =
+    hero.kind === "finished+upcoming" ? hero.finished : null;
+  const heroUpcomingGame =
+    hero.kind === "finished+upcoming" ? hero.upcoming : null;
   const upcomingPool =
-    allGames.length > 0 ? allGames : data.upcoming?.games ?? [];
-  const recentFromPayload = data.recent?.items?.[0]?.game ?? null;
-  const heroFinishedGame = liveOnlyVisible
-    ? null
-    : getMostRecentFinishedGame(allGames) ??
-      (allGames.length === 0 && recentFromPayload
-        ? // Apply the same grace cutoff so we don't flash a stale
-          // recent-result on the dashboard before /api/dashboard/recent
-          // catches up (its TTL is 2 min).
-          (getMostRecentFinishedGame([recentFromPayload]) ?? null)
-        : null);
-  const heroUpcomingGame = heroFinishedGame
-    ? getNextMatchDayGames(upcomingPool, 1)[0] ?? null
-    : null;
-
-  const liveCardVisible =
-    liveOnlyVisible || heroFinishedGame !== null;
+    hero.kind === "upcoming-only" ? hero.games : heroPool;
 
   const [goalTrigger, setGoalTrigger] = useState<string | null>(null);
   const [scoringTeam, setScoringTeam] = useState<string | null>(null);
