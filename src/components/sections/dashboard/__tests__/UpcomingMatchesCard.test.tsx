@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { UpcomingMatchesCard } from "../UpcomingMatchesCard";
 import { Game } from "@/types/game";
+import { Prediction } from "@/types/prediction";
 
 function game(overrides: Partial<Game>): Game {
   return {
@@ -40,6 +41,56 @@ describe("UpcomingMatchesCard", () => {
   it("does not render a 'Ver todos' link", () => {
     render(<UpcomingMatchesCard games={[game({ id: "g1" })]} />);
     expect(screen.queryByText(/Ver todos/)).not.toBeInTheDocument();
+  });
+
+  describe("user predictions", () => {
+    function prediction(overrides: Partial<Prediction>): Prediction {
+      return {
+        player_id: "u1",
+        game_id: "g1",
+        predicted_score_a: 1,
+        predicted_score_b: 2,
+        ...overrides,
+      };
+    }
+
+    it("renders the user's predicted score for a game they predicted", () => {
+      const g = game({ id: "g1", team_a: "Brasil", team_b: "Argentina" });
+      render(
+        <UpcomingMatchesCard
+          games={[g]}
+          predictions={[prediction({ game_id: "g1", predicted_score_a: 3, predicted_score_b: 0 })]}
+          currentUserId="u1"
+        />
+      );
+      expect(screen.getByText("Palpite")).toBeInTheDocument();
+      expect(screen.getByText("3")).toBeInTheDocument();
+      expect(screen.getByText("0")).toBeInTheDocument();
+    });
+
+    it("falls back to 'Sem palpite' when the user has no prediction", () => {
+      const g = game({ id: "g1", team_a: "Brasil", team_b: "Argentina" });
+      render(
+        <UpcomingMatchesCard
+          games={[g]}
+          predictions={[]}
+          currentUserId="u1"
+        />
+      );
+      expect(screen.getByText("Sem palpite")).toBeInTheDocument();
+    });
+
+    it("ignores predictions belonging to other users", () => {
+      const g = game({ id: "g1", team_a: "Brasil", team_b: "Argentina" });
+      render(
+        <UpcomingMatchesCard
+          games={[g]}
+          predictions={[prediction({ player_id: "someone-else" })]}
+          currentUserId="u1"
+        />
+      );
+      expect(screen.getByText("Sem palpite")).toBeInTheDocument();
+    });
   });
 
   describe("today's matches", () => {
