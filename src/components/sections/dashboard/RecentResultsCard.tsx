@@ -34,6 +34,11 @@ export function RecentResultsCard({ items }: RecentResultsCardProps) {
             </span>
           </div>
         ),
+        metaInline: game.group_name ? (
+          <span className="font-semibold whitespace-nowrap">
+            · Grupo {game.group_name}
+          </span>
+        ) : null,
         metaRight: hasPrediction ? (
           <PointsChip
             breakdown={calculatePredictionPointsBreakdown(myPrediction!, game)}
