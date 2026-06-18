@@ -216,9 +216,7 @@ export function DashboardSection({
         </div>
 
         <div className="space-y-6">
-          {!liveOnlyVisible && (
-            <UpcomingMatchesCard games={data.upcoming?.games ?? []} />
-          )}
+          <UpcomingMatchesCard games={data.upcoming?.games ?? []} />
 
           <RecentResultsCard items={data.recent?.items ?? []} />
         </div>
