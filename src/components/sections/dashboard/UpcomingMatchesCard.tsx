@@ -3,7 +3,7 @@
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
 import { Calendar } from "lucide-react";
-import { formatKickoffTime } from "@/lib/formatting";
+import { formatKickoffTime, formatWeekdayShort, isToday } from "@/lib/formatting";
 import {
   DashboardMatchListCard,
   DashboardMatchListItem,
@@ -26,6 +26,10 @@ export function UpcomingMatchesCard({
           (p) => p.player_id === currentUserId && p.game_id === game.id
         )
       : undefined;
+    const today = isToday(game.match_date);
+    const groupChipTone = today
+      ? "text-yellow-400 bg-yellow-500/10 border-yellow-500/25"
+      : "text-blue-300 bg-blue-500/10 border-blue-500/30";
 
     return {
       game,
@@ -36,7 +40,9 @@ export function UpcomingMatchesCard({
         </span>
       ),
       metaRight: game.group_name ? (
-        <span className="text-base font-black text-yellow-400 bg-yellow-500/10 border border-yellow-500/25 rounded-full px-3 py-1 whitespace-nowrap">
+        <span
+          className={`text-base font-black border rounded-full px-3 py-1 whitespace-nowrap ${groupChipTone}`}
+        >
           Grupo {game.group_name}
         </span>
       ) : null,
@@ -49,6 +55,7 @@ export function UpcomingMatchesCard({
       title="Próximos jogos"
       emptyMessage="Nenhum jogo agendado."
       items={listItems}
+      formatDate={formatWeekdayShort}
     />
   );
 }

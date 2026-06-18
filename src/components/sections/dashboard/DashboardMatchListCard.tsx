@@ -24,6 +24,11 @@ interface DashboardMatchListCardProps {
   title: string;
   emptyMessage: string;
   items: DashboardMatchListItem[];
+  /** Override the meta-row date formatter. Defaults to weekday + date
+   * + time ("Sex 20/06 · 17:00"). Upcoming overrides this with a
+   * date-only formatter because the kickoff time already appears in
+   * the row headline. */
+  formatDate?: (value: string | null) => string;
 }
 
 export function DashboardMatchListCard({
@@ -31,6 +36,7 @@ export function DashboardMatchListCard({
   title,
   emptyMessage,
   items,
+  formatDate = formatWeekdayDate,
 }: DashboardMatchListCardProps) {
   return (
     <div className="space-y-3">
@@ -49,7 +55,11 @@ export function DashboardMatchListCard({
             </div>
           ) : (
             items.map((item) => (
-              <MatchRow key={item.game.id} item={item} />
+              <MatchRow
+                key={item.game.id}
+                item={item}
+                formatDate={formatDate}
+              />
             ))
           )}
         </CardContent>
@@ -58,7 +68,13 @@ export function DashboardMatchListCard({
   );
 }
 
-function MatchRow({ item }: { item: DashboardMatchListItem }) {
+function MatchRow({
+  item,
+  formatDate,
+}: {
+  item: DashboardMatchListItem;
+  formatDate: (value: string | null) => string;
+}) {
   const { game, prediction, headline, metaRight } = item;
   const today = isToday(game.match_date);
   const hasPrediction =
@@ -74,7 +90,7 @@ function MatchRow({ item }: { item: DashboardMatchListItem }) {
       <div className="flex items-center justify-between gap-3 text-sm text-slate-400">
         <div className="flex items-center gap-2">
           <span className="font-semibold tabular-nums">
-            {formatWeekdayDate(game.match_date)}
+            {formatDate(game.match_date)}
           </span>
           {today && (
             <span className="text-[11px] font-black uppercase tracking-widest text-amber-400">

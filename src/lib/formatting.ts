@@ -73,6 +73,33 @@ export function formatWeekdayDate(value: string | null): string {
 }
 
 /**
+ * Date-only short form: short weekday + day/month in pt-BR (e.g. "Sex
+ * 20/06"). Used in the upcoming-matches list where the kickoff time
+ * is already shown as the row's headline, so repeating it in the
+ * meta row would be noise.
+ */
+export function formatWeekdayShort(value: string | null): string {
+  if (!value) return "Data a definir";
+
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "Data a definir";
+    const weekday = d
+      .toLocaleString("pt-BR", { weekday: "short" })
+      .replace(/\.$/, "");
+    const day = d.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+    });
+    const capitalizedWeekday =
+      weekday.charAt(0).toUpperCase() + weekday.slice(1);
+    return `${capitalizedWeekday} ${day}`;
+  } catch {
+    return "Data a definir";
+  }
+}
+
+/**
  * Time-only kickoff in pt-BR (e.g. "17:00"). Used by the upcoming-
  * matches list as the row headline when there's no score yet — the
  * meta row above it already shows the weekday+date.
