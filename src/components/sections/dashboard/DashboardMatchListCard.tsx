@@ -14,8 +14,10 @@ export interface DashboardMatchListItem {
   /** Center cell of row 1. Recent passes the official score; upcoming
    * passes nothing (the meta row already shows the kickoff). */
   headline?: ReactNode;
-  /** Right-hand slot in the meta row, after the optional "Hoje" badge.
-   * Recent passes a `PointsChip`, upcoming passes the group label. */
+  /** Inline slot in the meta row, sitting between the date and the
+   * optional "Hoje" badge. Upcoming uses this for the group label. */
+  metaInline?: ReactNode;
+  /** Right-hand slot in the meta row. Recent passes a `PointsChip`. */
   metaRight?: ReactNode;
 }
 
@@ -75,7 +77,7 @@ function MatchRow({
   item: DashboardMatchListItem;
   formatDate: (value: string | null) => string;
 }) {
-  const { game, prediction, headline, metaRight } = item;
+  const { game, prediction, headline, metaInline, metaRight } = item;
   const today = isToday(game.match_date);
   const hasPrediction =
     prediction?.predicted_score_a != null &&
@@ -92,6 +94,7 @@ function MatchRow({
           <span className="font-semibold tabular-nums">
             {formatDate(game.match_date)}
           </span>
+          {metaInline}
           {today && (
             <span className="text-[11px] font-black uppercase tracking-widest text-amber-400">
               Hoje
