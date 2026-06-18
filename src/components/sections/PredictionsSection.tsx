@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { RandomPredictor, SingleGameRandomPredictor, type RandomPrediction } from "@/components/ui/random-predictor";
 import { Flag } from "@/components/ui/Flag";
-import { formatDate, isToday } from "@/lib/formatting";
+import { formatDate, isPast, isToday } from "@/lib/formatting";
 import { calculateGroupStandingsFromPredictions } from "@/services/standings/predictionSimulation";
 import { FinalPredictionsCard } from "@/components/sections/FinalPredictionsCard";
 import { PalpitesHero } from "@/components/sections/predictions/PalpitesHero";
@@ -329,15 +329,17 @@ export function PredictionsSection({
                   predicted_score_b: existing?.predicted_score_b?.toString() ?? "",
                 };
 
-               const today = isToday(game.match_date);
+               const past = isPast(game.match_date);
+               const today = !past && isToday(game.match_date);
+               const rowTone = past
+                 ? "border-slate-800 bg-emerald-500/[0.05] border-l-2 border-l-emerald-500/60 hover:bg-emerald-500/[0.08]"
+                 : today
+                   ? "border-slate-800 bg-amber-500/[0.04] border-l-2 border-l-amber-500/60 hover:bg-amber-500/[0.07]"
+                   : "border-slate-800 bg-slate-950/40 hover:bg-slate-900/70";
                return (
   <div
     key={game.id}
-    className={`border-b transition ${
-      today
-        ? "border-slate-800 bg-amber-500/[0.04] border-l-2 border-l-amber-500/60 hover:bg-amber-500/[0.07]"
-        : "border-slate-800 bg-slate-950/40 hover:bg-slate-900/70"
-    }`}
+    className={`border-b transition ${rowTone}`}
   >
     {/* Mobile */}
     <div className="md:hidden p-3 space-y-3">
