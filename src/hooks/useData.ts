@@ -46,12 +46,19 @@ export function useData() {
   const lastLoadedAtRef = useRef<number | null>(initialSnapshot?.ts ?? null);
   const wasHydratedRef = useRef<boolean>(initialSnapshot != null);
 
+    const fetchInFlightRef = useRef<Promise<void> | null>(null);
+
   const fetchAndStore = useCallback(async () => {
-    const [playersData, gamesData, predictionsData] = await Promise.all([
-      playersService.getAllPlayers(),
-      gamesService.getAllGames(),
-      predictionsService.getAllPredictions(),
-    ]);
+    if (fetchInFlightRef.current) {
+      return fetchInFlightRef.current;
+    }
+
+    fetchInFlightRef.current = (async () => {
+      const [playersData, gamesData, predictionsData] = await Promise.all([
+        playersService.getAllPlayers(),
+        gamesService.getAllGames(),
+        predictionsService.getAllPredictions(),
+      ]);
 
     const next: CachedAppData = {
       players: playersData,
@@ -60,12 +67,20 @@ export function useData() {
     };
     const now = Date.now();
 
-    setPlayers(next.players);
-    setGames(next.games);
-    setPredictions(next.predictions);
+          setPlayers(next.players);
+      setGames(next.games);
+      setPredictions(next.predictions);
 
-    writeCache<CachedAppData>(CACHE_KEY, next, now);
-    lastLoadedAtRef.current = now;
+      writeCache<CachedAppData>(CACHE_KEY, next, now);
+      lastLoadedAtRef.current = now;
+      wasHydratedRef.current = true;
+    })();
+
+    try {
+      await fetchInFlightRef.current;
+    } finally {
+      fetchInFlightRef.current = null;
+    }
   }, []);
 
   const loadData = useCallback(

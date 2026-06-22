@@ -7,7 +7,6 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import { usePathname } from "next/navigation";
 import { Player } from "@/types/player";
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
@@ -74,7 +73,6 @@ export function useAppShell() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
 
   const {
     currentUser,
@@ -135,15 +133,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { ranking, positionChanges } = useRanking(players, games, predictions);
   const stats = useAppStats(players, games, predictions, currentUser?.id);
 
-  // Refresh on login and on route changes (preserves the historical
-  // `handleTabChange` reload-on-tab-switch behavior) in a single
-  // effect, so initial mount — where both deps populate together —
-  // doesn't fire twice and double the supabase round-trips.
+   // Refresh only when the authenticated user changes. Route changes
+  // should reuse the AppShell context data instead of refetching
+  // players, games and predictions on every tab switch.
   useEffect(() => {
     if (currentUser?.id) {
       loadData();
     }
-  }, [currentUser?.id, pathname, loadData]);
+  }, [currentUser?.id, loadData]);
 
   const handleLogin = async (accessCode: string, password: string) => {
     const success = await login(accessCode, password);
