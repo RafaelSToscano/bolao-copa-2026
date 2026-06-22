@@ -240,4 +240,31 @@ export const knockoutPredictionsService = {
 
     await cascadeMatchOutcome(supabase, matchId, winnerTeam, loserTeam);
   },
+
+  /**
+   * Admin-only: wipes all official knockout data (resolved teams, scores
+   * and winners) on every one of the 32 matches, resetting the bracket
+   * back to its freshly-seeded state (slots/round/match_number are fixed
+   * by the migration and are left untouched). Intended for manually
+   * testing the knockout flow end to end, not for tournament use.
+   */
+  async clearAllOfficialResults(): Promise<void> {
+    if (USE_MOCK_DATA) return;
+
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from("knockout_matches")
+      .update({
+        home_team: null,
+        away_team: null,
+        official_score_home: null,
+        official_score_away: null,
+        winner_team: null,
+      })
+      .gte("id", 1);
+
+    if (error) {
+      throw new Error(`Failed to clear knockout official data: ${error.message}`);
+    }
+  },
 };

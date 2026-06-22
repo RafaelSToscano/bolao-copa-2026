@@ -80,12 +80,23 @@ export function useKnockoutAdmin() {
     [refresh]
   );
 
+  const clearAllResults = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      await knockoutPredictionsService.clearAllOfficialResults();
+      await refresh();
+    } finally {
+      setIsSaving(false);
+    }
+  }, [refresh]);
+
   return {
     matches,
     isLoading,
     isSaving,
     recordResult,
     populateRound32,
+    clearAllResults,
     refresh,
   };
 }

@@ -17,7 +17,6 @@ import { usePredictions } from "@/hooks/usePredictions";
 import { usePhaseState } from "@/hooks/usePhaseState";
 import { useStandings } from "@/hooks/useStandings";
 import { useRanking } from "@/hooks/useRanking";
-import { useKnockout } from "@/hooks/useKnockout";
 import { useAppStats } from "@/hooks/useAppStats";
 import { AuthForm } from "@/components/forms/AuthForm";
 import { AppLayout } from "@/components/layouts/AppLayout";
@@ -42,7 +41,6 @@ type AppShellContextValue = {
   qualifiedTeams: ReturnType<typeof useStandings>["qualifiedTeams"];
   ranking: ReturnType<typeof useRanking>["ranking"];
   positionChanges: ReturnType<typeof useRanking>["positionChanges"];
-  round32: ReturnType<typeof useKnockout>["round32"];
   stats: ReturnType<typeof useAppStats>;
   message: string;
   setMessage: React.Dispatch<React.SetStateAction<string>>;
@@ -135,7 +133,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     predictions
   );
   const { ranking, positionChanges } = useRanking(players, games, predictions);
-  const { round32 } = useKnockout(games, predictions, currentUser?.id);
   const stats = useAppStats(players, games, predictions, currentUser?.id);
 
   // Refresh on login and on route changes (preserves the historical
@@ -333,7 +330,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     qualifiedTeams,
     ranking,
     positionChanges,
-    round32,
     stats,
     message,
     setMessage,

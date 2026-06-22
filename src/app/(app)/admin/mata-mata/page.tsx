@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Flag } from "@/components/ui/Flag";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { KnockoutMatchRecord, KnockoutRound } from "@/types/knockout";
 import { slotLabel } from "@/lib/knockoutSlotLabel";
 import { useKnockoutAdmin } from "@/hooks/useKnockoutAdmin";
@@ -212,7 +213,9 @@ function AdminMatchCard({
 export default function AdminMataMataPage() {
   const router = useRouter();
   const { currentUser, games } = useAppShell();
-  const { matches, isLoading, isSaving, recordResult, populateRound32 } = useKnockoutAdmin();
+  const { matches, isLoading, isSaving, recordResult, populateRound32, clearAllResults } =
+    useKnockoutAdmin();
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => {
     if (!currentUser.is_admin) router.replace("/");
@@ -229,15 +232,42 @@ export default function AdminMataMataPage() {
             Preencha os times e resultados oficiais de cada fase eliminatória.
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={isSaving}
-          onClick={() => populateRound32(games)}
-        >
-          Popular Rodada de 32 a partir dos grupos
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            className="border-slate-700 bg-slate-800 text-white hover:bg-slate-700"
+            disabled={isSaving}
+            onClick={() => populateRound32(games)}
+          >
+            Popular Rodada de 32 a partir dos grupos
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="border-red-800 bg-slate-900 text-red-400 hover:bg-red-950"
+            disabled={isSaving}
+            onClick={() => setShowClearConfirm(true)}
+          >
+            Limpar dados oficiais
+          </Button>
+        </div>
       </div>
+
+      {showClearConfirm && (
+        <ConfirmModal
+          title="Limpar dados oficiais"
+          message="Isso remove times, placares e vencedores de todos os 32 jogos do mata-mata, voltando ao estado inicial. Use apenas para testes. Esta ação não pode ser desfeita."
+          confirmLabel="Limpar tudo"
+          cancelLabel="Cancelar"
+          variant="danger"
+          onConfirm={() => {
+            setShowClearConfirm(false);
+            clearAllResults();
+          }}
+          onCancel={() => setShowClearConfirm(false)}
+        />
+      )}
 
       {isLoading ? (
         <p className="text-slate-500 text-sm">Carregando jogos...</p>

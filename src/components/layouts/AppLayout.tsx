@@ -17,10 +17,9 @@ import {
   MessageSquare,
   Menu,
   X,
-  FlaskConical,
+  ClipboardList,
 } from "lucide-react";
 import { DeadlineBanner, LockedBanner } from "@/components/ui/DeadlineBanner";
-import { DEV_MATA_MATA_ALLOWED } from "@/lib/devAccess";
 
 interface SubMenuItem {
   href: string;
@@ -75,33 +74,22 @@ export function AppLayout({
     return () => window.removeEventListener("keydown", onKey);
   }, [drawerOpen]);
 
-  const devSubItem: SubMenuItem | null = DEV_MATA_MATA_ALLOWED.has(currentUser.name)
-    ? { href: "/dev-mata-mata", label: "Dev Mata-mata", icon: FlaskConical }
-    : null;
-
-  const adminKnockoutSubItem: SubMenuItem | null = currentUser.is_admin
-    ? { href: "/admin/mata-mata", label: "Resultados Mata-mata", icon: Lock }
-    : null;
-
-  const mataMataChildren = [devSubItem, adminKnockoutSubItem].filter(
-    (item): item is SubMenuItem => item !== null
-  );
+  const adminSubItems: SubMenuItem[] = [
+    { href: "/admin/mata-mata", label: "Resultados Mata-mata", icon: ClipboardList },
+  ];
 
   const menuItems: MenuItem[] = [
     { href: "/", label: "Dashboard", icon: Home },
     { href: "/palpites", label: "Palpites", icon: Shield },
     { href: "/classificacao", label: "Classificação", icon: Trophy },
-    {
-      href: "/mata-mata",
-      label: "Mata-mata",
-      icon: Trophy,
-      children: mataMataChildren.length > 0 ? mataMataChildren : undefined,
-    },
+    { href: "/mata-mata", label: "Mata-mata", icon: Trophy },
     { href: "/ranking", label: "Ranking", icon: BarChart3 },
     { href: "/simulador", label: "Simulador", icon: Calculator },
     { href: "/palpites-da-galera", label: "Palpites da Galera", icon: MessageSquare },
     { href: "/regras", label: "Regras", icon: BookOpen },
-    ...(currentUser.is_admin ? [{ href: "/admin", label: "Admin", icon: Lock }] : []),
+    ...(currentUser.is_admin
+      ? [{ href: "/admin", label: "Admin", icon: Lock, children: adminSubItems }]
+      : []),
   ];
 
   const goToPredictions = () => {
