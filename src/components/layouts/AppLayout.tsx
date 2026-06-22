@@ -17,35 +17,22 @@ import {
   MessageSquare,
   Menu,
   X,
+  ClipboardList,
 } from "lucide-react";
 import { DeadlineBanner, LockedBanner } from "@/components/ui/DeadlineBanner";
 
-interface MenuItem {
+interface SubMenuItem {
   href: string;
   label: string;
   icon: typeof Home;
 }
 
-const BASE_MENU_ITEMS: MenuItem[] = [
-  { href: "/", label: "Dashboard", icon: Home },
-  { href: "/palpites", label: "Palpites", icon: Shield },
-  { href: "/classificacao", label: "Classificação", icon: Trophy },
-  { href: "/mata-mata", label: "Mata-mata", icon: Trophy },
-  { href: "/ranking", label: "Ranking", icon: BarChart3 },
-  { href: "/simulador", label: "Simulador", icon: Calculator },
-  {
-    href: "/palpites-da-galera",
-    label: "Palpites da Galera",
-    icon: MessageSquare,
-  },
-  { href: "/regras", label: "Regras", icon: BookOpen },
-];
-
-const ADMIN_MENU_ITEM: MenuItem = {
-  href: "/admin",
-  label: "Admin",
-  icon: Lock,
-};
+interface MenuItem {
+  href: string;
+  label: string;
+  icon: typeof Home;
+  children?: SubMenuItem[];
+}
 
 interface AppLayoutProps {
   currentUser: Player;
@@ -87,9 +74,23 @@ export function AppLayout({
     return () => window.removeEventListener("keydown", onKey);
   }, [drawerOpen]);
 
-  const menuItems: MenuItem[] = currentUser.is_admin
-    ? [...BASE_MENU_ITEMS, ADMIN_MENU_ITEM]
-    : BASE_MENU_ITEMS;
+  const adminSubItems: SubMenuItem[] = [
+    { href: "/admin/mata-mata", label: "Resultados Mata-mata", icon: ClipboardList },
+  ];
+
+  const menuItems: MenuItem[] = [
+    { href: "/", label: "Dashboard", icon: Home },
+    { href: "/palpites", label: "Palpites", icon: Shield },
+    { href: "/classificacao", label: "Classificação", icon: Trophy },
+    { href: "/mata-mata", label: "Mata-mata", icon: Trophy },
+    { href: "/ranking", label: "Ranking", icon: BarChart3 },
+    { href: "/simulador", label: "Simulador", icon: Calculator },
+    { href: "/palpites-da-galera", label: "Palpites da Galera", icon: MessageSquare },
+    { href: "/regras", label: "Regras", icon: BookOpen },
+    ...(currentUser.is_admin
+      ? [{ href: "/admin", label: "Admin", icon: Lock, children: adminSubItems }]
+      : []),
+  ];
 
   const goToPredictions = () => {
     if (pathname === "/palpites") {
@@ -186,19 +187,43 @@ export function AppLayout({
                 const Icon = item.icon;
                 const active = pathname === item.href;
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setDrawerOpen(false)}
-                    className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left font-bold transition ${
-                      active
-                        ? "bg-yellow-500 text-slate-950"
-                        : "bg-slate-900/70 text-slate-300 hover:bg-slate-800 border border-slate-800"
-                    }`}
-                  >
-                    <Icon size={18} />
-                    {item.label}
-                  </Link>
+                  <div key={item.href}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setDrawerOpen(false)}
+                      className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left font-bold transition ${
+                        active
+                          ? "bg-yellow-500 text-slate-950"
+                          : "bg-slate-900/70 text-slate-300 hover:bg-slate-800 border border-slate-800"
+                      }`}
+                    >
+                      <Icon size={18} />
+                      {item.label}
+                    </Link>
+                    {item.children && (
+                      <div className="ml-4 mt-1 space-y-1 border-l border-slate-700 pl-3">
+                        {item.children.map((child) => {
+                          const ChildIcon = child.icon;
+                          const childActive = pathname === child.href;
+                          return (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              onClick={() => setDrawerOpen(false)}
+                              className={`w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition ${
+                                childActive
+                                  ? "bg-yellow-500 text-slate-950"
+                                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                              }`}
+                            >
+                              <ChildIcon size={14} />
+                              {child.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </nav>
@@ -275,18 +300,41 @@ export function AppLayout({
                 const active = pathname === item.href;
 
                 return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left font-bold transition ${
-                      active
-                        ? "bg-yellow-500 text-slate-950"
-                        : "bg-slate-900/70 text-slate-300 hover:bg-slate-800 border border-slate-800"
-                    }`}
-                  >
-                    <Icon size={18} />
-                    {item.label}
-                  </Link>
+                  <div key={item.href}>
+                    <Link
+                      href={item.href}
+                      className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left font-bold transition ${
+                        active
+                          ? "bg-yellow-500 text-slate-950"
+                          : "bg-slate-900/70 text-slate-300 hover:bg-slate-800 border border-slate-800"
+                      }`}
+                    >
+                      <Icon size={18} />
+                      {item.label}
+                    </Link>
+                    {item.children && (
+                      <div className="ml-4 mt-1 space-y-1 border-l border-slate-700 pl-3">
+                        {item.children.map((child) => {
+                          const ChildIcon = child.icon;
+                          const childActive = pathname === child.href;
+                          return (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              className={`w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition ${
+                                childActive
+                                  ? "bg-yellow-500 text-slate-950"
+                                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                              }`}
+                            >
+                              <ChildIcon size={14} />
+                              {child.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </nav>
