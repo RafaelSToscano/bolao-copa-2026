@@ -142,57 +142,67 @@ describe('generateRound32 - Knockout Qualification', () => {
     });
   });
 
-  it('should place group winners in matches 1-12', () => {
+  it('should never pit a group winner against that same group\'s runner-up or third', () => {
     const round32 = generateRound32(games);
-    const matches1to12 = round32.slice(0, 12);
-    
-    matches1to12.forEach((match) => {
-      expect(match.home?.position).toBe('1');
-    });
-  });
 
-  it('should place group seconds in matches 13-16', () => {
-    const round32 = generateRound32(games);
-    const matches13to16 = round32.slice(12, 16);
-    
-    matches13to16.forEach((match) => {
-      expect(match.home?.position).toBe('2');
-    });
-  });
-
-  it('should not place groups in conflicting positions', () => {
-    const round32 = generateRound32(games);
-    
-    // Check that the first 12 matches (winners) don't have the same group as their second place opponents
-    for (let i = 0; i < 12; i++) {
-      const match = round32[i];
+    round32.forEach((match) => {
       if (match.home && match.away) {
-        // Winners should not face the second place from their own group
-        if (match.home.position === '1' && match.away.position === '2') {
-          expect(match.home.group).not.toBe(match.away.group);
-        }
+        expect(match.home.group).not.toBe(match.away.group);
       }
-    }
+    });
   });
 
-  it('should follow FIFA 2026 fixed bracket structure', () => {
+  it('should follow the official FIFA World Cup 26 bracket (article 12.6, M73-M88)', () => {
     const round32 = generateRound32(games);
-    
-    // Match 1: 1st A vs 3rd best
-    expect(round32[0].home?.group).toBe('A');
-    expect(round32[0].home?.position).toBe('1');
-    expect(round32[0].away?.position).toBe('3');
-    
-    // Match 3: 1st C vs 2nd F
-    expect(round32[2].home?.group).toBe('C');
-    expect(round32[2].away?.group).toBe('F');
-    expect(round32[2].away?.position).toBe('2');
-    
-    // Match 13: 2nd A vs 2nd B
-    expect(round32[12].home?.group).toBe('A');
-    expect(round32[12].home?.position).toBe('2');
-    expect(round32[12].away?.group).toBe('B');
-    expect(round32[12].away?.position).toBe('2');
+
+    // M73: 2A v 2B
+    expect(round32[0].home).toMatchObject({ position: '2', group: 'A' });
+    expect(round32[0].away).toMatchObject({ position: '2', group: 'B' });
+
+    // M74: 1E v best 3rd of A/B/C/D/F
+    expect(round32[1].home).toMatchObject({ position: '1', group: 'E' });
+    expect(round32[1].away?.position).toBe('3');
+
+    // M75: 1F v 2C
+    expect(round32[2].home).toMatchObject({ position: '1', group: 'F' });
+    expect(round32[2].away).toMatchObject({ position: '2', group: 'C' });
+
+    // M76: 1C v 2F
+    expect(round32[3].home).toMatchObject({ position: '1', group: 'C' });
+    expect(round32[3].away).toMatchObject({ position: '2', group: 'F' });
+
+    // M78: 2E v 2I
+    expect(round32[5].home).toMatchObject({ position: '2', group: 'E' });
+    expect(round32[5].away).toMatchObject({ position: '2', group: 'I' });
+
+    // M83: 2K v 2L
+    expect(round32[10].home).toMatchObject({ position: '2', group: 'K' });
+    expect(round32[10].away).toMatchObject({ position: '2', group: 'L' });
+
+    // M84: 1H v 2J
+    expect(round32[11].home).toMatchObject({ position: '1', group: 'H' });
+    expect(round32[11].away).toMatchObject({ position: '2', group: 'J' });
+
+    // M86: 1J v 2H
+    expect(round32[13].home).toMatchObject({ position: '1', group: 'J' });
+    expect(round32[13].away).toMatchObject({ position: '2', group: 'H' });
+
+    // M88: 2D v 2G
+    expect(round32[15].home).toMatchObject({ position: '2', group: 'D' });
+    expect(round32[15].away).toMatchObject({ position: '2', group: 'G' });
+  });
+
+  it('should resolve all 8 "best 3rd place" slots to a real team when 8 thirds qualify', () => {
+    const round32 = generateRound32(games);
+
+    // Matches M74, M77, M79, M80, M81, M82, M85, M87 (indices 1,4,6,7,8,9,12,14)
+    // each pair a group winner against a best-3rd-place opponent.
+    const thirdPlaceMatchIndices = [1, 4, 6, 7, 8, 9, 12, 14];
+
+    thirdPlaceMatchIndices.forEach((i) => {
+      expect(round32[i].away, `match index ${i} should have a resolved 3rd-place opponent`).toBeDefined();
+      expect(round32[i].away?.position).toBe('3');
+    });
   });
 
   it('should handle incomplete groups with placeholders', () => {

@@ -14,6 +14,8 @@ export { MOCK_NOW } from "./mockNow";
 export { MOCK_PLAYERS } from "./mockPlayers";
 export { MOCK_GAMES } from "./mockGames";
 export { MOCK_PREDICTIONS } from "./mockPredictions";
+export { MOCK_KNOCKOUT_MATCHES } from "./mockKnockoutMatches";
+export { MOCK_KNOCKOUT_PREDICTIONS } from "./mockKnockoutPredictions";
 export {
   getMockLiveScores,
   getMockLiveScoresNormalized,
