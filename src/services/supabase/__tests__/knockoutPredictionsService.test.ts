@@ -39,6 +39,26 @@ function round32Of(home: string, away: string): KnockoutMatch[] {
   ];
 }
 
+function game(
+  id: string,
+  group: string,
+  scoreA: number | null,
+  scoreB: number | null
+): Game {
+  return {
+    id,
+    phase: "groups",
+    group_name: group,
+    match_order: 1,
+    match_date: null,
+    team_a: `${group}-A`,
+    team_b: `${group}-B`,
+    official_score_a: scoreA,
+    official_score_b: scoreB,
+    locked: false,
+  };
+}
+
 describe("knockoutPredictionsService.populateRound32FromGroups", () => {
   beforeEach(() => {
     updateCalls.length = 0;
@@ -73,6 +93,23 @@ describe("knockoutPredictionsService.populateRound32FromGroups", () => {
     await knockoutPredictionsService.populateRound32FromGroups([] as Game[]);
 
     expect(updateCalls).toEqual([]);
+  });
+
+  it("excludes games from groups that haven't finished all their matches", async () => {
+    vi.mocked(generateRound32).mockReturnValue(round32Of("Brasil", "Argentina"));
+    existingRows = [{ id: 1, home_team: null, away_team: null }];
+
+    const games = [
+      game("a1", "A", 2, 1),
+      game("a2", "A", 1, 1),
+      game("b1", "B", 3, 0),
+      game("b2", "B", null, null), // group B still has a pending match
+    ];
+
+    await knockoutPredictionsService.populateRound32FromGroups(games);
+
+    const passedGames = vi.mocked(generateRound32).mock.calls[0][0];
+    expect(passedGames.map((g) => g.id)).toEqual(["a1", "a2"]);
   });
 });
 
