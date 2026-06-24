@@ -67,20 +67,14 @@ function MatchCard({
 }) {
   const scoreHome = draft.predicted_score_home;
   const scoreAway = draft.predicted_score_away;
-  const winner = draft.predicted_winner;
   const readOnly = locked || !match.isOfficial;
 
-  const isDraw =
-    scoreHome !== "" && scoreAway !== "" && scoreHome === scoreAway;
-
-  const impliedWinner: "home" | "away" | null =
+  const effectiveWinner: "home" | "away" | null =
     scoreHome !== "" && scoreAway !== "" && scoreHome !== scoreAway
       ? Number(scoreHome) > Number(scoreAway)
         ? "home"
         : "away"
       : null;
-
-  const effectiveWinner = impliedWinner ?? (isDraw ? winner : null);
 
   return (
     <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden">
@@ -151,56 +145,6 @@ function MatchCard({
               {match.away_team && <Flag team={match.away_team} size="small" />}
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Winner selector — always visible for knockout */}
-      <div className="px-4 pb-3 border-t border-slate-800/60 pt-2.5">
-        <div className="text-xs text-slate-500 mb-2 font-semibold uppercase tracking-wide">
-          {isDraw ? "Empate — quem avança?" : "Quem avança?"}
-        </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() =>
-              onChange({
-                ...draft,
-                predicted_winner: winner === "home" ? "" : "home",
-              })
-            }
-            disabled={readOnly || impliedWinner === "away"}
-            className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-bold transition-colors
-              ${
-                effectiveWinner === "home"
-                  ? "bg-yellow-500 text-slate-950"
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-              }
-              disabled:opacity-30 disabled:cursor-not-allowed`}
-          >
-            {match.home_team && <Flag team={match.home_team} size="small" />}
-            <span className="truncate">{match.home_team ?? "---"}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              onChange({
-                ...draft,
-                predicted_winner: winner === "away" ? "" : "away",
-              })
-            }
-            disabled={readOnly || impliedWinner === "home"}
-            className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-bold transition-colors
-              ${
-                effectiveWinner === "away"
-                  ? "bg-yellow-500 text-slate-950"
-                  : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-              }
-              disabled:opacity-30 disabled:cursor-not-allowed`}
-          >
-            <span className="truncate">{match.away_team ?? "---"}</span>
-            {match.away_team && <Flag team={match.away_team} size="small" />}
-          </button>
         </div>
       </div>
     </div>
