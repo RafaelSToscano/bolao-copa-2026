@@ -163,7 +163,9 @@ export const knockoutPredictionsService = {
    * Admin-only: fills in home_team/away_team for the 16 Round of 32
    * matches (ids 1-16) once the group stage is complete, using
    * generateRound32() (official bracket + Annexe C third-place
-   * resolution). Matches with an unresolved slot are left untouched.
+   * resolution). Only fills slots that are still empty — a team the
+   * admin already set manually (via `updateKnockoutMatchTeams`) is
+   * never overwritten.
    */
   async populateRound32FromGroups(games: Game[]): Promise<void> {
     if (USE_MOCK_DATA) return;
@@ -171,14 +173,26 @@ export const knockoutPredictionsService = {
     const round32 = generateRound32(games);
     const supabase = getSupabaseClient();
 
+    const { data: existing, error: fetchError } = await supabase
+      .from("knockout_matches")
+      .select("id, home_team, away_team")
+      .lte("id", round32.length);
+
+    if (fetchError) {
+      throw new Error(`Failed to load round of 32 matches: ${fetchError.message}`);
+    }
+
+    const existingById = new Map((existing || []).map((m) => [m.id, m]));
+
     for (let i = 0; i < round32.length; i++) {
       const matchId = i + 1;
+      const current = existingById.get(matchId);
       const homeTeam = round32[i].home?.team ?? null;
       const awayTeam = round32[i].away?.team ?? null;
 
       const update: { home_team?: string; away_team?: string } = {};
-      if (homeTeam) update.home_team = homeTeam;
-      if (awayTeam) update.away_team = awayTeam;
+      if (homeTeam && !current?.home_team) update.home_team = homeTeam;
+      if (awayTeam && !current?.away_team) update.away_team = awayTeam;
 
       if (Object.keys(update).length === 0) continue;
 
@@ -190,6 +204,30 @@ export const knockoutPredictionsService = {
       if (error) {
         throw new Error(`Failed to populate round of 32 match ${matchId}: ${error.message}`);
       }
+    }
+  },
+
+  /**
+   * Admin-only: directly sets home_team/away_team for a single match,
+   * overriding whatever the auto-population/cascade logic produced (or
+   * filling a slot it left blank). Pass `null` to clear a side back to
+   * "unresolved".
+   */
+  async updateKnockoutMatchTeams(
+    matchId: number,
+    homeTeam: string | null,
+    awayTeam: string | null
+  ): Promise<void> {
+    if (USE_MOCK_DATA) return;
+
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from("knockout_matches")
+      .update({ home_team: homeTeam, away_team: awayTeam })
+      .eq("id", matchId);
+
+    if (error) {
+      throw new Error(`Failed to update knockout match teams: ${error.message}`);
     }
   },
 
