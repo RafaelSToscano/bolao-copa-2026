@@ -10,6 +10,33 @@ import {
 } from "@/services/mock";
 
 /**
+ * Drops every game belonging to a group that hasn't finished all of its
+ * matches yet. `generateRound32()`/`calculateQualifiedTeams()` happily
+ * compute standings from a partial group, which is correct for the live
+ * "Meu Mata-mata" preview but wrong for the official bracket — a team
+ * only "qualifies" once its group is actually done.
+ */
+function gamesFromCompleteGroups(games: Game[]): Game[] {
+  const byGroup = new Map<string, Game[]>();
+  for (const game of games) {
+    const group = game.group_name ?? "";
+    byGroup.set(group, [...(byGroup.get(group) ?? []), game]);
+  }
+
+  const completeGroups = new Set(
+    Array.from(byGroup.entries())
+      .filter(([, groupGames]) =>
+        groupGames.every(
+          (g) => g.official_score_a !== null && g.official_score_b !== null
+        )
+      )
+      .map(([group]) => group)
+  );
+
+  return games.filter((game) => completeGroups.has(game.group_name ?? ""));
+}
+
+/**
  * A match's home_slot/away_slot can reference "W{id}" (advance the winner)
  * or "L{id}" (advance the loser, used only by the third-place match).
  * When a result is recorded for `matchId`, this writes the resolved team
@@ -165,12 +192,14 @@ export const knockoutPredictionsService = {
    * generateRound32() (official bracket + Annexe C third-place
    * resolution). Only fills slots that are still empty — a team the
    * admin already set manually (via `updateKnockoutMatchTeams`) is
-   * never overwritten.
+   * never overwritten. Games from groups that haven't finished all of
+   * their matches are excluded, so a slot stays unresolved rather than
+   * being filled with a team from a still-incomplete group.
    */
   async populateRound32FromGroups(games: Game[]): Promise<void> {
     if (USE_MOCK_DATA) return;
 
-    const round32 = generateRound32(games);
+    const round32 = generateRound32(gamesFromCompleteGroups(games));
     const supabase = getSupabaseClient();
 
     const { data: existing, error: fetchError } = await supabase
