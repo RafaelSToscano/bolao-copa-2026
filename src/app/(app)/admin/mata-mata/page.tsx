@@ -27,6 +27,8 @@ type Draft = {
   scoreHome: string;
   scoreAway: string;
   winner: "home" | "away" | "";
+  homeTeam: string;
+  awayTeam: string;
 };
 
 function draftFromMatch(match: KnockoutMatchRecord): Draft {
@@ -41,6 +43,8 @@ function draftFromMatch(match: KnockoutMatchRecord): Draft {
     scoreHome: match.official_score_home?.toString() ?? "",
     scoreAway: match.official_score_away?.toString() ?? "",
     winner,
+    homeTeam: match.home_team ?? "",
+    awayTeam: match.away_team ?? "",
   };
 }
 
@@ -57,11 +61,15 @@ function matchSignature(match: KnockoutMatchRecord): string {
 function AdminMatchCard({
   match,
   isSaving,
+  teamOptions,
   onSave,
+  onSaveTeams,
 }: {
   match: KnockoutMatchRecord;
   isSaving: boolean;
+  teamOptions: string[];
   onSave: (scoreHome: number | null, scoreAway: number | null, winnerTeam: string | null) => void;
+  onSaveTeams: (homeTeam: string | null, awayTeam: string | null) => void;
 }) {
   const [draft, setDraft] = useState<Draft>(() => draftFromMatch(match));
   const [syncedSignature, setSyncedSignature] = useState(() => matchSignature(match));
@@ -77,6 +85,8 @@ function AdminMatchCard({
   }
 
   const teamsKnown = Boolean(match.home_team && match.away_team);
+  const teamsDirty =
+    draft.homeTeam !== (match.home_team ?? "") || draft.awayTeam !== (match.away_team ?? "");
 
   const impliedWinner: "home" | "away" | null =
     draft.scoreHome !== "" && draft.scoreAway !== "" && draft.scoreHome !== draft.scoreAway
@@ -115,12 +125,21 @@ function AdminMatchCard({
               {slotLabel(match.home_slot)}
             </div>
             <div className="flex items-center gap-1.5">
-              {match.home_team && <Flag team={match.home_team} size="small" />}
-              <span
-                className={`font-bold text-sm truncate ${effectiveWinner === "home" ? "text-yellow-400" : ""}`}
+              {draft.homeTeam && <Flag team={draft.homeTeam} size="small" />}
+              <select
+                value={draft.homeTeam}
+                onChange={(e) => setDraft({ ...draft, homeTeam: e.target.value })}
+                className={`h-7 w-full min-w-0 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold px-1.5 truncate ${
+                  effectiveWinner === "home" ? "text-yellow-400" : "text-white"
+                }`}
               >
-                {match.home_team ?? "---"}
-              </span>
+                <option value="">---</option>
+                {teamOptions.map((team) => (
+                  <option key={team} value={team}>
+                    {team}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -149,15 +168,37 @@ function AdminMatchCard({
               {slotLabel(match.away_slot)}
             </div>
             <div className="flex items-center justify-end gap-1.5">
-              <span
-                className={`font-bold text-sm truncate ${effectiveWinner === "away" ? "text-yellow-400" : ""}`}
+              <select
+                value={draft.awayTeam}
+                onChange={(e) => setDraft({ ...draft, awayTeam: e.target.value })}
+                className={`h-7 w-full min-w-0 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold px-1.5 text-right truncate ${
+                  effectiveWinner === "away" ? "text-yellow-400" : "text-white"
+                }`}
               >
-                {match.away_team ?? "---"}
-              </span>
-              {match.away_team && <Flag team={match.away_team} size="small" />}
+                <option value="">---</option>
+                {teamOptions.map((team) => (
+                  <option key={team} value={team}>
+                    {team}
+                  </option>
+                ))}
+              </select>
+              {draft.awayTeam && <Flag team={draft.awayTeam} size="small" />}
             </div>
           </div>
         </div>
+
+        {teamsDirty && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full mt-2 border-slate-700 bg-slate-800 text-white hover:bg-slate-700"
+            disabled={isSaving}
+            onClick={() => onSaveTeams(draft.homeTeam || null, draft.awayTeam || null)}
+          >
+            Salvar times
+          </Button>
+        )}
       </div>
 
       <div className="px-4 pb-3 border-t border-slate-800/60 pt-2.5 space-y-2.5">
@@ -213,8 +254,15 @@ function AdminMatchCard({
 export default function AdminMataMataPage() {
   const router = useRouter();
   const { currentUser, games } = useAppShell();
-  const { matches, isLoading, isSaving, recordResult, populateRound32, clearAllResults } =
-    useKnockoutAdmin();
+  const {
+    matches,
+    isLoading,
+    isSaving,
+    recordResult,
+    populateRound32,
+    setMatchTeams,
+    clearAllResults,
+  } = useKnockoutAdmin();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => {
@@ -222,6 +270,10 @@ export default function AdminMataMataPage() {
   }, [currentUser.is_admin, router]);
 
   if (!currentUser.is_admin) return null;
+
+  const teamOptions = Array.from(
+    new Set(games.flatMap((g) => [g.team_a, g.team_b]))
+  ).sort((a, b) => a.localeCompare(b, "pt-BR"));
 
   return (
     <div className="space-y-6">
@@ -292,8 +344,12 @@ export default function AdminMataMataPage() {
                       key={match.id}
                       match={match}
                       isSaving={isSaving}
+                      teamOptions={teamOptions}
                       onSave={(scoreHome, scoreAway, winnerTeam) =>
                         recordResult(match.id, scoreHome, scoreAway, winnerTeam)
+                      }
+                      onSaveTeams={(homeTeam, awayTeam) =>
+                        setMatchTeams(match.id, homeTeam, awayTeam)
                       }
                     />
                   ))}

@@ -80,6 +80,19 @@ export function useKnockoutAdmin() {
     [refresh]
   );
 
+  const setMatchTeams = useCallback(
+    async (matchId: number, homeTeam: string | null, awayTeam: string | null) => {
+      setIsSaving(true);
+      try {
+        await knockoutPredictionsService.updateKnockoutMatchTeams(matchId, homeTeam, awayTeam);
+        await refresh();
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [refresh]
+  );
+
   const clearAllResults = useCallback(async () => {
     setIsSaving(true);
     try {
@@ -96,6 +109,7 @@ export function useKnockoutAdmin() {
     isSaving,
     recordResult,
     populateRound32,
+    setMatchTeams,
     clearAllResults,
     refresh,
   };
