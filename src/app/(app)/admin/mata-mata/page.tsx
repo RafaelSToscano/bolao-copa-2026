@@ -121,26 +121,24 @@ function AdminMatchCard({
       <div className="px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="flex-1 min-w-0">
-            <div className="text-xs text-slate-500 leading-none mb-1">
-              {slotLabel(match.home_slot)}
-            </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 text-xs text-slate-500 leading-none mb-1">
               {draft.homeTeam && <Flag team={draft.homeTeam} size="small" />}
-              <select
-                value={draft.homeTeam}
-                onChange={(e) => setDraft({ ...draft, homeTeam: e.target.value })}
-                className={`h-7 w-full min-w-0 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold px-1.5 truncate ${
-                  effectiveWinner === "home" ? "text-yellow-400" : "text-white"
-                }`}
-              >
-                <option value="">---</option>
-                {teamOptions.map((team) => (
-                  <option key={team} value={team}>
-                    {team}
-                  </option>
-                ))}
-              </select>
+              <span className="truncate">{slotLabel(match.home_slot)}</span>
             </div>
+            <select
+              value={draft.homeTeam}
+              onChange={(e) => setDraft({ ...draft, homeTeam: e.target.value })}
+              className={`h-7 w-full min-w-0 appearance-none rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold px-1.5 truncate ${
+                effectiveWinner === "home" ? "text-yellow-400" : "text-white"
+              }`}
+            >
+              <option value="">---</option>
+              {teamOptions.map((team) => (
+                <option key={team} value={team}>
+                  {team}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
@@ -164,26 +162,24 @@ function AdminMatchCard({
           </div>
 
           <div className="flex-1 min-w-0 text-right">
-            <div className="text-xs text-slate-500 leading-none mb-1">
-              {slotLabel(match.away_slot)}
-            </div>
-            <div className="flex items-center justify-end gap-1.5">
-              <select
-                value={draft.awayTeam}
-                onChange={(e) => setDraft({ ...draft, awayTeam: e.target.value })}
-                className={`h-7 w-full min-w-0 rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold px-1.5 text-right truncate ${
-                  effectiveWinner === "away" ? "text-yellow-400" : "text-white"
-                }`}
-              >
-                <option value="">---</option>
-                {teamOptions.map((team) => (
-                  <option key={team} value={team}>
-                    {team}
-                  </option>
-                ))}
-              </select>
+            <div className="flex items-center justify-end gap-1 text-xs text-slate-500 leading-none mb-1">
+              <span className="truncate">{slotLabel(match.away_slot)}</span>
               {draft.awayTeam && <Flag team={draft.awayTeam} size="small" />}
             </div>
+            <select
+              value={draft.awayTeam}
+              onChange={(e) => setDraft({ ...draft, awayTeam: e.target.value })}
+              className={`h-7 w-full min-w-0 appearance-none rounded-lg bg-slate-900 border border-slate-700 text-xs font-bold px-1.5 text-right truncate ${
+                effectiveWinner === "away" ? "text-yellow-400" : "text-white"
+              }`}
+            >
+              <option value="">---</option>
+              {teamOptions.map((team) => (
+                <option key={team} value={team}>
+                  {team}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -277,14 +273,14 @@ export default function AdminMataMataPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black">Resultados do Mata-mata</h2>
           <p className="text-slate-400 text-sm">
             Preencha os times e resultados oficiais de cada fase eliminatória.
           </p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button
             type="button"
             variant="outline"
