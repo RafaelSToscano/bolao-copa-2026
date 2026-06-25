@@ -33,7 +33,6 @@ const baseProps = {
   currentUserId: 'p1',
   onDraftChange: vi.fn(),
   onSinglePrediction: vi.fn(),
-  onRandomPredictions: vi.fn(),
   onSingleRandomPrediction: vi.fn(),
   onClearPredictions: vi.fn(),
   userStats: mockStats,

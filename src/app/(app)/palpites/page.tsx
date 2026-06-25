@@ -16,7 +16,6 @@ function PalpitesPageContent() {
     setDrafts,
     saveSinglePrediction,
     groupsLocked,
-    handleApplyRandomPredictions,
     handleApplySingleRandomPrediction,
     handleClearPredictions,
     stats,
@@ -46,7 +45,6 @@ function PalpitesPageContent() {
         }));
       }}
       onSinglePrediction={saveSinglePrediction}
-      onRandomPredictions={handleApplyRandomPredictions}
       onSingleRandomPrediction={handleApplySingleRandomPrediction}
       onClearPredictions={handleClearPredictions}
       userStats={{

@@ -53,9 +53,6 @@ type AppShellContextValue = {
   ) => Promise<void>;
   handleApprovePlayer: (playerId: string) => Promise<void>;
   handleRejectPlayer: (playerId: string) => Promise<void>;
-  handleApplyRandomPredictions: (
-    randomPredictions: RandomPrediction[]
-  ) => Promise<void>;
   handleApplySingleRandomPrediction: (
     randomPrediction: RandomPrediction
   ) => Promise<void>;
@@ -201,44 +198,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const handleApplyRandomPredictions = async (
-    randomPredictions: RandomPrediction[]
-  ) => {
-    if (!currentUser) return;
-
-    setMessage("");
-
-    try {
-      const updatedDrafts: Record<
-        string,
-        { predicted_score_a: string; predicted_score_b: string }
-      > = { ...drafts };
-      for (const pred of randomPredictions) {
-        updatedDrafts[pred.game_id] = {
-          predicted_score_a: String(pred.predicted_score_a),
-          predicted_score_b: String(pred.predicted_score_b),
-        };
-      }
-      setDrafts(updatedDrafts);
-
-      const predictionPayload = randomPredictions.map((pred) => ({
-        player_id: currentUser.id,
-        game_id: pred.game_id,
-        predicted_score_a: pred.predicted_score_a,
-        predicted_score_b: pred.predicted_score_b,
-      }));
-
-      await saveBatchPredictions(predictionPayload);
-      setMessage("Palpites aleatórios aplicados com sucesso!");
-    } catch (err) {
-      setMessage(
-        err instanceof Error
-          ? err.message
-          : "Erro ao aplicar palpites aleatórios."
-      );
-    }
-  };
-
   const handleApplySingleRandomPrediction = async (
     randomPrediction: RandomPrediction
   ) => {
@@ -336,7 +295,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     handleUpdateOfficialResult,
     handleApprovePlayer,
     handleRejectPlayer,
-    handleApplyRandomPredictions,
     handleApplySingleRandomPrediction,
     handleClearPredictions,
   };

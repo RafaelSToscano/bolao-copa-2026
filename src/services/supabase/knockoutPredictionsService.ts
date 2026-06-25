@@ -261,6 +261,25 @@ export const knockoutPredictionsService = {
   },
 
   /**
+   * Admin-only: blocks (or re-opens) predictions for a single knockout
+   * match, independent of every other match — e.g. lock a match right
+   * before kickoff while leaving the rest of the bracket open.
+   */
+  async setMatchLocked(matchId: number, locked: boolean): Promise<void> {
+    if (USE_MOCK_DATA) return;
+
+    const supabase = getSupabaseClient();
+    const { error } = await supabase
+      .from("knockout_matches")
+      .update({ locked })
+      .eq("id", matchId);
+
+    if (error) {
+      throw new Error(`Failed to update knockout match lock state: ${error.message}`);
+    }
+  },
+
+  /**
    * Admin-only: records the official result for a knockout match, then
    * cascades the winner (and, for the semi-finals, the loser) into
    * whichever later match references this one via a W{id}/L{id} slot.
