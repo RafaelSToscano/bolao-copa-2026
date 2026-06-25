@@ -40,6 +40,8 @@ const baseProps = {
   onUpdateResult: vi.fn(),
   onApprovePlayer: vi.fn(),
   onRejectPlayer: vi.fn(),
+  predictionsEnabled: true,
+  onTogglePredictions: vi.fn(),
   stats: mockStats,
 };
 
@@ -97,5 +99,30 @@ describe('AdminSection Component', () => {
 
     await user.click(screen.getByRole('button', { name: /exportar auditoria/i }));
     expect(exportAuditCsv).toHaveBeenCalled();
+  });
+
+  it('should show predictions as open when predictionsEnabled is true', () => {
+    render(<AdminSection {...baseProps} predictionsEnabled={true} />);
+    expect(screen.getByRole('button', { name: /palpites abertos/i })).toBeInTheDocument();
+  });
+
+  it('should show predictions as blocked when predictionsEnabled is false', () => {
+    render(<AdminSection {...baseProps} predictionsEnabled={false} />);
+    expect(screen.getByRole('button', { name: /palpites bloqueados/i })).toBeInTheDocument();
+  });
+
+  it('should call onTogglePredictions with the inverted value when clicked', async () => {
+    const user = userEvent.setup();
+    const onTogglePredictions = vi.fn();
+    render(
+      <AdminSection
+        {...baseProps}
+        predictionsEnabled={true}
+        onTogglePredictions={onTogglePredictions}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /palpites abertos/i }));
+    expect(onTogglePredictions).toHaveBeenCalledWith(false);
   });
 });

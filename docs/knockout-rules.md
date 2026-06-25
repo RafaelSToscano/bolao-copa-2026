@@ -110,17 +110,25 @@ Service layer — `src/services/supabase/knockoutPredictionsService.ts`:
   a team from one round's `home_team`/`away_team` into the next.
 
 Pages:
-- `/dev-mata-mata` — player predictions UI on the persisted bracket
-  (`useKnockoutPredictions` hook). Gated by `DEV_MATA_MATA_ALLOWED`
-  (`src/lib/devAccess.ts`) while this is still being tested; not yet
-  wired into the public `/mata-mata` route.
-- `/admin/mata-mata` — admin results entry UI (`useKnockoutAdmin` hook).
-  Admin-only, linked from the nav under "Mata-mata".
+- `/palpites` — R32 predictions live here now, via `KnockoutPredictionsCard`
+  (`src/components/sections/predictions/KnockoutPredictionsCard.tsx`,
+  using `useKnockoutPredictions`), rendered inside `PredictionsSection`
+  alongside the group-stage games. R32 slots without an official team
+  yet show a live-simulated projection (`generateRound32()` on current
+  group results) so players have something to predict against before
+  admin locks in the real teams.
+- `/mata-mata` — read-only official results for all 32 matches
+  (`useKnockoutResults` hook). No inputs, no simulation — just whatever
+  `home_team`/`away_team`/scores are actually in `knockout_matches`.
+- `/admin/mata-mata` — admin results entry + manual team override UI
+  (`useKnockoutAdmin` hook). Admin-only, linked from the nav under
+  "Mata-mata". `populateRound32FromGroups()` skips groups that haven't
+  finished all their matches, and never overwrites a team the admin set
+  by hand via `updateKnockoutMatchTeams()`.
 
-Score inputs/winner buttons in both UIs are disabled until
-`home_team`/`away_team` are both known (in addition to the `locked`
-flag) — there's nothing to predict or record a score for in a match
-whose teams haven't been decided yet.
+On `/palpites`, score inputs are disabled until `home_team`/`away_team`
+are both official (in addition to the `locked` flag) — there's nothing
+to predict for a match whose teams haven't been decided yet.
 
 ## 5 · RLS note
 
@@ -140,4 +148,6 @@ get that grant implicitly, and RLS doesn't help if the grant is missing
   simulated R16+ for "Meu Mata-mata" (by design: real R16+ depends on
   actual R32 results, not predictions).
 - No UI yet lets a *player* see/predict R16+ on the persisted bracket —
-  only R32 is wired into `/dev-mata-mata` today.
+  only R32 is wired into `/palpites` today (`/mata-mata` shows R16+
+  official results once they exist, but there's no prediction input for
+  them anywhere).

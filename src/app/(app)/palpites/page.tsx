@@ -16,7 +16,7 @@ function PalpitesPageContent() {
     setDrafts,
     saveSinglePrediction,
     groupsLocked,
-    handleApplyRandomPredictions,
+    predictionsEnabled,
     handleApplySingleRandomPrediction,
     handleClearPredictions,
     stats,
@@ -38,6 +38,7 @@ function PalpitesPageContent() {
       predictions={predictions}
       drafts={drafts}
       groupsLocked={groupsLocked}
+      predictionsEnabled={predictionsEnabled}
       currentUserId={currentUser.id}
       onDraftChange={(gameId, scores) => {
         setDrafts((prev) => ({
@@ -46,7 +47,6 @@ function PalpitesPageContent() {
         }));
       }}
       onSinglePrediction={saveSinglePrediction}
-      onRandomPredictions={handleApplyRandomPredictions}
       onSingleRandomPrediction={handleApplySingleRandomPrediction}
       onClearPredictions={handleClearPredictions}
       userStats={{

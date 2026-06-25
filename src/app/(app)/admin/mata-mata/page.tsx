@@ -8,20 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Flag } from "@/components/ui/Flag";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
-import { KnockoutMatchRecord, KnockoutRound } from "@/types/knockout";
+import { KnockoutMatchRecord } from "@/types/knockout";
 import { slotLabel } from "@/lib/knockoutSlotLabel";
+import { ROUND_LABELS, ROUND_ORDER } from "@/lib/knockoutRounds";
 import { useKnockoutAdmin } from "@/hooks/useKnockoutAdmin";
-
-const ROUND_LABELS: Record<KnockoutRound, string> = {
-  r32: "Rodada de 32",
-  r16: "Oitavas de Final",
-  qf: "Quartas de Final",
-  sf: "Semifinais",
-  third_place: "Disputa de 3º Lugar",
-  final: "Final",
-};
-
-const ROUND_ORDER: KnockoutRound[] = ["r32", "r16", "qf", "sf", "third_place", "final"];
 
 type Draft = {
   scoreHome: string;

@@ -6,17 +6,19 @@ import { TeamStanding } from "@/types/standings";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { RandomPredictor, SingleGameRandomPredictor, type RandomPrediction } from "@/components/ui/random-predictor";
+import { SingleGameRandomPredictor, type RandomPrediction } from "@/components/ui/random-predictor";
 import { Flag } from "@/components/ui/Flag";
 import { formatDate, isPast, isToday } from "@/lib/formatting";
 import { calculateGroupStandingsFromPredictions } from "@/services/standings/predictionSimulation";
 import { FinalPredictionsCard } from "@/components/sections/FinalPredictionsCard";
 import { PalpitesHero } from "@/components/sections/predictions/PalpitesHero";
+import { KnockoutPredictionsCard } from "@/components/sections/predictions/KnockoutPredictionsCard";
 interface PredictionsSectionProps {
   games: Game[];
   predictions: Prediction[];
   drafts: Record<string, DraftPrediction>;
   groupsLocked: boolean;
+  predictionsEnabled: boolean;
   currentUserId: string;
   onDraftChange: (gameId: string, scores: DraftPrediction) => void;
   onSinglePrediction: (
@@ -24,7 +26,6 @@ interface PredictionsSectionProps {
     field: "predicted_score_a" | "predicted_score_b",
     value: string
   ) => void;
-  onRandomPredictions: (predictions: RandomPrediction[]) => void;
   onSingleRandomPrediction: (prediction: RandomPrediction) => void;
   onClearPredictions: () => void;
   userStats: {
@@ -40,10 +41,10 @@ export function PredictionsSection({
   predictions,
   drafts,
   groupsLocked,
+  predictionsEnabled,
   currentUserId,
   onDraftChange,
   onSinglePrediction,
-  onRandomPredictions,
   onSingleRandomPrediction,
   onClearPredictions,
   userStats,
@@ -114,7 +115,12 @@ export function PredictionsSection({
             <p className="text-slate-400 text-base mt-1">
               Preencha os placares. O salvamento é automático.
             </p>
-            {groupsLocked && (
+            {!predictionsEnabled && (
+              <p className="text-red-400 text-sm font-semibold mt-1">
+                Palpites bloqueados pelo administrador.
+              </p>
+            )}
+            {predictionsEnabled && groupsLocked && (
               <p className="text-red-400 text-sm font-semibold mt-1">
                 Palpites encerrados para a fase de grupos.
               </p>
@@ -126,50 +132,33 @@ export function PredictionsSection({
         <FinalPredictionsCard
         playerId={currentUserId}
         games={games}
-        disabled={groupsLocked}
+        disabled={groupsLocked || !predictionsEnabled}
 />
+
+      <KnockoutPredictionsCard
+        playerId={currentUserId}
+        games={games}
+        disabled={!predictionsEnabled}
+      />
 
 {/* Mobile Actions */}
 <Card className="lg:hidden bg-gradient-to-br from-[#2A398D] via-slate-900 to-[#3CAC3B] border border-slate-700 rounded-3xl text-white overflow-hidden shadow-2xl">
   <CardContent className="p-5 space-y-4">
     <div>
       <h3 className="text-2xl font-black">
-        Palpites Aleatórios
+        Limpar Palpites
       </h3>
 
       <p className="text-white/80 text-sm mt-2">
-        Gere palpites apenas para os jogos ainda não preenchidos.
+        Remova os palpites já preenchidos na fase de grupos.
       </p>
     </div>
-
-    <RandomPredictor
-      games={games.filter((game) => {
-        if (groupsLocked || game.locked) return false;
-
-        const prediction = predictions.find(
-          (p) => p.player_id === currentUserId && p.game_id === game.id
-        );
-
-        return (
-          !prediction ||
-          prediction.predicted_score_a === null ||
-          prediction.predicted_score_b === null
-        );
-      })}
-      onGeneratePredictions={onRandomPredictions}
-      disabled={groupsLocked || userStats.userPendingGames === 0}
-      buttonLabel={
-        userStats.userPendingGames === 0
-          ? "Tudo preenchido"
-          : "Gerar Pendentes"
-      }
-    />
 
    <div className="pt-1">
   <button
     type="button"
     onClick={onClearPredictions}
-    disabled={groupsLocked || userStats.userPredictedGames === 0}
+    disabled={groupsLocked || !predictionsEnabled || userStats.userPredictedGames === 0}
     className="text-xs text-white/60 hover:text-white/90 underline underline-offset-4 disabled:opacity-40 disabled:cursor-not-allowed"
   >
     Limpar meus palpites
@@ -349,7 +338,7 @@ export function PredictionsSection({
         <SingleGameRandomPredictor
           gameId={game.id}
           onGeneratePrediction={onSingleRandomPrediction}
-          disabled={groupsLocked || game.locked}
+          disabled={groupsLocked || !predictionsEnabled || game.locked}
         />
       </div>
 
@@ -365,7 +354,7 @@ export function PredictionsSection({
           <Input
             type="number"
             min="0"
-            disabled={groupsLocked || game.locked}
+            disabled={groupsLocked || !predictionsEnabled || game.locked}
             value={draft.predicted_score_a}
             onChange={(e) => {
               const value = e.target.value;
@@ -383,7 +372,7 @@ export function PredictionsSection({
           <Input
             type="number"
             min="0"
-            disabled={groupsLocked || game.locked}
+            disabled={groupsLocked || !predictionsEnabled || game.locked}
             value={draft.predicted_score_b}
             onChange={(e) => {
               const value = e.target.value;
@@ -424,7 +413,7 @@ export function PredictionsSection({
         <Input
           type="number"
           min="0"
-          disabled={groupsLocked || game.locked}
+          disabled={groupsLocked || !predictionsEnabled || game.locked}
           value={draft.predicted_score_a}
           onChange={(e) => {
             const value = e.target.value;
@@ -444,7 +433,7 @@ export function PredictionsSection({
         <Input
           type="number"
           min="0"
-          disabled={groupsLocked || game.locked}
+          disabled={groupsLocked || !predictionsEnabled || game.locked}
           value={draft.predicted_score_b}
           onChange={(e) => {
             const value = e.target.value;
@@ -470,7 +459,7 @@ export function PredictionsSection({
         <SingleGameRandomPredictor
           gameId={game.id}
           onGeneratePrediction={onSingleRandomPrediction}
-          disabled={groupsLocked || game.locked}
+          disabled={groupsLocked || !predictionsEnabled || game.locked}
         />
       </div>
     </div>
@@ -537,45 +526,19 @@ export function PredictionsSection({
           <CardContent className="p-6 space-y-4">
             <div>
               <h3 className="text-2xl font-black leading-tight">
-                Palpites Aleatórios
+                Limpar Palpites
               </h3>
 
               <p className="text-white/80 text-sm mt-2">
-                Gere palpites automáticos para acelerar seu preenchimento.
+                Remova os palpites já preenchidos na fase de grupos.
               </p>
             </div>
-            
-            <p className="text-white/70 text-xs">
-            Esta ação preenche aleatoriamente apenas os jogos que ainda estão sem palpite.
-          </p>
-            <RandomPredictor
-            games={games.filter((game) => {
-            if (groupsLocked || game.locked) return false;
 
-            const prediction = predictions.find(
-            (p) => p.player_id === currentUserId && p.game_id === game.id
-            );
-
-            return (
-            !prediction ||
-            prediction.predicted_score_a === null ||
-            prediction.predicted_score_b === null
-            );
-            })}
-            onGeneratePredictions={onRandomPredictions}
-            disabled={groupsLocked || userStats.userPendingGames === 0}
-            buttonLabel={
-            userStats.userPendingGames === 0
-           ? "Tudo preenchido"
-           : "Gerar Pendentes"
-            }
-            />
             <div className="flex flex-col items-start gap-2">
- <div className="flex flex-col items-start gap-2">
   <Button
     type="button"
     onClick={onClearPredictions}
-    disabled={groupsLocked || userStats.userPredictedGames === 0}
+    disabled={groupsLocked || !predictionsEnabled || userStats.userPredictedGames === 0}
     variant="ghost"
     size="sm"
     className="
@@ -590,7 +553,6 @@ export function PredictionsSection({
   >
     Limpar meus palpites
   </Button>
-</div>
 </div>
           </CardContent>
         </Card>

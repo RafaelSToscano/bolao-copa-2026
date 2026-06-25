@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useData } from "@/hooks/useData";
 import { usePredictions } from "@/hooks/usePredictions";
 import { usePhaseState } from "@/hooks/usePhaseState";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import { useStandings } from "@/hooks/useStandings";
 import { useRanking } from "@/hooks/useRanking";
 import { useAppStats } from "@/hooks/useAppStats";
@@ -35,6 +36,8 @@ type AppShellContextValue = {
   saveBatchPredictions: ReturnType<typeof usePredictions>["saveBatchPredictions"];
   clearPlayerPredictions: ReturnType<typeof usePredictions>["clearPlayerPredictions"];
   groupsLocked: boolean;
+  predictionsEnabled: boolean;
+  handleSetPredictionsEnabled: (enabled: boolean) => Promise<void>;
   allGroupStandings: ReturnType<typeof useStandings>["allGroupStandings"];
   bestThirdPlace: ReturnType<typeof useStandings>["bestThirdPlace"];
   qualifiedTeams: ReturnType<typeof useStandings>["qualifiedTeams"];
@@ -53,9 +56,6 @@ type AppShellContextValue = {
   ) => Promise<void>;
   handleApprovePlayer: (playerId: string) => Promise<void>;
   handleRejectPlayer: (playerId: string) => Promise<void>;
-  handleApplyRandomPredictions: (
-    randomPredictions: RandomPrediction[]
-  ) => Promise<void>;
   handleApplySingleRandomPrediction: (
     randomPrediction: RandomPrediction
   ) => Promise<void>;
@@ -125,6 +125,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const { isGroupsLocked } = usePhaseState();
   const groupsLocked = isGroupsLocked();
+
+  const {
+    predictionsEnabled,
+    setPredictionsEnabled: handleSetPredictionsEnabled,
+  } = useAppSettings();
 
   const { allGroupStandings, bestThirdPlace, qualifiedTeams } = useStandings(
     games,
@@ -197,44 +202,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     } catch (err) {
       setMessage(
         err instanceof Error ? err.message : "Erro ao atualizar resultado."
-      );
-    }
-  };
-
-  const handleApplyRandomPredictions = async (
-    randomPredictions: RandomPrediction[]
-  ) => {
-    if (!currentUser) return;
-
-    setMessage("");
-
-    try {
-      const updatedDrafts: Record<
-        string,
-        { predicted_score_a: string; predicted_score_b: string }
-      > = { ...drafts };
-      for (const pred of randomPredictions) {
-        updatedDrafts[pred.game_id] = {
-          predicted_score_a: String(pred.predicted_score_a),
-          predicted_score_b: String(pred.predicted_score_b),
-        };
-      }
-      setDrafts(updatedDrafts);
-
-      const predictionPayload = randomPredictions.map((pred) => ({
-        player_id: currentUser.id,
-        game_id: pred.game_id,
-        predicted_score_a: pred.predicted_score_a,
-        predicted_score_b: pred.predicted_score_b,
-      }));
-
-      await saveBatchPredictions(predictionPayload);
-      setMessage("Palpites aleatórios aplicados com sucesso!");
-    } catch (err) {
-      setMessage(
-        err instanceof Error
-          ? err.message
-          : "Erro ao aplicar palpites aleatórios."
       );
     }
   };
@@ -322,6 +289,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     saveBatchPredictions,
     clearPlayerPredictions,
     groupsLocked,
+    predictionsEnabled,
+    handleSetPredictionsEnabled,
     allGroupStandings,
     bestThirdPlace,
     qualifiedTeams,
@@ -336,7 +305,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     handleUpdateOfficialResult,
     handleApprovePlayer,
     handleRejectPlayer,
-    handleApplyRandomPredictions,
     handleApplySingleRandomPrediction,
     handleClearPredictions,
   };
