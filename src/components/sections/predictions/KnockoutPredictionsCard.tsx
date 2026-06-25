@@ -161,14 +161,9 @@ function MatchCard({
 interface KnockoutPredictionsCardProps {
   playerId: string;
   games: Game[];
-  disabled?: boolean;
 }
 
-export function KnockoutPredictionsCard({
-  playerId,
-  games,
-  disabled = false,
-}: KnockoutPredictionsCardProps) {
+export function KnockoutPredictionsCard({ playerId, games }: KnockoutPredictionsCardProps) {
   const { matches, getDraft, savePrediction, isLocked, isLoading } =
     useKnockoutPredictions(playerId);
 
@@ -220,7 +215,7 @@ export function KnockoutPredictionsCard({
                       key={match.id}
                       match={match}
                       draft={getDraft(match.id)}
-                      locked={disabled || isLocked(match.id)}
+                      locked={isLocked(match.id)}
                       onChange={(next) => savePrediction(match.id, next)}
                     />
                   ))}

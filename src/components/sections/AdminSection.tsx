@@ -25,8 +25,6 @@ interface AdminSectionProps {
   ) => void;
   onApprovePlayer: (playerId: string) => void;
   onRejectPlayer: (playerId: string) => void;
-  predictionsEnabled: boolean;
-  onTogglePredictions: (enabled: boolean) => void;
 stats: {
   totalPlayers: number;
   approvedPlayers: number;
@@ -45,8 +43,6 @@ export function AdminSection({
   onUpdateResult,
   onApprovePlayer,
   onRejectPlayer,
-  predictionsEnabled,
-  onTogglePredictions,
   stats,
 }: AdminSectionProps) {
   const [shareMode, setShareMode] = useState<"highlight" | "full" | null>(null);
@@ -96,36 +92,6 @@ export function AdminSection({
     </Button>
   </div>
 </div>
-
-      <Card
-        className={`border rounded-3xl shadow-2xl ${
-          predictionsEnabled
-            ? "bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800"
-            : "bg-gradient-to-br from-red-950 to-slate-950 border-red-800"
-        }`}
-      >
-        <CardContent className="p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h3 className="text-xl font-black text-white">Bloqueio de Palpites</h3>
-            <p className="text-slate-300 text-sm mt-1">
-              {predictionsEnabled
-                ? "Jogadores podem alterar seus palpites normalmente."
-                : "Todos os palpites estão bloqueados — jogadores não conseguem alterar nada."}
-            </p>
-          </div>
-          <Button
-            type="button"
-            onClick={() => onTogglePredictions(!predictionsEnabled)}
-            className={
-              predictionsEnabled
-                ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black"
-                : "bg-red-600 hover:bg-red-500 text-white font-black"
-            }
-          >
-            {predictionsEnabled ? "Palpites Abertos" : "Palpites Bloqueados"}
-          </Button>
-        </CardContent>
-      </Card>
 
       {shareMode !== null && (
         <RankingShareModal

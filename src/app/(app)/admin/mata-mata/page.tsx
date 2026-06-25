@@ -54,12 +54,14 @@ function AdminMatchCard({
   teamOptions,
   onSave,
   onSaveTeams,
+  onToggleLocked,
 }: {
   match: KnockoutMatchRecord;
   isSaving: boolean;
   teamOptions: string[];
   onSave: (scoreHome: number | null, scoreAway: number | null, winnerTeam: string | null) => void;
   onSaveTeams: (homeTeam: string | null, awayTeam: string | null) => void;
+  onToggleLocked: (locked: boolean) => void;
 }) {
   const [draft, setDraft] = useState<Draft>(() => draftFromMatch(match));
   const [syncedSignature, setSyncedSignature] = useState(() => matchSignature(match));
@@ -103,9 +105,18 @@ function AdminMatchCard({
         <span className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
           Jogo {match.id}
         </span>
-        {match.locked && (
-          <span className="text-xs text-yellow-500 font-semibold">Bloqueado</span>
-        )}
+        <button
+          type="button"
+          onClick={() => onToggleLocked(!match.locked)}
+          disabled={isSaving}
+          className={`text-xs font-semibold px-2 py-0.5 rounded-full transition-colors disabled:opacity-50 ${
+            match.locked
+              ? "bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30"
+              : "bg-slate-700/50 text-slate-400 hover:bg-slate-700"
+          }`}
+        >
+          {match.locked ? "Bloqueado" : "Bloquear palpites"}
+        </button>
       </div>
 
       <div className="px-4 py-3">
@@ -247,6 +258,7 @@ export default function AdminMataMataPage() {
     recordResult,
     populateRound32,
     setMatchTeams,
+    setMatchLocked,
     clearAllResults,
   } = useKnockoutAdmin();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -337,6 +349,7 @@ export default function AdminMataMataPage() {
                       onSaveTeams={(homeTeam, awayTeam) =>
                         setMatchTeams(match.id, homeTeam, awayTeam)
                       }
+                      onToggleLocked={(locked) => setMatchLocked(match.id, locked)}
                     />
                   ))}
                 </div>

@@ -132,3 +132,21 @@ describe("knockoutPredictionsService.updateKnockoutMatchTeams", () => {
     expect(updateCalls).toEqual([{ id: 5, payload: { home_team: null, away_team: "Alemanha" } }]);
   });
 });
+
+describe("knockoutPredictionsService.setMatchLocked", () => {
+  beforeEach(() => {
+    updateCalls.length = 0;
+  });
+
+  it("locks a single match without touching the others", async () => {
+    await knockoutPredictionsService.setMatchLocked(7, true);
+
+    expect(updateCalls).toEqual([{ id: 7, payload: { locked: true } }]);
+  });
+
+  it("unlocks a match", async () => {
+    await knockoutPredictionsService.setMatchLocked(7, false);
+
+    expect(updateCalls).toEqual([{ id: 7, payload: { locked: false } }]);
+  });
+});

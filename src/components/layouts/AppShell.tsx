@@ -14,7 +14,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useData } from "@/hooks/useData";
 import { usePredictions } from "@/hooks/usePredictions";
 import { usePhaseState } from "@/hooks/usePhaseState";
-import { useAppSettings } from "@/hooks/useAppSettings";
 import { useStandings } from "@/hooks/useStandings";
 import { useRanking } from "@/hooks/useRanking";
 import { useAppStats } from "@/hooks/useAppStats";
@@ -36,8 +35,6 @@ type AppShellContextValue = {
   saveBatchPredictions: ReturnType<typeof usePredictions>["saveBatchPredictions"];
   clearPlayerPredictions: ReturnType<typeof usePredictions>["clearPlayerPredictions"];
   groupsLocked: boolean;
-  predictionsEnabled: boolean;
-  handleSetPredictionsEnabled: (enabled: boolean) => Promise<void>;
   allGroupStandings: ReturnType<typeof useStandings>["allGroupStandings"];
   bestThirdPlace: ReturnType<typeof useStandings>["bestThirdPlace"];
   qualifiedTeams: ReturnType<typeof useStandings>["qualifiedTeams"];
@@ -125,11 +122,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const { isGroupsLocked } = usePhaseState();
   const groupsLocked = isGroupsLocked();
-
-  const {
-    predictionsEnabled,
-    setPredictionsEnabled: handleSetPredictionsEnabled,
-  } = useAppSettings();
 
   const { allGroupStandings, bestThirdPlace, qualifiedTeams } = useStandings(
     games,
@@ -289,8 +281,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     saveBatchPredictions,
     clearPlayerPredictions,
     groupsLocked,
-    predictionsEnabled,
-    handleSetPredictionsEnabled,
     allGroupStandings,
     bestThirdPlace,
     qualifiedTeams,

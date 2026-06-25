@@ -16,8 +16,6 @@ export default function AdminPage() {
     handleUpdateOfficialResult,
     handleApprovePlayer,
     handleRejectPlayer,
-    predictionsEnabled,
-    handleSetPredictionsEnabled,
     stats,
   } = useAppShell();
 
@@ -38,8 +36,6 @@ export default function AdminPage() {
       onUpdateResult={handleUpdateOfficialResult}
       onApprovePlayer={handleApprovePlayer}
       onRejectPlayer={handleRejectPlayer}
-      predictionsEnabled={predictionsEnabled}
-      onTogglePredictions={handleSetPredictionsEnabled}
       stats={{
         totalPlayers: stats.totalPlayers,
         approvedPlayers: stats.approvedPlayers,

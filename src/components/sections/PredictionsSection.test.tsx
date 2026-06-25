@@ -30,7 +30,6 @@ const baseProps = {
   predictions: [],
   drafts: {},
   groupsLocked: false,
-  predictionsEnabled: true,
   currentUserId: 'p1',
   onDraftChange: vi.fn(),
   onSinglePrediction: vi.fn(),
@@ -84,19 +83,6 @@ describe('PredictionsSection Component', () => {
     inputs.forEach((input) => {
       expect(input).toBeDisabled();
     });
-  });
-
-  it('should disable inputs when predictionsEnabled is false', () => {
-    render(<PredictionsSection {...baseProps} predictionsEnabled={false} />);
-    const inputs = screen.getAllByRole('spinbutton');
-    inputs.forEach((input) => {
-      expect(input).toBeDisabled();
-    });
-  });
-
-  it('should show the admin-blocked message when predictionsEnabled is false', () => {
-    render(<PredictionsSection {...baseProps} predictionsEnabled={false} />);
-    expect(screen.getByText(/bloqueados pelo administrador/i)).toBeInTheDocument();
   });
 
   it('should render group sections', () => {

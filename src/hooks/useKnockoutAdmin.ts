@@ -93,6 +93,19 @@ export function useKnockoutAdmin() {
     [refresh]
   );
 
+  const setMatchLocked = useCallback(
+    async (matchId: number, locked: boolean) => {
+      setIsSaving(true);
+      try {
+        await knockoutPredictionsService.setMatchLocked(matchId, locked);
+        await refresh();
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [refresh]
+  );
+
   const clearAllResults = useCallback(async () => {
     setIsSaving(true);
     try {
@@ -110,6 +123,7 @@ export function useKnockoutAdmin() {
     recordResult,
     populateRound32,
     setMatchTeams,
+    setMatchLocked,
     clearAllResults,
     refresh,
   };

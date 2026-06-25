@@ -10,6 +10,7 @@ vi.mock("@/services/supabase/knockoutPredictionsService", () => ({
     updateKnockoutMatchResult: vi.fn(),
     populateRound32FromGroups: vi.fn(),
     updateKnockoutMatchTeams: vi.fn(),
+    setMatchLocked: vi.fn(),
     clearAllOfficialResults: vi.fn(),
   },
 }));
@@ -38,6 +39,7 @@ describe("useKnockoutAdmin", () => {
     vi.mocked(knockoutPredictionsService.updateKnockoutMatchResult).mockResolvedValue(undefined);
     vi.mocked(knockoutPredictionsService.populateRound32FromGroups).mockResolvedValue(undefined);
     vi.mocked(knockoutPredictionsService.updateKnockoutMatchTeams).mockResolvedValue(undefined);
+    vi.mocked(knockoutPredictionsService.setMatchLocked).mockResolvedValue(undefined);
     vi.mocked(knockoutPredictionsService.clearAllOfficialResults).mockResolvedValue(undefined);
   });
 
@@ -94,6 +96,19 @@ describe("useKnockoutAdmin", () => {
       "Alemanha",
       null
     );
+    expect(knockoutPredictionsService.getKnockoutMatches).toHaveBeenCalledTimes(2);
+    expect(result.current.isSaving).toBe(false);
+  });
+
+  it("setMatchLocked blocks predictions for a single match then refreshes", async () => {
+    const { result } = renderHook(() => useKnockoutAdmin());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.setMatchLocked(1, true);
+    });
+
+    expect(knockoutPredictionsService.setMatchLocked).toHaveBeenCalledWith(1, true);
     expect(knockoutPredictionsService.getKnockoutMatches).toHaveBeenCalledTimes(2);
     expect(result.current.isSaving).toBe(false);
   });
