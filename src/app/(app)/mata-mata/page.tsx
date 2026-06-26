@@ -5,59 +5,73 @@ import { Flag } from "@/components/ui/Flag";
 import { KnockoutMatchRecord } from "@/types/knockout";
 import { slotLabel } from "@/lib/knockoutSlotLabel";
 import { ROUND_LABELS, ROUND_ORDER } from "@/lib/knockoutRounds";
+import { formatDate } from "@/lib/formatting";
 import { useKnockoutResults } from "@/hooks/useKnockoutResults";
 
-function ResultMatchCard({ match }: { match: KnockoutMatchRecord }) {
-  const { official_score_home: scoreHome, official_score_away: scoreAway } = match;
-  const hasScore = scoreHome !== null && scoreAway !== null;
-  const winner = !hasScore ? null : scoreHome > scoreAway ? "home" : scoreHome < scoreAway ? "away" : null;
+function BracketTeamRow({
+  team,
+  slot,
+  isWinner,
+}: {
+  team: string | null;
+  slot: string;
+  isWinner: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 ${
+        isWinner ? "bg-yellow-400/10 text-yellow-300" : "bg-slate-900/70 text-white"
+      }`}
+    >
+      <div className="min-w-0">
+        <div className="text-[10px] uppercase tracking-wide text-slate-500">
+          {slotLabel(slot)}
+        </div>
+        <div className="flex items-center gap-2 min-w-0">
+          {team && <Flag team={team} size="small" />}
+          <span className="truncate text-sm font-black">
+            {team ?? "A definir"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BracketMatchCard({ match }: { match: KnockoutMatchRecord }) {
+  const hasScore =
+    match.official_score_home !== null && match.official_score_away !== null;
+  const homeWinner = match.winner_team !== null && match.winner_team === match.home_team;
+  const awayWinner = match.winner_team !== null && match.winner_team === match.away_team;
 
   return (
-    <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden">
-      <div className="px-4 py-1.5 bg-slate-800/50 flex items-center justify-between">
-        <span className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
-          Jogo {match.id}
-        </span>
+    <div className="relative rounded-2xl border border-slate-800 bg-slate-950 p-3 shadow-xl">
+      <div className="absolute -left-3 top-1/2 hidden h-px w-3 bg-slate-700 lg:block" />
+      <div className="absolute -right-3 top-1/2 hidden h-px w-3 bg-slate-700 lg:block" />
+
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-[11px] font-black uppercase tracking-wide text-yellow-400">
+            Jogo {match.match_number}
+          </div>
+          <div className="text-xs text-slate-500">{formatDate(match.match_date)}</div>
+        </div>
+        <div className="rounded-full border border-slate-800 px-2 py-1 text-xs font-black text-slate-300">
+          {hasScore ? `${match.official_score_home} x ${match.official_score_away}` : "x"}
+        </div>
       </div>
 
-      <div className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="text-xs text-slate-500 leading-none mb-1">
-              {slotLabel(match.home_slot)}
-            </div>
-            {match.home_team && (
-              <div className="mb-1">
-                <Flag team={match.home_team} size="small" />
-              </div>
-            )}
-            <span
-              className={`block font-bold text-sm truncate ${winner === "home" ? "text-yellow-400" : ""}`}
-            >
-              {match.home_team ?? "---"}
-            </span>
-          </div>
-
-          <div className="shrink-0 px-2 text-center font-black text-base text-white">
-            {hasScore ? `${scoreHome} x ${scoreAway}` : "x"}
-          </div>
-
-          <div className="flex-1 min-w-0 text-right">
-            <div className="text-xs text-slate-500 leading-none mb-1">
-              {slotLabel(match.away_slot)}
-            </div>
-            {match.away_team && (
-              <div className="mb-1">
-                <Flag team={match.away_team} size="small" />
-              </div>
-            )}
-            <span
-              className={`block font-bold text-sm truncate ${winner === "away" ? "text-yellow-400" : ""}`}
-            >
-              {match.away_team ?? "---"}
-            </span>
-          </div>
-        </div>
+      <div className="space-y-2">
+        <BracketTeamRow
+          team={match.home_team}
+          slot={match.home_slot}
+          isWinner={homeWinner}
+        />
+        <BracketTeamRow
+          team={match.away_team}
+          slot={match.away_slot}
+          isWinner={awayWinner}
+        />
       </div>
     </div>
   );
@@ -68,39 +82,58 @@ export default function MataMataPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-black">Mata-mata</h2>
-        <p className="text-slate-400 text-sm">
-          Acompanhe os resultados oficiais da fase eliminatória.
+      <div className="rounded-[28px] border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-6 shadow-2xl">
+        <h2 className="text-3xl font-black tracking-tight">Mata-mata</h2>
+        <p className="mt-2 max-w-3xl text-sm text-slate-400">
+          Chaveamento oficial da fase eliminatória. Esta tela é apenas visual:
+          os palpites dos 16 avos ficam na aba Palpites.
         </p>
       </div>
 
       {isLoading ? (
-        <p className="text-slate-500 text-sm">Carregando jogos...</p>
+        <p className="text-slate-500 text-sm">Carregando chaveamento...</p>
       ) : (
-        ROUND_ORDER.map((round) => {
-          const roundMatches = matches
-            .filter((m) => m.round === round)
-            .sort((a, b) => a.match_number - b.match_number);
+        <div className="overflow-x-auto pb-4">
+          <div className="grid min-w-[1120px] grid-cols-6 gap-6">
+            {ROUND_ORDER.map((round) => {
+              const roundMatches = matches
+                .filter((m) => m.round === round)
+                .sort((a, b) => a.match_number - b.match_number);
 
-          if (roundMatches.length === 0) return null;
+              return (
+                <Card
+                  key={round}
+                  className="rounded-3xl border-slate-800 bg-slate-900/80 text-white"
+                >
+                  <CardContent className="space-y-4 p-4">
+                    <div>
+                      <h3 className="text-sm font-black uppercase tracking-wide text-yellow-400">
+                        {ROUND_LABELS[round]}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        {roundMatches.length
+                          ? `${roundMatches.length} confronto(s)`
+                          : "A definir"}
+                      </p>
+                    </div>
 
-          return (
-            <Card key={round} className="bg-slate-900 border-slate-800 text-white rounded-3xl">
-              <CardContent className="p-5 space-y-3">
-                <h3 className="text-base font-black text-yellow-400 uppercase tracking-wide">
-                  {ROUND_LABELS[round]}
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {roundMatches.map((match) => (
-                    <ResultMatchCard key={match.id} match={match} />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })
+                    <div className="space-y-4">
+                      {roundMatches.length > 0 ? (
+                        roundMatches.map((match) => (
+                          <BracketMatchCard key={match.id} match={match} />
+                        ))
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-800 p-4 text-sm text-slate-500">
+                          A definir
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );

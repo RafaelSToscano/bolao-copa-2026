@@ -6,7 +6,29 @@ function normalizeAccessCode(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+const PUBLIC_PLAYER_COLUMNS = "id, name, is_admin, approved, created_at";
+const PRIVATE_PLAYER_COLUMNS = "id, name, access_code, is_admin, approved, created_at";
+
 export const playersService = {
+  async getPublicPlayers(): Promise<Player[]> {
+    if (USE_MOCK_DATA) {
+      return MOCK_PLAYERS.map(({ access_code: _accessCode, ...player }) => player);
+    }
+
+    const supabase = getSupabaseClient();
+
+    const { data, error } = await supabase
+      .from("players")
+      .select(PUBLIC_PLAYER_COLUMNS)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      throw new Error(`Failed to fetch public players: ${error.message}`);
+    }
+
+    return data || [];
+  },
+
   async getAllPlayers(): Promise<Player[]> {
     if (USE_MOCK_DATA) {
       return MOCK_PLAYERS;
@@ -16,7 +38,7 @@ export const playersService = {
 
     const { data, error } = await supabase
       .from("players")
-      .select("*")
+      .select(PRIVATE_PLAYER_COLUMNS)
       .order("created_at", { ascending: true });
 
     if (error) {
@@ -41,7 +63,7 @@ export const playersService = {
 
     const { data, error } = await supabase
       .from("players")
-      .select("*")
+      .select(PRIVATE_PLAYER_COLUMNS)
       .eq("access_code", normalizedAccessCode)
       .maybeSingle();
 

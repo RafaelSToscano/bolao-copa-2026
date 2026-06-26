@@ -9,6 +9,11 @@ import {
   MOCK_KNOCKOUT_PREDICTIONS,
 } from "@/services/mock";
 
+const KNOCKOUT_MATCH_COLUMNS =
+  "id, round, match_number, home_slot, away_slot, home_team, away_team, official_score_home, official_score_away, winner_team, match_date, locked";
+const KNOCKOUT_PREDICTION_COLUMNS =
+  "id, player_id, match_id, predicted_score_home, predicted_score_away, predicted_winner, created_at, updated_at";
+
 /**
  * Drops every game belonging to a group that hasn't finished all of its
  * matches yet. `generateRound32()`/`calculateQualifiedTeams()` happily
@@ -87,6 +92,62 @@ async function cascadeMatchOutcome(
   }
 }
 
+async function clearDependentBracket(
+  supabase: SupabaseClient,
+  matchId: number
+): Promise<void> {
+  const dependentSlots = [`W${matchId}`, `L${matchId}`];
+  const { data: dependents, error } = await supabase
+    .from("knockout_matches")
+    .select("id, home_slot, away_slot")
+    .or(
+      dependentSlots
+        .flatMap((slot) => [`home_slot.eq.${slot}`, `away_slot.eq.${slot}`])
+        .join(",")
+    );
+
+  if (error) {
+    throw new Error(`Failed to look up dependent knockout matches: ${error.message}`);
+  }
+
+  for (const dependent of dependents || []) {
+    const update: {
+      home_team?: null;
+      away_team?: null;
+      official_score_home: null;
+      official_score_away: null;
+      winner_team: null;
+    } = {
+      official_score_home: null,
+      official_score_away: null,
+      winner_team: null,
+    };
+
+    if (dependentSlots.includes(dependent.home_slot)) update.home_team = null;
+    if (dependentSlots.includes(dependent.away_slot)) update.away_team = null;
+
+    const { error: updateError } = await supabase
+      .from("knockout_matches")
+      .update(update)
+      .eq("id", dependent.id);
+
+    if (updateError) {
+      throw new Error(
+        `Failed to clear dependent knockout match ${dependent.id}: ${updateError.message}`
+      );
+    }
+
+    await clearDependentBracket(supabase, dependent.id);
+  }
+}
+
+function validateScore(value: number | null, field: string): void {
+  if (value === null) return;
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${field} deve ser um número inteiro maior ou igual a zero.`);
+  }
+}
+
 export const knockoutPredictionsService = {
   /**
    * Fetches all 32 knockout match slots (public)
@@ -99,7 +160,7 @@ export const knockoutPredictionsService = {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from("knockout_matches")
-      .select("*")
+      .select(KNOCKOUT_MATCH_COLUMNS)
       .order("id", { ascending: true });
 
     if (error) {
@@ -120,7 +181,7 @@ export const knockoutPredictionsService = {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from("knockout_predictions")
-      .select("*")
+      .select(KNOCKOUT_PREDICTION_COLUMNS)
       .eq("player_id", playerId);
 
     if (error) {
@@ -147,7 +208,7 @@ export const knockoutPredictionsService = {
     while (true) {
       const { data, error } = await supabase
         .from("knockout_predictions")
-        .select("*")
+        .select(KNOCKOUT_PREDICTION_COLUMNS)
         .range(from, from + pageSize - 1);
 
       if (error) {
@@ -179,7 +240,13 @@ export const knockoutPredictionsService = {
     const supabase = getSupabaseClient();
     const { error } = await supabase
       .from("knockout_predictions")
-      .upsert(prediction, { onConflict: "player_id,match_id" });
+      .upsert(
+        {
+          ...prediction,
+          predicted_winner: null,
+        },
+        { onConflict: "player_id,match_id" }
+      );
 
     if (error) {
       throw new Error(`Failed to save knockout prediction: ${error.message}`);
@@ -250,13 +317,40 @@ export const knockoutPredictionsService = {
     if (USE_MOCK_DATA) return;
 
     const supabase = getSupabaseClient();
+    if (homeTeam && awayTeam && homeTeam === awayTeam) {
+      throw new Error("O mesmo time não pode ocupar os dois lados do confronto.");
+    }
+
+    const { data: current, error: fetchError } = await supabase
+      .from("knockout_matches")
+      .select("home_team, away_team")
+      .eq("id", matchId)
+      .single();
+
+    if (fetchError) {
+      throw new Error(`Failed to load knockout match: ${fetchError.message}`);
+    }
+
+    const teamsChanged =
+      current?.home_team !== homeTeam || current?.away_team !== awayTeam;
+
     const { error } = await supabase
       .from("knockout_matches")
-      .update({ home_team: homeTeam, away_team: awayTeam })
+      .update({
+        home_team: homeTeam,
+        away_team: awayTeam,
+        official_score_home: null,
+        official_score_away: null,
+        winner_team: null,
+      })
       .eq("id", matchId);
 
     if (error) {
       throw new Error(`Failed to update knockout match teams: ${error.message}`);
+    }
+
+    if (teamsChanged) {
+      await clearDependentBracket(supabase, matchId);
     }
   },
 
@@ -304,12 +398,45 @@ export const knockoutPredictionsService = {
       throw new Error(`Failed to load knockout match: ${fetchError.message}`);
     }
 
+    if (!current?.home_team || !current?.away_team) {
+      throw new Error("Não é possível salvar resultado sem os dois times definidos.");
+    }
+
+    validateScore(scoreHome, "Placar do mandante");
+    validateScore(scoreAway, "Placar do visitante");
+
+    const isClearing = scoreHome === null && scoreAway === null && winnerTeam === null;
+    const hasPartialScore = (scoreHome === null) !== (scoreAway === null);
+    if (hasPartialScore) {
+      throw new Error("Informe os dois placares ou limpe os dois.");
+    }
+    if (scoreHome === null && scoreAway === null && winnerTeam !== null) {
+      throw new Error("Não é possível escolher vencedor sem informar o placar.");
+    }
+
+    let officialWinner = winnerTeam;
+    if (!isClearing && scoreHome !== null && scoreAway !== null) {
+      if (scoreHome > scoreAway) officialWinner = current.home_team;
+      if (scoreAway > scoreHome) officialWinner = current.away_team;
+      if (scoreHome === scoreAway && !officialWinner) {
+        throw new Error("Escolha o vencedor oficial quando o jogo terminar empatado.");
+      }
+    }
+
+    if (
+      officialWinner !== null &&
+      officialWinner !== current.home_team &&
+      officialWinner !== current.away_team
+    ) {
+      throw new Error("O vencedor oficial precisa ser um dos times do confronto.");
+    }
+
     const { error } = await supabase
       .from("knockout_matches")
       .update({
         official_score_home: scoreHome,
         official_score_away: scoreAway,
-        winner_team: winnerTeam,
+        winner_team: officialWinner,
       })
       .eq("id", matchId);
 
@@ -317,14 +444,16 @@ export const knockoutPredictionsService = {
       throw new Error(`Failed to update knockout match result: ${error.message}`);
     }
 
-    if (!winnerTeam) return;
+    await clearDependentBracket(supabase, matchId);
+
+    if (!officialWinner) return;
 
     const loserTeam =
-      winnerTeam === current?.home_team
+      officialWinner === current?.home_team
         ? current?.away_team ?? null
         : current?.home_team ?? null;
 
-    await cascadeMatchOutcome(supabase, matchId, winnerTeam, loserTeam);
+    await cascadeMatchOutcome(supabase, matchId, officialWinner, loserTeam);
   },
 
   /**

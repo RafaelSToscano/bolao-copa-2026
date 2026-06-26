@@ -2,6 +2,9 @@ import { getSupabaseClient } from "./supabaseClient";
 import { Prediction } from "@/types/prediction";
 import { USE_MOCK_DATA, MOCK_PREDICTIONS } from "@/services/mock";
 
+const PREDICTION_COLUMNS =
+  "id, player_id, game_id, predicted_score_a, predicted_score_b, created_at";
+
 export const predictionsService = {
   /**
    * Fetches all predictions
@@ -17,11 +20,11 @@ export const predictionsService = {
   let from = 0;
   let allData: Prediction[] = [];
 
-  while (true) {
-    const { data, error } = await supabase
-      .from("predictions")
-      .select("*")
-      .range(from, from + pageSize - 1);
+    while (true) {
+      const { data, error } = await supabase
+        .from("predictions")
+        .select(PREDICTION_COLUMNS)
+        .range(from, from + pageSize - 1);
 
     if (error) {
       throw new Error(`Failed to fetch predictions: ${error.message}`);
@@ -54,7 +57,7 @@ export const predictionsService = {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from("predictions")
-      .select("*")
+      .select(PREDICTION_COLUMNS)
       .eq("player_id", playerId);
 
     if (error) {

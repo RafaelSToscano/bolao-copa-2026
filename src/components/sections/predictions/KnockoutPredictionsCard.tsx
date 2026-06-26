@@ -7,8 +7,13 @@ import { Flag } from "@/components/ui/Flag";
 import { KnockoutMatchRecord, DraftKnockoutPrediction } from "@/types/knockout";
 import { Game } from "@/types/game";
 import { slotLabel } from "@/lib/knockoutSlotLabel";
+import { formatDate } from "@/lib/formatting";
 import { useKnockoutPredictions } from "@/hooks/useKnockoutPredictions";
 import { generateRound32 } from "@/services/standings/knockoutQualification";
+import {
+  formatRoundOf32LockDeadline,
+  isKnockoutMatchPredictionLocked,
+} from "@/config/knockout";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -83,7 +88,7 @@ function MatchCard({
           Jogo {match.match_number}
         </span>
         <span className="text-xs text-slate-600">
-          {match.isOfficial ? "1ª Fase Eliminatória" : "Simulado — times a confirmar"}
+          {formatDate(match.match_date)}
         </span>
       </div>
 
@@ -150,6 +155,13 @@ function MatchCard({
           </div>
         </div>
       </div>
+      {readOnly && (
+        <div className="px-4 pb-3 text-[11px] text-slate-500">
+          {!match.isOfficial
+            ? "Times ainda não confirmados oficialmente."
+            : "Palpite bloqueado para este jogo."}
+        </div>
+      )}
     </div>
   );
 }
@@ -184,7 +196,10 @@ export function KnockoutPredictionsCard({ playerId, games }: KnockoutPredictions
         <div>
           <h3 className="text-2xl lg:text-3xl font-black tracking-tight">Mata-mata</h3>
           <p className="text-slate-400 text-sm mt-1">
-            Faça seus palpites para a 1ª fase eliminatória.
+            Palpites dos 16 avos. Você informa apenas o placar no tempo regulamentar.
+          </p>
+          <p className="text-yellow-400 text-xs font-semibold mt-1">
+            Bloqueio central: {formatRoundOf32LockDeadline()}.
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -215,7 +230,7 @@ export function KnockoutPredictionsCard({ playerId, games }: KnockoutPredictions
                       key={match.id}
                       match={match}
                       draft={getDraft(match.id)}
-                      locked={isLocked(match.id)}
+                      locked={isLocked(match.id) || isKnockoutMatchPredictionLocked(match)}
                       onChange={(next) => savePrediction(match.id, next)}
                     />
                   ))}

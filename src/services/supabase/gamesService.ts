@@ -2,6 +2,9 @@ import { getSupabaseClient } from "./supabaseClient";
 import { Game } from "@/types/game";
 import { USE_MOCK_DATA, MOCK_GAMES } from "@/services/mock";
 
+const GAME_COLUMNS =
+  "id, phase, group_name, match_order, match_date, team_a, team_b, official_score_a, official_score_b, locked";
+
 export const gamesService = {
   /**
    * Fetches all games
@@ -14,7 +17,7 @@ export const gamesService = {
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from("games")
-      .select("*")
+      .select(GAME_COLUMNS)
       .order("group_name", { ascending: true })
       .order("match_order", { ascending: true });
 

@@ -4,16 +4,20 @@ import { useMemo, useState } from "react";
 import { Game } from "@/types/game";
 import { Player } from "@/types/player";
 import { Prediction } from "@/types/prediction";
+import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { calculatePredictionPoints } from "@/services/predictions/predictionCalculations";
 import { Flag } from "@/components/ui/Flag";
 import { formatDate } from "@/lib/formatting";
+import { isPredictableKnockoutRound } from "@/config/knockout";
 
 interface SimulationSectionProps {
   games: Game[];
   players: Player[];
   predictions: Prediction[];
+  knockoutMatches?: KnockoutMatchRecord[];
+  knockoutPredictions?: KnockoutPrediction[];
 }
 function simulatedRankingPosition(
   ranking: { total: number }[],
@@ -30,8 +34,40 @@ export function SimulationSection({
   games,
   players,
   predictions,
+  knockoutMatches = [],
+  knockoutPredictions = [],
 }: SimulationSectionProps) {
-  const availableGames = [...games]
+  const knockoutGames: Game[] = knockoutMatches
+    .filter(
+      (match) =>
+        isPredictableKnockoutRound(match.round) &&
+        Boolean(match.home_team && match.away_team)
+    )
+    .map((match) => ({
+      id: `knockout-${match.id}`,
+      phase: "knockout",
+      group_name: "Mata-mata",
+      match_order: match.match_number,
+      match_date: match.match_date,
+      team_a: match.home_team!,
+      team_b: match.away_team!,
+      official_score_a: match.official_score_home,
+      official_score_b: match.official_score_away,
+      locked: match.locked,
+    }));
+
+  const simulationGames = [...games, ...knockoutGames];
+  const simulationPredictions: Prediction[] = [
+    ...predictions,
+    ...knockoutPredictions.map((prediction) => ({
+      player_id: prediction.player_id,
+      game_id: `knockout-${prediction.match_id}`,
+      predicted_score_a: prediction.predicted_score_home,
+      predicted_score_b: prediction.predicted_score_away,
+    })),
+  ];
+
+  const availableGames = simulationGames
   .filter(
     (game) => game.official_score_a === null || game.official_score_b === null
   )
@@ -67,7 +103,7 @@ export function SimulationSection({
     const playerGamePoints = players
       .filter((player) => player.approved)
       .map((player) => {
-        const prediction = predictions.find(
+        const prediction = simulationPredictions.find(
           (p) => p.player_id === player.id && p.game_id === selectedGame.id
         );
 
@@ -81,16 +117,16 @@ export function SimulationSection({
       })
       .sort((a, b) => b.pointsInGame - a.pointsInGame);
 
-        const sortedSimulatedRanking = players
+    const sortedSimulatedRanking = players
       .filter((player) => player.approved)
       .map((player) => {
         let currentTotal = 0;
         let exacts = 0;
 
-        for (const game of games) {
+        for (const game of simulationGames) {
           if (game.id === selectedGame.id) continue;
 
-          const prediction = predictions.find(
+          const prediction = simulationPredictions.find(
             (p) => p.player_id === player.id && p.game_id === game.id
           );
 
@@ -134,7 +170,14 @@ export function SimulationSection({
       playerGamePoints,
       simulatedRanking,
     };
-  }, [selectedGame, scoreA, scoreB, players, predictions, games]);
+  }, [
+    selectedGame,
+    scoreA,
+    scoreB,
+    players,
+    simulationPredictions,
+    simulationGames,
+  ]);
 
   return (
     <div className="space-y-6">

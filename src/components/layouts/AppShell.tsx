@@ -7,9 +7,11 @@ import React, {
   useEffect,
   useState,
 } from "react";
+import { usePathname } from "next/navigation";
 import { Player } from "@/types/player";
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
+import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 import { useAuth } from "@/hooks/useAuth";
 import { useData } from "@/hooks/useData";
 import { usePredictions } from "@/hooks/usePredictions";
@@ -29,6 +31,8 @@ type AppShellContextValue = {
   players: Player[];
   games: Game[];
   predictions: Prediction[];
+  knockoutMatches: KnockoutMatchRecord[];
+  knockoutPredictions: KnockoutPrediction[];
   drafts: ReturnType<typeof usePredictions>["drafts"];
   setDrafts: ReturnType<typeof usePredictions>["setDrafts"];
   saveSinglePrediction: ReturnType<typeof usePredictions>["saveSinglePrediction"];
@@ -44,7 +48,7 @@ type AppShellContextValue = {
   message: string;
   setMessage: React.Dispatch<React.SetStateAction<string>>;
   dataError: string | null;
-  loadData: () => Promise<void>;
+  loadData: (options?: { force?: boolean }) => Promise<void>;
   logout: () => void;
   handleUpdateOfficialResult: (
     gameId: string,
@@ -70,6 +74,7 @@ export function useAppShell() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
 
   const {
     currentUser,
@@ -84,13 +89,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     players,
     games,
     predictions,
+    knockoutMatches,
+    knockoutPredictions,
     loading: dataLoading,
     error: dataError,
     loadData,
     invalidateCache,
     setPredictions,
     setGames,
-  } = useData();
+  } = useData(currentUser?.id, {
+    includeAllPredictions:
+      currentUser?.is_admin === true ||
+      pathname === "/ranking" ||
+      pathname === "/palpites-da-galera",
+    includePrivatePlayers: currentUser?.is_admin === true,
+  });
 
   // Wrap each prediction mutation so the sessionStorage snapshot is
   // evicted before useData's optimistic state update — that way a
@@ -127,8 +140,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     games,
     predictions
   );
-  const { ranking, positionChanges } = useRanking(players, games, predictions);
-  const stats = useAppStats(players, games, predictions, currentUser?.id);
+  const { ranking, positionChanges } = useRanking(
+    players,
+    games,
+    predictions,
+    knockoutMatches,
+    knockoutPredictions
+  );
+  const stats = useAppStats(
+    players,
+    games,
+    predictions,
+    currentUser?.id,
+    knockoutMatches,
+    knockoutPredictions
+  );
 
    // Refresh only when the authenticated user changes. Route changes
   // should reuse the AppShell context data instead of refetching
@@ -137,7 +163,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (currentUser?.id) {
       loadData();
     }
-  }, [currentUser?.id, loadData]);
+  }, [currentUser?.id, loadData, pathname]);
 
   const handleLogin = async (accessCode: string, password: string) => {
     const success = await login(accessCode, password);
@@ -148,7 +174,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       } catch {
         localStorage.removeItem("bolao_user");
       }
-      await loadData();
+      await loadData({ force: true });
     }
   };
 
@@ -228,13 +254,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const handleApprovePlayer = async (playerId: string) => {
     await playersService.approvePlayer(playerId);
     invalidateCache();
-    await loadData();
+    await loadData({ force: true });
   };
 
   const handleRejectPlayer = async (playerId: string) => {
     await playersService.rejectPlayer(playerId);
     invalidateCache();
-    await loadData();
+    await loadData({ force: true });
   };
 
   const handleClearPredictions = () => {
@@ -275,6 +301,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     players,
     games,
     predictions,
+    knockoutMatches,
+    knockoutPredictions,
     drafts,
     setDrafts,
     saveSinglePrediction,

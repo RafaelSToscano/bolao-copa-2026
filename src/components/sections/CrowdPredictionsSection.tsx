@@ -3,13 +3,17 @@
 import { Game } from "@/types/game";
 import { Player } from "@/types/player";
 import { Prediction } from "@/types/prediction";
+import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Flag } from "@/components/ui/Flag";
 import { formatDate } from "@/lib/formatting";
+import { isPredictableKnockoutRound } from "@/config/knockout";
 
 interface CrowdPredictionsSectionProps {
   games: Game[];
   predictions: Prediction[];
+  knockoutMatches?: KnockoutMatchRecord[];
+  knockoutPredictions?: KnockoutPrediction[];
   players: Player[];
   currentUserId: string;
   ranking: (Player & {
@@ -34,13 +38,15 @@ function outcome(scoreA: number | null, scoreB: number | null): "A" | "E" | "B" 
 export function CrowdPredictionsSection({
   games,
   predictions,
+  knockoutMatches = [],
+  knockoutPredictions = [],
   players,
   currentUserId,
   ranking,
 }: CrowdPredictionsSectionProps) {
   const now = new Date().getTime();
 
-  const nextGames = [...games]
+  const groupNextGames = [...games]
     .filter((game) => {
       if (!game.match_date) return false;
       const hasOfficialResult =
@@ -50,6 +56,39 @@ export function CrowdPredictionsSection({
     .sort((a, b) => {
       const dateA = a.match_date ? new Date(a.match_date).getTime() : Number.MAX_SAFE_INTEGER;
       const dateB = b.match_date ? new Date(b.match_date).getTime() : Number.MAX_SAFE_INTEGER;
+      return dateA - dateB;
+    })
+    .map((game) => ({
+      id: game.id,
+      matchDate: game.match_date,
+      teamA: game.team_a,
+      teamB: game.team_b,
+      label: game.group_name ? `Grupo ${game.group_name}` : "",
+      type: "group" as const,
+    }));
+
+  const knockoutNextGames = knockoutMatches
+    .filter((match) => {
+      if (!isPredictableKnockoutRound(match.round)) return false;
+      if (!match.home_team || !match.away_team || !match.match_date) return false;
+      if (match.official_score_home !== null && match.official_score_away !== null) {
+        return false;
+      }
+      return new Date(match.match_date).getTime() >= now - 3 * 60 * 60 * 1000;
+    })
+    .map((match) => ({
+      id: String(match.id),
+      matchDate: match.match_date,
+      teamA: match.home_team!,
+      teamB: match.away_team!,
+      label: `16 avos - Jogo ${match.match_number}`,
+      type: "knockout" as const,
+    }));
+
+  const nextGames = [...groupNextGames, ...knockoutNextGames]
+    .sort((a, b) => {
+      const dateA = a.matchDate ? new Date(a.matchDate).getTime() : Number.MAX_SAFE_INTEGER;
+      const dateB = b.matchDate ? new Date(b.matchDate).getTime() : Number.MAX_SAFE_INTEGER;
       return dateA - dateB;
     })
     .slice(0, 2);
@@ -71,15 +110,26 @@ export function CrowdPredictionsSection({
 
       {nextGames.map((game) => {
         const gamePredictions = approvedPlayers.map((player) => {
-          const prediction = predictions.find(
-            (p) => p.player_id === player.id && p.game_id === game.id
-          );
+          const prediction =
+            game.type === "group"
+              ? predictions.find(
+                  (p) => p.player_id === player.id && p.game_id === game.id
+                )
+              : knockoutPredictions.find(
+                  (p) => p.player_id === player.id && String(p.match_id) === game.id
+                );
 
           return {
             player,
             prediction,
-            scoreA: prediction?.predicted_score_a ?? null,
-            scoreB: prediction?.predicted_score_b ?? null,
+            scoreA:
+              game.type === "group"
+                ? (prediction as Prediction | undefined)?.predicted_score_a ?? null
+                : (prediction as KnockoutPrediction | undefined)?.predicted_score_home ?? null,
+            scoreB:
+              game.type === "group"
+                ? (prediction as Prediction | undefined)?.predicted_score_b ?? null
+                : (prediction as KnockoutPrediction | undefined)?.predicted_score_away ?? null,
           };
         });
 
@@ -116,34 +166,34 @@ export function CrowdPredictionsSection({
 
             return (
             <Card
-                key={game.id}
+                key={`${game.type}-${game.id}`}
                 className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl shadow-2xl overflow-hidden"
             >
                 <CardContent className="p-5 lg:p-6 space-y-5">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                     <div>
                     <div className="text-sm text-slate-400 font-bold">
-                        {formatDate(game.match_date)}
+                        {formatDate(game.matchDate)}
                     </div>
 
                     <div className="flex items-center gap-4 mt-2">
                         <div className="flex items-center gap-2">
-                        <Flag team={game.team_a} />
-                        <span className="font-black text-lg">{game.team_a}</span>
+                        <Flag team={game.teamA} />
+                        <span className="font-black text-lg">{game.teamA}</span>
                         </div>
 
                         <span className="text-yellow-400 font-black">x</span>
 
                         <div className="flex items-center gap-2">
-                        <Flag team={game.team_b} />
-                        <span className="font-black text-lg">{game.team_b}</span>
+                        <Flag team={game.teamB} />
+                        <span className="font-black text-lg">{game.teamB}</span>
                         </div>
                     </div>
                     </div>
 
-                    {game.group_name && (
+                    {game.label && (
                     <div className="text-xs text-slate-400 font-bold uppercase">
-                        Grupo {game.group_name}
+                        {game.label}
                     </div>
                     )}
                 </div>
@@ -174,7 +224,7 @@ export function CrowdPredictionsSection({
 
                     <div className="text-sm font-bold mt-2 space-y-1">
                  <div>
-                  Vitória do {game.team_a}:{" "}
+                  Vitória do {game.teamA}:{" "}
                  <span className="text-yellow-400">{resultCounts.A} apostas</span>
                 </div>
 
@@ -184,7 +234,7 @@ export function CrowdPredictionsSection({
                 </div>
 
                 <div>
-                  Vitória da {game.team_b}:{" "}
+                  Vitória da {game.teamB}:{" "}
              <span className="text-yellow-400">{resultCounts.B} apostas</span>
             </div>
             </div>

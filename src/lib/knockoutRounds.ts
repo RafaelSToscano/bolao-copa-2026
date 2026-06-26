@@ -1,7 +1,7 @@
 import { KnockoutRound } from "@/types/knockout";
 
 export const ROUND_LABELS: Record<KnockoutRound, string> = {
-  r32: "Rodada de 32",
+  r32: "16 avos",
   r16: "Oitavas de Final",
   qf: "Quartas de Final",
   sf: "Semifinais",

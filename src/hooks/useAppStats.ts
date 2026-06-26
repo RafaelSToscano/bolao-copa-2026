@@ -2,24 +2,45 @@ import { useMemo } from "react";
 import { Player } from "@/types/player";
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
+import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 import { isPredictionComplete } from "@/services/predictions/predictionCalculations";
+import { isPredictableKnockoutRound } from "@/config/knockout";
+
+function isKnockoutPredictionComplete(prediction: KnockoutPrediction): boolean {
+  return (
+    prediction.predicted_score_home !== null &&
+    prediction.predicted_score_away !== null
+  );
+}
 
 export function useAppStats(
   players: Player[],
   games: Game[],
   predictions: Prediction[],
-  currentUserId?: string
+  currentUserId?: string,
+  knockoutMatches: KnockoutMatchRecord[] = [],
+  knockoutPredictions: KnockoutPrediction[] = []
 ) {
   const stats = useMemo(() => {
     const nonAdminPlayers = players.filter((p) => !p.is_admin);
     const totalPlayers = nonAdminPlayers.length;
-    const totalGames = games.length;
+    const predictableKnockoutMatches = knockoutMatches.filter(
+      (match) =>
+        isPredictableKnockoutRound(match.round) &&
+        Boolean(match.home_team && match.away_team)
+    );
+    const totalGames = games.length + predictableKnockoutMatches.length;
 
     const getCompletedPredictionsCount = (playerId: string) =>
       predictions.filter(
         (prediction) =>
           prediction.player_id === playerId &&
           isPredictionComplete(prediction)
+      ).length +
+      knockoutPredictions.filter(
+        (prediction) =>
+          prediction.player_id === playerId &&
+          isKnockoutPredictionComplete(prediction)
       ).length;
 
     const approvedPlayers = nonAdminPlayers.filter((p) => p.approved).length;
@@ -47,9 +68,15 @@ export function useAppStats(
           (p) => p.player_id === currentUserId && isPredictionComplete(p)
         )
       : [];
+    const currentUserKnockoutPredictions = currentUserId
+      ? knockoutPredictions.filter(
+          (p) => p.player_id === currentUserId && isKnockoutPredictionComplete(p)
+        )
+      : [];
 
     const totalUserGames = totalGames;
-    const userPredictedGames = currentUserPredictions.length;
+    const userPredictedGames =
+      currentUserPredictions.length + currentUserKnockoutPredictions.length;
     const userPendingGames = totalUserGames - userPredictedGames;
     const userCompletion =
       totalUserGames > 0
@@ -69,7 +96,14 @@ export function useAppStats(
       userPendingGames,
       userCompletion,
     };
-  }, [players, games, predictions, currentUserId]);
+  }, [
+    players,
+    games,
+    predictions,
+    knockoutMatches,
+    knockoutPredictions,
+    currentUserId,
+  ]);
 
   return stats;
 }

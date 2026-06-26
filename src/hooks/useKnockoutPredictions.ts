@@ -5,6 +5,7 @@ import {
   DraftKnockoutPrediction,
 } from "@/types/knockout";
 import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
+import { isKnockoutMatchPredictionLocked } from "@/config/knockout";
 
 const EMPTY_DRAFT: DraftKnockoutPrediction = {
   predicted_score_home: "",
@@ -16,7 +17,7 @@ function draftFromPrediction(prediction: KnockoutPrediction): DraftKnockoutPredi
   return {
     predicted_score_home: prediction.predicted_score_home?.toString() ?? "",
     predicted_score_away: prediction.predicted_score_away?.toString() ?? "",
-    predicted_winner: prediction.predicted_winner ?? "",
+    predicted_winner: "",
   };
 }
 
@@ -64,7 +65,10 @@ export function useKnockoutPredictions(playerId: string | undefined) {
   }, [playerId]);
 
   const isLocked = useCallback(
-    (matchId: number) => matches.find((m) => m.id === matchId)?.locked ?? false,
+    (matchId: number) => {
+      const match = matches.find((m) => m.id === matchId);
+      return match ? isKnockoutMatchPredictionLocked(match) : true;
+    },
     [matches]
   );
 
@@ -79,7 +83,7 @@ export function useKnockoutPredictions(playerId: string | undefined) {
           draft.predicted_score_home === "" ? null : Number(draft.predicted_score_home),
         predicted_score_away:
           draft.predicted_score_away === "" ? null : Number(draft.predicted_score_away),
-        predicted_winner: draft.predicted_winner === "" ? null : draft.predicted_winner,
+        predicted_winner: null,
       };
 
       setDrafts((prev) => ({ ...prev, [matchId]: draft }));

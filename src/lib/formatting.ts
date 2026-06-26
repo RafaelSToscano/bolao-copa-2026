@@ -1,5 +1,7 @@
 import { TEAM_FLAG_CODES } from "@/config/scoring";
 import { getSupabaseClient } from "@/services/supabase/supabaseClient";
+import { calculateKnockoutPredictionPoints } from "@/services/scoring/knockoutPredictionScoring";
+import { slotLabel } from "@/lib/knockoutSlotLabel";
 
 /**
  * Gets the flag country code for a team name
@@ -149,6 +151,33 @@ export async function exportAuditCsv(
     throw new Error(`Erro ao buscar palpites finais: ${error.message}`);
   }
 
+  const { data: knockoutMatches, error: knockoutMatchesError } = await supabase
+    .from("knockout_matches")
+    .select(
+      "id, round, match_number, home_slot, away_slot, home_team, away_team, official_score_home, official_score_away, winner_team, match_date, locked"
+    )
+    .eq("round", "r32")
+    .order("match_number", { ascending: true });
+
+  if (knockoutMatchesError) {
+    throw new Error(
+      `Erro ao buscar jogos do mata-mata: ${knockoutMatchesError.message}`
+    );
+  }
+
+  const { data: knockoutPredictions, error: knockoutPredictionsError } =
+    await supabase
+      .from("knockout_predictions")
+      .select(
+        "player_id, match_id, predicted_score_home, predicted_score_away, predicted_winner"
+      );
+
+  if (knockoutPredictionsError) {
+    throw new Error(
+      `Erro ao buscar palpites do mata-mata: ${knockoutPredictionsError.message}`
+    );
+  }
+
   const finalPredictionsByPlayer = new Map(
     (finalPredictions ?? []).map((fp: any) => [fp.player_id, fp])
   );
@@ -193,6 +222,32 @@ export async function exportAuditCsv(
         game.team_b,
         game.official_score_a?.toString() ?? "",
         game.official_score_b?.toString() ?? "",
+        result.points.toString(),
+        result.exact.toString(),
+        finalPrediction?.champion ?? "",
+        finalPrediction?.runner_up ?? "",
+        finalPrediction?.third_place ?? "",
+      ]);
+    });
+
+    (knockoutMatches ?? []).forEach((match: any) => {
+      const prediction = (knockoutPredictions ?? []).find(
+        (p: any) => p.player_id === player.id && p.match_id === match.id
+      );
+
+      const result = calculateKnockoutPredictionPoints(prediction, match);
+
+      rows.push([
+        player.name,
+        player.access_code,
+        "Mata-mata",
+        `16 avos - Jogo ${match.match_number}`,
+        match.home_team ?? slotLabel(match.home_slot),
+        prediction?.predicted_score_home?.toString() ?? "",
+        prediction?.predicted_score_away?.toString() ?? "",
+        match.away_team ?? slotLabel(match.away_slot),
+        match.official_score_home?.toString() ?? "",
+        match.official_score_away?.toString() ?? "",
         result.points.toString(),
         result.exact.toString(),
         finalPrediction?.champion ?? "",

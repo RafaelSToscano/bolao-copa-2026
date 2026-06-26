@@ -2,6 +2,7 @@ import { Game } from "@/types/game";
 import { Player } from "@/types/player";
 import { Prediction } from "@/types/prediction";
 import { LiveScoreMatch } from "@/hooks/useLiveScores";
+import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 import {
   DashboardGroupLeadersPayload,
   DashboardMyStatusPayload,
@@ -59,7 +60,9 @@ export function projectRankingTop(
   games: Game[],
   predictions: Prediction[],
   topN = 5,
-  liveScores: LiveScoreMatch[] = []
+  liveScores: LiveScoreMatch[] = [],
+  knockoutMatches: KnockoutMatchRecord[] = [],
+  knockoutPredictions: KnockoutPrediction[] = []
 ): DashboardRankingTopPayload {
   // Compute the OFFICIAL ranking (source of truth — finished games
   // only) AND the live ranking (with in-progress scores folded in).
@@ -69,7 +72,7 @@ export function projectRankingTop(
   const { games: merged, provisional } = applyLiveScoresToGames(games, liveScores);
   const liveRanking = calculateRanking(players, merged, predictions);
   const officialRanking = provisional
-    ? calculateRanking(players, games, predictions)
+    ? calculateRanking(players, merged, predictions, knockoutMatches, knockoutPredictions)
     : liveRanking;
 
   const officialPositionByPlayerId = new Map(
@@ -174,7 +177,9 @@ export function projectMyStatus(
   players: Player[],
   games: Game[],
   predictions: Prediction[],
-  liveScores: LiveScoreMatch[] = []
+  liveScores: LiveScoreMatch[] = [],
+  knockoutMatches: KnockoutMatchRecord[] = [],
+  knockoutPredictions: KnockoutPrediction[] = []
 ): DashboardMyStatusPayload {
   const { games: merged, provisional } = applyLiveScoresToGames(games, liveScores);
   const ranking = calculateRanking(players, merged, predictions);

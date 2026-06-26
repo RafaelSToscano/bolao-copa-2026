@@ -4,6 +4,7 @@ import { cachePrivate } from "@/lib/server/cacheHeaders";
 import { playersService } from "@/services/supabase/playersService";
 import { gamesService } from "@/services/supabase/gamesService";
 import { predictionsService } from "@/services/supabase/predictionsService";
+import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
 import { projectMyStatus } from "@/services/dashboard/dashboardProjections";
 import { getCachedLiveScores } from "@/lib/server/footballData";
 
@@ -26,13 +27,30 @@ export async function GET(req: NextRequest) {
     `dashboard:my-status:${userId}`,
     TTL_SECONDS,
     async () => {
-      const [players, games, predictions, liveScores] = await Promise.all([
+      const [
+        players,
+        games,
+        predictions,
+        liveScores,
+        knockoutMatches,
+        knockoutPredictions,
+      ] = await Promise.all([
         playersService.getAllPlayers(),
         gamesService.getAllGames(),
         predictionsService.getAllPredictions(),
         getCachedLiveScores(),
+        knockoutPredictionsService.getKnockoutMatches(),
+        knockoutPredictionsService.getKnockoutPredictionsForPlayer(userId),
       ]);
-      return projectMyStatus(userId, players, games, predictions, liveScores);
+      return projectMyStatus(
+        userId,
+        players,
+        games,
+        predictions,
+        liveScores,
+        knockoutMatches,
+        knockoutPredictions
+      );
     }
   );
 

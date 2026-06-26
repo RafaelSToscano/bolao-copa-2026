@@ -255,6 +255,7 @@ export default function AdminMataMataPage() {
     matches,
     isLoading,
     isSaving,
+    error,
     recordResult,
     populateRound32,
     setMatchTeams,
@@ -303,6 +304,12 @@ export default function AdminMataMataPage() {
           </Button>
         </div>
       </div>
+
+      {error && (
+        <div className="rounded-2xl border border-red-900 bg-red-950/40 p-4 text-sm font-semibold text-red-300">
+          {error}
+        </div>
+      )}
 
       {showClearConfirm && (
         <ConfirmModal
