@@ -6,7 +6,7 @@ import { TeamStanding } from "@/types/standings";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { SingleGameRandomPredictor, type RandomPrediction } from "@/components/ui/random-predictor";
+import type { RandomPrediction } from "@/components/ui/random-predictor";
 import { Flag } from "@/components/ui/Flag";
 import { formatDate, isPast, isToday } from "@/lib/formatting";
 import { calculateGroupStandingsFromPredictions } from "@/services/standings/predictionSimulation";
@@ -32,6 +32,13 @@ interface PredictionsSectionProps {
     userPredictedGames: number;
     userPendingGames: number;
     userCompletion: number;
+  };
+}
+function generateSimpleRandomPrediction(gameId: string): RandomPrediction {
+  return {
+    game_id: gameId,
+    predicted_score_a: Math.floor(Math.random() * 5),
+    predicted_score_b: Math.floor(Math.random() * 5),
   };
 }
 
@@ -113,11 +120,15 @@ export function PredictionsSection({
             <p className="text-slate-400 text-base mt-1">
               Preencha os placares. O salvamento é automático.
             </p>
-            {groupsLocked && (
-              <p className="text-red-400 text-sm font-semibold mt-1">
-                Palpites encerrados para a fase de grupos.
-              </p>
-            )}
+            <p className="text-yellow-400 text-sm font-semibold mt-1">
+            Palpites da fase 16 avos de final se encerrarão em 28/06 às 15:00h.
+</p>
+
+          {groupsLocked && (
+           <p className="text-red-400 text-sm font-semibold mt-1">
+           Palpites encerrados para a fase de grupos.
+           </p>
+          )}
           </div>
         </div>
         </div>
@@ -128,9 +139,7 @@ export function PredictionsSection({
         disabled={groupsLocked}
 />
 
-      <KnockoutPredictionsCard playerId={currentUserId} games={games} />
-
-{/* Mobile Actions */}
+   {/* Mobile Actions */}
 <Card className="lg:hidden bg-gradient-to-br from-[#2A398D] via-slate-900 to-[#3CAC3B] border border-slate-700 rounded-3xl text-white overflow-hidden shadow-2xl">
   <CardContent className="p-5 space-y-4">
     <div>
@@ -159,6 +168,7 @@ export function PredictionsSection({
         <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-6 items-start">
         {/* Main Content */}
         <div id="group-predictions" className="space-y-8">
+        <KnockoutPredictionsCard playerId={currentUserId} games={games} />
         {Object.entries(groupedGames).map(([group, groupGames]) => (
           <div
             key={group}
@@ -324,11 +334,14 @@ export function PredictionsSection({
       <div className="flex items-center justify-between text-slate-300 text-xs">
         <span>{formatDate(game.match_date)}</span>
 
-        <SingleGameRandomPredictor
-          gameId={game.id}
-          onGeneratePrediction={onSingleRandomPrediction}
-          disabled={groupsLocked || game.locked}
-        />
+        <button
+  type="button"
+  disabled={groupsLocked || game.locked}
+  onClick={() => onSingleRandomPrediction(generateSimpleRandomPrediction(game.id))}
+  className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+>
+  Aleatório
+</button>
       </div>
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
@@ -445,11 +458,14 @@ export function PredictionsSection({
       </div>
 
       <div className="flex justify-center items-center scale-90 opacity-80 hover:opacity-100 transition pr-2">
-        <SingleGameRandomPredictor
-          gameId={game.id}
-          onGeneratePrediction={onSingleRandomPrediction}
-          disabled={groupsLocked || game.locked}
-        />
+        <button
+  type="button"
+  disabled={groupsLocked || game.locked}
+  onClick={() => onSingleRandomPrediction(generateSimpleRandomPrediction(game.id))}
+  className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+>
+  Aleatório
+</button>
       </div>
     </div>
     </div>

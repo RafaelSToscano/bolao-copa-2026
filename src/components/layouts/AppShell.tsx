@@ -24,6 +24,7 @@ import { AppLayout } from "@/components/layouts/AppLayout";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { gamesService } from "@/services/supabase/gamesService";
 import { playersService } from "@/services/supabase/playersService";
+import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
 import type { RandomPrediction } from "@/components/ui/random-predictor";
 
 type AppShellContextValue = {
@@ -55,6 +56,13 @@ type AppShellContextValue = {
     field: "official_score_a" | "official_score_b",
     value: string
   ) => Promise<void>;
+  handleUpdateKnockoutOfficialResult: (
+  matchId: number,
+  scoreHome: number | null,
+  scoreAway: number | null,
+  homeTeam?: string | null,
+  awayTeam?: string | null
+) => Promise<void>;
   handleApprovePlayer: (playerId: string) => Promise<void>;
   handleRejectPlayer: (playerId: string) => Promise<void>;
   handleApplySingleRandomPrediction: (
@@ -97,6 +105,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     invalidateCache,
     setPredictions,
     setGames,
+    setKnockoutMatches,
   } = useData(currentUser?.id, {
     includeAllPredictions:
       currentUser?.is_admin === true ||
@@ -223,7 +232,53 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       );
     }
   };
+const handleUpdateKnockoutOfficialResult = async (
+  matchId: number,
+  scoreHome: number | null,
+  scoreAway: number | null,
+  homeTeam?: string | null,
+  awayTeam?: string | null
+) => {
+  try {
+    if (homeTeam && awayTeam) {
+      await knockoutPredictionsService.updateKnockoutMatchTeams(
+        matchId,
+        homeTeam,
+        awayTeam
+      );
+    }
 
+    await knockoutPredictionsService.updateKnockoutMatchResult(
+      matchId,
+      scoreHome,
+      scoreAway
+    );
+
+    invalidateCache();
+
+    const updatedMatches = await knockoutPredictionsService.getKnockoutMatches();
+    setKnockoutMatches(updatedMatches);
+
+    if (currentUser?.id) {
+      void fetch("/api/dashboard/cache/evict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: currentUser.id }),
+      }).catch(() => {});
+    }
+
+    window.dispatchEvent(new Event("knockout-matches-updated"));
+
+    setMessage("Resultado atualizado com sucesso!");
+    setTimeout(() => setMessage(""), 3000);
+  } catch (err) {
+    setMessage(
+      err instanceof Error
+        ? err.message
+        : "Erro ao atualizar resultado do mata-mata."
+    );
+  }
+};
   const handleApplySingleRandomPrediction = async (
     randomPrediction: RandomPrediction
   ) => {
@@ -321,6 +376,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     loadData,
     logout,
     handleUpdateOfficialResult,
+    handleUpdateKnockoutOfficialResult,
     handleApprovePlayer,
     handleRejectPlayer,
     handleApplySingleRandomPrediction,

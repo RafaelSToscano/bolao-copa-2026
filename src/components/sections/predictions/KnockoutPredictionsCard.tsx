@@ -1,245 +1,362 @@
 "use client";
 
 import { useMemo } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Flag } from "@/components/ui/Flag";
 import { KnockoutMatchRecord, DraftKnockoutPrediction } from "@/types/knockout";
 import { Game } from "@/types/game";
 import { slotLabel } from "@/lib/knockoutSlotLabel";
-import { formatDate } from "@/lib/formatting";
+import { formatDate, isPast, isToday } from "@/lib/formatting";
 import { useKnockoutPredictions } from "@/hooks/useKnockoutPredictions";
 import { generateRound32 } from "@/services/standings/knockoutQualification";
-import {
-  formatRoundOf32LockDeadline,
-  isKnockoutMatchPredictionLocked,
-} from "@/config/knockout";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+type DisplayMatch = KnockoutMatchRecord & {
+  isOfficial: boolean;
+};
 
-const BRACKET_GROUPS = [
-  { label: "Chave A", range: [0, 4] as [number, number] },
-  { label: "Chave B", range: [4, 8] as [number, number] },
-  { label: "Chave C", range: [8, 12] as [number, number] },
-  { label: "Chave D", range: [12, 16] as [number, number] },
-];
+const ROUND32_DATES_BR: Record<number, string> = {
+  1: "2026-06-28T16:00:00-03:00",
+  2: "2026-06-29T14:00:00-03:00",
+  3: "2026-06-29T17:30:00-03:00",
+  4: "2026-06-30T14:00:00-03:00",
+  5: "2026-06-30T18:00:00-03:00",
+  6: "2026-06-30T22:00:00-03:00",
+  7: "2026-07-01T22:00:00-03:00",
+  8: "2026-07-01T13:00:00-03:00",
+  9: "2026-07-01T21:00:00-03:00",
+  10: "2026-07-01T17:00:00-03:00",
+  11: "2026-07-02T21:00:00-03:00",
+  12: "2026-07-02T16:00:00-03:00",
+  13: "2026-07-03T00:00:00-03:00",
+  14: "2026-07-03T19:00:00-03:00",
+  15: "2026-07-03T23:00:00-03:00",
+  16: "2026-07-03T22:30:00-03:00",
+};
 
-type DisplayMatch = KnockoutMatchRecord & { isOfficial: boolean };
+function isGroupComplete(games: Game[], groupName: string): boolean {
+  const groupGames = games.filter((game) => game.group_name === groupName);
 
-// Round of 32 slots without an official team yet are filled in with a live
-// preview computed from the current official group-stage results, so
-// players see a projected matchup instead of "---" while the group stage
-// is still wrapping up. Predictions stay locked until admin records the
-// real teams (see `isOfficial`) — R16+ aren't simulated, since projecting
-// them would mean guessing the winner of a match that hasn't happened yet.
-function buildDisplayMatches(matches: KnockoutMatchRecord[], games: Game[]): DisplayMatch[] {
+  return (
+    groupGames.length > 0 &&
+    groupGames.every(
+      (game) =>
+        game.official_score_a !== null &&
+        game.official_score_b !== null
+    )
+  );
+}
+
+function isSlotReady(slot: string, games: Game[]): boolean {
+  const groupMatch = slot.match(/[A-L]/);
+  const groupName = groupMatch?.[0];
+
+  if (!groupName) return false;
+
+  return isGroupComplete(games, groupName);
+}
+
+function shouldShowTeamForSlot(
+  slot: string,
+  team: string | null,
+  games: Game[]
+): boolean {
+  if (!team) return false;
+
+  return isSlotReady(slot, games);
+}
+
+function buildDisplayMatches(
+  matches: KnockoutMatchRecord[],
+  games: Game[]
+): DisplayMatch[] {
   const simulatedRound32 = generateRound32(games);
 
   return matches.map((match) => {
-    const isOfficial = Boolean(match.home_team && match.away_team);
-
-    if (isOfficial || match.round !== "r32") {
-      return { ...match, isOfficial };
+    if (match.round !== "r32") {
+      return {
+        ...match,
+        isOfficial: Boolean(match.home_team && match.away_team),
+      };
     }
 
     const simulated = simulatedRound32[match.match_number - 1];
+
+    const homeCandidate = match.home_team ?? simulated?.home?.team ?? null;
+    const awayCandidate = match.away_team ?? simulated?.away?.team ?? null;
+
+    const homeTeam = shouldShowTeamForSlot(match.home_slot, homeCandidate, games)
+      ? homeCandidate
+      : null;
+
+    const awayTeam = shouldShowTeamForSlot(match.away_slot, awayCandidate, games)
+      ? awayCandidate
+      : null;
+
     return {
       ...match,
-      home_team: match.home_team ?? simulated?.home?.team ?? null,
-      away_team: match.away_team ?? simulated?.away?.team ?? null,
-      isOfficial: false,
+      match_date:
+        match.match_date ?? ROUND32_DATES_BR[match.match_number] ?? null,
+      home_team: homeTeam,
+      away_team: awayTeam,
+      isOfficial: Boolean(homeTeam && awayTeam),
     };
   });
 }
 
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function MatchCard({
+function MatchRow({
   match,
   draft,
   locked,
   onChange,
+  onRandom,
 }: {
   match: DisplayMatch;
   draft: DraftKnockoutPrediction;
   locked: boolean;
   onChange: (next: DraftKnockoutPrediction) => void;
+  onRandom: (prediction: {
+  game_id: string;
+  predicted_score_a: number;
+  predicted_score_b: number;
+}) => void;
 }) {
-  const scoreHome = draft.predicted_score_home;
-  const scoreAway = draft.predicted_score_away;
-  const readOnly = locked || !match.isOfficial;
+  const readOnly =
+  locked ||
+  !match.home_team ||
+  !match.away_team;
 
-  const effectiveWinner: "home" | "away" | null =
-    scoreHome !== "" && scoreAway !== "" && scoreHome !== scoreAway
-      ? Number(scoreHome) > Number(scoreAway)
-        ? "home"
-        : "away"
-      : null;
+  const past = isPast(match.match_date);
+  const today = !past && isToday(match.match_date);
+
+  const rowTone = past
+    ? "border-slate-800 bg-emerald-500/[0.05] border-l-2 border-l-emerald-500/60 hover:bg-emerald-500/[0.08]"
+    : today
+      ? "border-slate-800 bg-amber-500/[0.04] border-l-2 border-l-amber-500/60 hover:bg-amber-500/[0.07]"
+      : "border-slate-800 bg-slate-950/40 hover:bg-slate-900/70";
+
+  const homeTeam = match.home_team ?? "Time a definir";
+  const awayTeam = match.away_team ?? "Time a definir";
 
   return (
-    <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden">
-      {/* Card header */}
-      <div className="px-4 py-1.5 bg-slate-800/50 flex items-center justify-between">
-        <span className="text-xs text-slate-500 font-semibold uppercase tracking-wide">
-          Jogo {match.match_number}
-        </span>
-        <span className="text-xs text-slate-600">
+    <div className={`border-b transition ${rowTone}`}>
+      {/* Mobile */}
+      <div className="md:hidden p-3 space-y-3">
+        <div className="flex items-center justify-between text-slate-300 text-xs">
+          <span>{formatDate(match.match_date)}</span>
+
+          <button
+  type="button"
+  disabled={readOnly}
+  onClick={() =>
+    onRandom({
+      game_id: `knockout-${match.id}`,
+      predicted_score_a: Math.floor(Math.random() * 5),
+      predicted_score_b: Math.floor(Math.random() * 5),
+    })
+  }
+  className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+>
+  Aleatório
+</button>
+        </div>
+
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <div className="flex items-center justify-end gap-2 min-w-0">
+            <span className="font-bold text-sm text-right truncate">
+              {homeTeam}
+            </span>
+            {match.home_team && <Flag team={match.home_team} />}
+          </div>
+
+          <div className="flex items-center justify-center gap-2">
+            <Input
+              type="number"
+              min="0"
+              disabled={readOnly}
+              value={draft.predicted_score_home}
+              onChange={(e) =>
+                onChange({
+                  ...draft,
+                  predicted_score_home: e.target.value,
+                  predicted_winner: "",
+                })
+              }
+              className="h-11 w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white p-0"
+            />
+
+            <span className="font-black text-slate-300">x</span>
+
+            <Input
+              type="number"
+              min="0"
+              disabled={readOnly}
+              value={draft.predicted_score_away}
+              onChange={(e) =>
+                onChange({
+                  ...draft,
+                  predicted_score_away: e.target.value,
+                  predicted_winner: "",
+                })
+              }
+              className="h-11 w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white p-0"
+            />
+          </div>
+
+          <div className="flex items-center justify-start gap-2 min-w-0">
+            {match.away_team && <Flag team={match.away_team} />}
+            <span className="font-bold text-sm truncate">
+              {awayTeam}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop */}
+      <div className="hidden md:grid md:grid-cols-[120px_minmax(150px,1fr)_40px_48px_24px_48px_40px_minmax(150px,1fr)_90px] items-center text-white text-lg min-h-[54px] px-4">
+        <div className="text-slate-300 text-base whitespace-nowrap">
           {formatDate(match.match_date)}
-        </span>
-      </div>
+        </div>
 
-      {/* Teams + score inputs */}
-      <div className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          {/* Home */}
-          <div className="flex-1 min-w-0">
-            <div className="text-xs text-slate-500 leading-none mb-1">
-              {slotLabel(match.home_slot)}
-            </div>
-            {match.home_team && (
-              <div className="mb-1">
-                <Flag team={match.home_team} size="small" />
-              </div>
-            )}
-            <span
-              className={`block font-bold text-sm truncate ${effectiveWinner === "home" ? "text-yellow-400" : ""}`}
-            >
-              {match.home_team ?? "---"}
-            </span>
-          </div>
+        <div className="text-right font-bold truncate pr-5 text-lg">
+          {homeTeam}
+        </div>
 
-          {/* Score inputs */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Input
-              type="number"
-              min="0"
-              disabled={readOnly}
-              value={scoreHome}
-              onChange={(e) =>
-                onChange({ ...draft, predicted_score_home: e.target.value })
-              }
-              className="h-10 w-11 rounded-xl bg-slate-900 border-slate-700 text-center text-base font-black text-white p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-            <span className="text-slate-500 font-black text-sm">x</span>
-            <Input
-              type="number"
-              min="0"
-              disabled={readOnly}
-              value={scoreAway}
-              onChange={(e) =>
-                onChange({ ...draft, predicted_score_away: e.target.value })
-              }
-              className="h-10 w-11 rounded-xl bg-slate-900 border-slate-700 text-center text-base font-black text-white p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
+        <div className="flex justify-center">
+          {match.home_team && <Flag team={match.home_team} />}
+        </div>
 
-          {/* Away */}
-          <div className="flex-1 min-w-0 text-right">
-            <div className="text-xs text-slate-500 leading-none mb-1">
-              {slotLabel(match.away_slot)}
-            </div>
-            {match.away_team && (
-              <div className="mb-1">
-                <Flag team={match.away_team} size="small" />
-              </div>
-            )}
-            <span
-              className={`block font-bold text-sm truncate ${effectiveWinner === "away" ? "text-yellow-400" : ""}`}
-            >
-              {match.away_team ?? "---"}
-            </span>
-          </div>
+        <div className="flex justify-center">
+          <Input
+            type="number"
+            min="0"
+            disabled={readOnly}
+            value={draft.predicted_score_home}
+            onChange={(e) =>
+              onChange({
+                ...draft,
+                predicted_score_home: e.target.value,
+                predicted_winner: "",
+              })
+            }
+            className="h-10 w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white p-0"
+          />
+        </div>
+
+        <div className="text-center font-bold text-slate-300">x</div>
+
+        <div className="flex justify-center">
+          <Input
+            type="number"
+            min="0"
+            disabled={readOnly}
+            value={draft.predicted_score_away}
+            onChange={(e) =>
+              onChange({
+                ...draft,
+                predicted_score_away: e.target.value,
+                predicted_winner: "",
+              })
+            }
+            className="h-10 w-12 rounded-xl shadow-lg border border-[#2A398D] bg-slate-950 text-center text-lg font-bold text-white p-0"
+          />
+        </div>
+
+        <div className="flex justify-center">
+          {match.away_team && <Flag team={match.away_team} />}
+        </div>
+
+        <div className="font-bold truncate pl-5 text-lg">
+          {awayTeam}
+        </div>
+
+        <div className="flex justify-center items-center scale-90 opacity-80 hover:opacity-100 transition pr-2">
+          <button
+  type="button"
+  disabled={readOnly}
+  onClick={() =>
+    onRandom({
+      game_id: `knockout-${match.id}`,
+      predicted_score_a: Math.floor(Math.random() * 5),
+      predicted_score_b: Math.floor(Math.random() * 5),
+    })
+  }
+  className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+>
+  Aleatório
+</button>
         </div>
       </div>
-      {readOnly && (
-        <div className="px-4 pb-3 text-[11px] text-slate-500">
-          {!match.isOfficial
-            ? "Times ainda não confirmados oficialmente."
-            : "Palpite bloqueado para este jogo."}
-        </div>
-      )}
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Card
-// ---------------------------------------------------------------------------
 
 interface KnockoutPredictionsCardProps {
   playerId: string;
   games: Game[];
 }
 
-export function KnockoutPredictionsCard({ playerId, games }: KnockoutPredictionsCardProps) {
+export function KnockoutPredictionsCard({
+  playerId,
+  games,
+}: KnockoutPredictionsCardProps) {
   const { matches, getDraft, savePrediction, isLocked, isLoading } =
     useKnockoutPredictions(playerId);
 
-  const displayMatches = useMemo(() => buildDisplayMatches(matches, games), [matches, games]);
+  const displayMatches = useMemo(
+    () => buildDisplayMatches(matches, games),
+    [matches, games]
+  );
 
   const round32 = displayMatches
-    .filter((m) => m.round === "r32")
-    .sort((a, b) => a.match_number - b.match_number);
+  .filter((match) => match.round === "r32")
+  .sort((a, b) => {
+    const dateA = a.match_date ? new Date(a.match_date).getTime() : Number.MAX_SAFE_INTEGER;
+    const dateB = b.match_date ? new Date(b.match_date).getTime() : Number.MAX_SAFE_INTEGER;
 
-  const filledCount = round32.filter((m) => {
-    const d = getDraft(m.id);
-    return d.predicted_score_home !== "" && d.predicted_score_away !== "";
-  }).length;
+    if (dateA !== dateB) return dateA - dateB;
+
+    return a.match_number - b.match_number;
+  });
+
+  if (isLoading) {
+    return (
+      <div className="text-slate-500 text-sm">
+        Carregando jogos dos 16 avos...
+      </div>
+    );
+  }
+
+  if (round32.length === 0) {
+    return null;
+  }
 
   return (
-    <div className="space-y-4 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="text-2xl lg:text-3xl font-black tracking-tight">Mata-mata</h3>
-          <p className="text-slate-400 text-sm mt-1">
-            Palpites dos 16 avos. Você informa apenas o placar no tempo regulamentar.
-          </p>
-          <p className="text-yellow-400 text-xs font-semibold mt-1">
-            Bloqueio central: {formatRoundOf32LockDeadline()}.
-          </p>
-        </div>
-        <div className="shrink-0 text-right">
-          <div className="text-2xl font-black text-yellow-400">
-            {filledCount}/{round32.length}
-          </div>
-          <div className="text-xs text-slate-500">palpitados</div>
-        </div>
+    <div className="space-y-0 bg-slate-950/80 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+      <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide">
+        JOGOS - 16 AVOS DE FINAL
       </div>
 
-      {isLoading ? (
-        <p className="text-slate-500 text-sm">Carregando jogos...</p>
-      ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {BRACKET_GROUPS.map(({ label, range: [from, to] }) => (
-            <Card
-              key={label}
-              className="bg-slate-950/60 border-slate-800 text-white rounded-3xl"
-            >
-              <CardContent className="p-5 space-y-3">
-                <h4 className="text-base font-black text-yellow-400 uppercase tracking-wide">
-                  {label}
-                </h4>
+      {round32.map((match) => (
+        <MatchRow
+          key={match.id}
+          match={match}
+          draft={getDraft(match.id)}
+          locked={isLocked(match.id)}
+          onChange={(next) => {
+  if (!match.home_team || !match.away_team) return;
+  savePrediction(match.id, next);
+}}
+          onRandom={(prediction) => {
+  if (!match.home_team || !match.away_team) return;
 
-                <div className="space-y-3">
-                  {round32.slice(from, to).map((match) => (
-                    <MatchCard
-                      key={match.id}
-                      match={match}
-                      draft={getDraft(match.id)}
-                      locked={isLocked(match.id) || isKnockoutMatchPredictionLocked(match)}
-                      onChange={(next) => savePrediction(match.id, next)}
-                    />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+  savePrediction(match.id, {
+                 predicted_score_home: String(prediction.predicted_score_a),
+    predicted_score_away: String(prediction.predicted_score_b),
+    predicted_winner: "",
+  });
+}}
+        />
+      ))}
     </div>
   );
 }

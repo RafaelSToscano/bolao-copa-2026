@@ -12,6 +12,7 @@ export function useKnockoutAdmin() {
   const refresh = useCallback(async () => {
     setIsLoading(true);
     setError(null);
+
     try {
       const data = await knockoutPredictionsService.getKnockoutMatches();
       setMatches(data);
@@ -29,6 +30,7 @@ export function useKnockoutAdmin() {
     async function load() {
       setIsLoading(true);
       setError(null);
+
       try {
         const data = await knockoutPredictionsService.getKnockoutMatches();
         if (!cancelled) setMatches(data);
@@ -49,46 +51,46 @@ export function useKnockoutAdmin() {
     };
   }, []);
 
+  const syncRound32 = useCallback(async (games: Game[]) => {
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      const updatedMatches =
+        await knockoutPredictionsService.syncRound32FromGroups(games);
+
+      setMatches(updatedMatches);
+      window.dispatchEvent(new Event("knockout-matches-updated"));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Erro ao sincronizar 16 avos.";
+      setError(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }, []);
+
   const recordResult = useCallback(
     async (
       matchId: number,
       scoreHome: number | null,
-      scoreAway: number | null,
-      winnerTeam: string | null
+      scoreAway: number | null
     ) => {
       setIsSaving(true);
       setError(null);
+
       try {
         await knockoutPredictionsService.updateKnockoutMatchResult(
           matchId,
           scoreHome,
-          scoreAway,
-          winnerTeam
+          scoreAway
         );
-        // The result can cascade into other matches (winner/loser advancing),
-        // so re-fetch the full set rather than patch local state piecemeal.
+
         await refresh();
+        window.dispatchEvent(new Event("knockout-matches-updated"));
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Erro ao salvar resultado do mata-mata.";
-        setError(message);
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [refresh]
-  );
-
-  const populateRound32 = useCallback(
-    async (games: Game[]) => {
-      setIsSaving(true);
-      setError(null);
-      try {
-        await knockoutPredictionsService.populateRound32FromGroups(games);
-        await refresh();
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Erro ao popular confrontos.";
         setError(message);
       } finally {
         setIsSaving(false);
@@ -101,9 +103,16 @@ export function useKnockoutAdmin() {
     async (matchId: number, homeTeam: string | null, awayTeam: string | null) => {
       setIsSaving(true);
       setError(null);
+
       try {
-        await knockoutPredictionsService.updateKnockoutMatchTeams(matchId, homeTeam, awayTeam);
+        await knockoutPredictionsService.updateKnockoutMatchTeams(
+          matchId,
+          homeTeam,
+          awayTeam
+        );
+
         await refresh();
+        window.dispatchEvent(new Event("knockout-matches-updated"));
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Erro ao salvar times do confronto.";
@@ -119,9 +128,11 @@ export function useKnockoutAdmin() {
     async (matchId: number, locked: boolean) => {
       setIsSaving(true);
       setError(null);
+
       try {
         await knockoutPredictionsService.setMatchLocked(matchId, locked);
         await refresh();
+        window.dispatchEvent(new Event("knockout-matches-updated"));
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Erro ao alterar bloqueio.";
@@ -136,9 +147,11 @@ export function useKnockoutAdmin() {
   const clearAllResults = useCallback(async () => {
     setIsSaving(true);
     setError(null);
+
     try {
       await knockoutPredictionsService.clearAllOfficialResults();
       await refresh();
+      window.dispatchEvent(new Event("knockout-matches-updated"));
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Erro ao limpar dados oficiais.";
@@ -154,7 +167,7 @@ export function useKnockoutAdmin() {
     isSaving,
     error,
     recordResult,
-    populateRound32,
+    syncRound32,
     setMatchTeams,
     setMatchLocked,
     clearAllResults,

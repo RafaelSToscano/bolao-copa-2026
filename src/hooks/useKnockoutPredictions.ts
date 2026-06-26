@@ -96,6 +96,7 @@ export function useKnockoutPredictions(playerId: string | undefined) {
       setIsSaving(true);
       try {
         await knockoutPredictionsService.upsertKnockoutPrediction(updatedPrediction);
+        window.dispatchEvent(new Event("knockout-predictions-updated"));
       } catch (err) {
         console.error("Failed to save knockout prediction:", err);
         throw err;

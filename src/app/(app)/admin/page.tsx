@@ -7,13 +7,16 @@ import { AdminSection } from "@/components/sections/AdminSection";
 
 export default function AdminPage() {
   const router = useRouter();
+
   const {
     currentUser,
     games,
     predictions,
+    knockoutMatches,
     players,
     ranking,
     handleUpdateOfficialResult,
+    handleUpdateKnockoutOfficialResult,
     handleApprovePlayer,
     handleRejectPlayer,
     stats,
@@ -31,9 +34,11 @@ export default function AdminPage() {
     <AdminSection
       games={games}
       predictions={predictions}
+      knockoutMatches={knockoutMatches}
       players={players}
       ranking={ranking}
       onUpdateResult={handleUpdateOfficialResult}
+      onUpdateKnockoutResult={handleUpdateKnockoutOfficialResult}
       onApprovePlayer={handleApprovePlayer}
       onRejectPlayer={handleRejectPlayer}
       stats={{

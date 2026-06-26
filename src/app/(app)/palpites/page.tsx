@@ -48,7 +48,7 @@ function PalpitesPageContent() {
       onSingleRandomPrediction={handleApplySingleRandomPrediction}
       onClearPredictions={handleClearPredictions}
       userStats={{
-        totalUserGames: stats.totalUserGames,
+        totalUserGames: stats.totalGames,
         userPredictedGames: stats.userPredictedGames,
         userPendingGames: stats.userPendingGames,
         userCompletion: stats.userCompletion,

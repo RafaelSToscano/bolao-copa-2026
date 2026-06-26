@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Player } from "@/types/player";
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
@@ -185,6 +185,23 @@ export function useData(
     lastLoadedAtRef.current = null;
     loadedCacheKeyRef.current = null;
   }, [cacheKey]);
+useEffect(() => {
+  const reload = () => {
+    loadData({ force: true });
+  };
+
+  window.addEventListener(
+    "knockout-predictions-updated",
+    reload
+  );
+
+  return () => {
+    window.removeEventListener(
+      "knockout-predictions-updated",
+      reload
+    );
+  };
+}, [loadData]);
 
   return {
     players,
