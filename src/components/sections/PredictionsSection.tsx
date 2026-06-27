@@ -6,13 +6,13 @@ import { TeamStanding } from "@/types/standings";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { RandomPredictor, SingleGameRandomPredictor, type RandomPrediction } from "@/components/ui/random-predictor";
+import type { RandomPrediction } from "@/components/ui/random-predictor";
 import { Flag } from "@/components/ui/Flag";
-import { formatDate } from "@/lib/formatting";
+import { formatDate, isPast, isToday } from "@/lib/formatting";
 import { calculateGroupStandingsFromPredictions } from "@/services/standings/predictionSimulation";
 import { FinalPredictionsCard } from "@/components/sections/FinalPredictionsCard";
-import { LiveGameBanner } from "@/components/ui/LiveGameBanner";
-import { getLiveGames } from "@/lib/liveGames";
+import { PalpitesHero } from "@/components/sections/predictions/PalpitesHero";
+import { KnockoutPredictionsCard } from "@/components/sections/predictions/KnockoutPredictionsCard";
 interface PredictionsSectionProps {
   games: Game[];
   predictions: Prediction[];
@@ -25,7 +25,6 @@ interface PredictionsSectionProps {
     field: "predicted_score_a" | "predicted_score_b",
     value: string
   ) => void;
-  onRandomPredictions: (predictions: RandomPrediction[]) => void;
   onSingleRandomPrediction: (prediction: RandomPrediction) => void;
   onClearPredictions: () => void;
   userStats: {
@@ -33,6 +32,13 @@ interface PredictionsSectionProps {
     userPredictedGames: number;
     userPendingGames: number;
     userCompletion: number;
+  };
+}
+function generateSimpleRandomPrediction(gameId: string): RandomPrediction {
+  return {
+    game_id: gameId,
+    predicted_score_a: Math.floor(Math.random() * 5),
+    predicted_score_b: Math.floor(Math.random() * 5),
   };
 }
 
@@ -44,13 +50,10 @@ export function PredictionsSection({
   currentUserId,
   onDraftChange,
   onSinglePrediction,
-  onRandomPredictions,
   onSingleRandomPrediction,
   onClearPredictions,
   userStats,
 }: PredictionsSectionProps) {
-  const liveGameIds = new Set(getLiveGames(games).map((g) => g.id));
-
   const groupedGames = games.reduce((acc: Record<string, Game[]>, game) => {
     const group = game.group_name || "Outros";
     if (!acc[group]) acc[group] = [];
@@ -63,13 +66,11 @@ export function PredictionsSection({
 
   return (
     <div className="space-y-4">
-      {/* Live / current game highlight */}
-      <LiveGameBanner
+      <PalpitesHero
         games={games}
         predictions={predictions}
         currentUserId={currentUserId}
       />
-
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
         <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[92px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
@@ -119,56 +120,37 @@ export function PredictionsSection({
             <p className="text-slate-400 text-base mt-1">
               Preencha os placares. O salvamento é automático.
             </p>
-            {groupsLocked && (
-              <p className="text-red-400 text-sm font-semibold mt-1">
-                Palpites encerrados para a fase de grupos.
-              </p>
-            )}
+            <p className="text-yellow-400 text-sm font-semibold mt-1">
+            Palpites da fase 16 avos de final se encerrarão em 28/06 às 15:00h.
+</p>
+
+          {groupsLocked && (
+           <p className="text-red-400 text-sm font-semibold mt-1">
+           Palpites encerrados para a fase de grupos.
+           </p>
+          )}
           </div>
         </div>
         </div>
-      
+
         <FinalPredictionsCard
         playerId={currentUserId}
         games={games}
         disabled={groupsLocked}
 />
 
-{/* Mobile Actions */}
+   {/* Mobile Actions */}
 <Card className="lg:hidden bg-gradient-to-br from-[#2A398D] via-slate-900 to-[#3CAC3B] border border-slate-700 rounded-3xl text-white overflow-hidden shadow-2xl">
   <CardContent className="p-5 space-y-4">
     <div>
       <h3 className="text-2xl font-black">
-        Palpites Aleatórios
+        Limpar Palpites
       </h3>
 
       <p className="text-white/80 text-sm mt-2">
-        Gere palpites apenas para os jogos ainda não preenchidos.
+        Remova os palpites já preenchidos na fase de grupos.
       </p>
     </div>
-
-    <RandomPredictor
-      games={games.filter((game) => {
-        if (groupsLocked || game.locked) return false;
-
-        const prediction = predictions.find(
-          (p) => p.player_id === currentUserId && p.game_id === game.id
-        );
-
-        return (
-          !prediction ||
-          prediction.predicted_score_a === null ||
-          prediction.predicted_score_b === null
-        );
-      })}
-      onGeneratePredictions={onRandomPredictions}
-      disabled={groupsLocked || userStats.userPendingGames === 0}
-      buttonLabel={
-        userStats.userPendingGames === 0
-          ? "Tudo preenchido"
-          : "Gerar Pendentes"
-      }
-    />
 
    <div className="pt-1">
   <button
@@ -186,6 +168,7 @@ export function PredictionsSection({
         <div className="lg:grid lg:grid-cols-[1fr_360px] lg:gap-6 items-start">
         {/* Main Content */}
         <div id="group-predictions" className="space-y-8">
+        <KnockoutPredictionsCard playerId={currentUserId} games={games} />
         {Object.entries(groupedGames).map(([group, groupGames]) => (
           <div
             key={group}
@@ -334,26 +317,31 @@ export function PredictionsSection({
                   predicted_score_b: existing?.predicted_score_b?.toString() ?? "",
                 };
 
-               const isLive = liveGameIds.has(game.id);
+               const past = isPast(game.match_date);
+               const today = !past && isToday(game.match_date);
+               const rowTone = past
+                 ? "border-slate-800 bg-emerald-500/[0.05] border-l-2 border-l-emerald-500/60 hover:bg-emerald-500/[0.08]"
+                 : today
+                   ? "border-slate-800 bg-amber-500/[0.04] border-l-2 border-l-amber-500/60 hover:bg-amber-500/[0.07]"
+                   : "border-slate-800 bg-slate-950/40 hover:bg-slate-900/70";
                return (
   <div
     key={game.id}
-    className={`border-b transition ${
-      isLive
-        ? "border-amber-500/30 bg-amber-900/10 hover:bg-amber-900/20"
-        : "border-slate-800 bg-slate-950/40 hover:bg-slate-900/70"
-    }`}
+    className={`border-b transition ${rowTone}`}
   >
     {/* Mobile */}
     <div className="md:hidden p-3 space-y-3">
       <div className="flex items-center justify-between text-slate-300 text-xs">
         <span>{formatDate(game.match_date)}</span>
 
-        <SingleGameRandomPredictor
-          gameId={game.id}
-          onGeneratePrediction={onSingleRandomPrediction}
-          disabled={groupsLocked || game.locked}
-        />
+        <button
+  type="button"
+  disabled={groupsLocked || game.locked}
+  onClick={() => onSingleRandomPrediction(generateSimpleRandomPrediction(game.id))}
+  className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+>
+  Aleatório
+</button>
       </div>
 
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
@@ -470,11 +458,14 @@ export function PredictionsSection({
       </div>
 
       <div className="flex justify-center items-center scale-90 opacity-80 hover:opacity-100 transition pr-2">
-        <SingleGameRandomPredictor
-          gameId={game.id}
-          onGeneratePrediction={onSingleRandomPrediction}
-          disabled={groupsLocked || game.locked}
-        />
+        <button
+  type="button"
+  disabled={groupsLocked || game.locked}
+  onClick={() => onSingleRandomPrediction(generateSimpleRandomPrediction(game.id))}
+  className="rounded-xl border border-slate-700 px-3 py-1.5 text-xs font-black text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed"
+>
+  Aleatório
+</button>
       </div>
     </div>
     </div>
@@ -540,41 +531,15 @@ export function PredictionsSection({
           <CardContent className="p-6 space-y-4">
             <div>
               <h3 className="text-2xl font-black leading-tight">
-                Palpites Aleatórios
+                Limpar Palpites
               </h3>
 
               <p className="text-white/80 text-sm mt-2">
-                Gere palpites automáticos para acelerar seu preenchimento.
+                Remova os palpites já preenchidos na fase de grupos.
               </p>
             </div>
-            
-            <p className="text-white/70 text-xs">
-            Esta ação preenche aleatoriamente apenas os jogos que ainda estão sem palpite.
-          </p>
-            <RandomPredictor
-            games={games.filter((game) => {
-            if (groupsLocked || game.locked) return false;
 
-            const prediction = predictions.find(
-            (p) => p.player_id === currentUserId && p.game_id === game.id
-            );
-
-            return (
-            !prediction ||
-            prediction.predicted_score_a === null ||
-            prediction.predicted_score_b === null
-            );
-            })}
-            onGeneratePredictions={onRandomPredictions}
-            disabled={groupsLocked || userStats.userPendingGames === 0}
-            buttonLabel={
-            userStats.userPendingGames === 0
-           ? "Tudo preenchido"
-           : "Gerar Pendentes"
-            }
-            />
             <div className="flex flex-col items-start gap-2">
- <div className="flex flex-col items-start gap-2">
   <Button
     type="button"
     onClick={onClearPredictions}
@@ -593,7 +558,6 @@ export function PredictionsSection({
   >
     Limpar meus palpites
   </Button>
-</div>
 </div>
           </CardContent>
         </Card>

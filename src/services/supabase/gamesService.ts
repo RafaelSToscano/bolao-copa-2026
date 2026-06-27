@@ -1,15 +1,23 @@
 import { getSupabaseClient } from "./supabaseClient";
 import { Game } from "@/types/game";
+import { USE_MOCK_DATA, MOCK_GAMES } from "@/services/mock";
+
+const GAME_COLUMNS =
+  "id, phase, group_name, match_order, match_date, team_a, team_b, official_score_a, official_score_b, locked";
 
 export const gamesService = {
   /**
    * Fetches all games
    */
   async getAllGames(): Promise<Game[]> {
+    if (USE_MOCK_DATA) {
+      return MOCK_GAMES;
+    }
+
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from("games")
-      .select("*")
+      .select(GAME_COLUMNS)
       .order("group_name", { ascending: true })
       .order("match_order", { ascending: true });
 
@@ -31,6 +39,8 @@ export const gamesService = {
     if (value !== null && (!Number.isInteger(value) || value < 0)) {
       throw new Error("Placar inválido: deve ser um número inteiro não negativo.");
     }
+
+    if (USE_MOCK_DATA) return;
 
     const supabase = getSupabaseClient();
     const { error } = await supabase

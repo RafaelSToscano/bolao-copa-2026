@@ -5,7 +5,7 @@ import { Player } from "@/types/player";
 import { Insight } from "@/utils/roundInsights";
 
 interface RankingShareCardProps {
-  ranking: (Player & { total: number; exacts: number })[];
+  ranking: (Player & { total: number; exacts: number; position: number })[];
   insights: Insight[];
   date: string;
   positionChanges?: Map<string, number>;
@@ -115,7 +115,7 @@ export const RankingShareCard = forwardRef<HTMLDivElement, RankingShareCardProps
                     <span style={{ fontSize: 24, width: 34, flexShrink: 0 }}>{p.medal}</span>
                     <div style={{ flex: 1, marginLeft: 10 }}>
                       <div style={{ fontSize: 15, fontWeight: 800, color: p.color }}>
-                        {i + 1}º {player.name}
+                        {player.position}º {player.name}
                       </div>
                       <div style={{ fontSize: 11, color: "#475569", display: "flex", gap: 6, alignItems: "center" }}>
                         <span>{player.exacts} exato{player.exacts !== 1 ? "s" : ""}</span>
@@ -155,7 +155,7 @@ export const RankingShareCard = forwardRef<HTMLDivElement, RankingShareCardProps
                   }}
                 >
                   <span style={{ width: 26, fontSize: 12, fontWeight: 700, color: "#64748b", flexShrink: 0 }}>
-                    {i + 4}º
+                    {player.position}º
                   </span>
                   <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "#e2e8f0" }}>
                     {player.name}

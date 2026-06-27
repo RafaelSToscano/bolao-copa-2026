@@ -1,7 +1,9 @@
 import { Player } from "@/types/player";
 import { Game } from "@/types/game";
 import { Prediction, PlayerScore } from "@/types/prediction";
+import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 import { calculatePredictionPoints } from "../predictions/predictionCalculations";
+import { calculateKnockoutPredictionPoints } from "../scoring/knockoutPredictionScoring";
 
 function getLastRoundGameIds(games: Game[]): Set<string> {
   const scored = games.filter(
@@ -27,14 +29,21 @@ function getLastRoundGameIds(games: Game[]): Set<string> {
 export function calculateRanking(
   players: Player[],
   games: Game[],
-  predictions: Prediction[]
-): (Player & { total: number; exacts: number })[] {
+  predictions: Prediction[],
+  knockoutMatches: KnockoutMatchRecord[] = [],
+  knockoutPredictions: KnockoutPrediction[] = []
+): (Player & { total: number; exacts: number; position: number })[] {
   const predMap = new Map<string, Prediction>();
   for (const p of predictions) {
     predMap.set(`${p.player_id}-${p.game_id}`, p);
   }
 
-  return players
+  const knockoutPredMap = new Map<string, KnockoutPrediction>();
+  for (const p of knockoutPredictions) {
+    knockoutPredMap.set(`${p.player_id}-${p.match_id}`, p);
+  }
+
+  const ranking = players
     .map((player) => {
       let total = 0;
       let exacts = 0;
@@ -42,6 +51,13 @@ export function calculateRanking(
       for (const game of games) {
         const pred = predMap.get(`${player.id}-${game.id}`);
         const result = calculatePredictionPoints(pred, game);
+        total += result.points;
+        exacts += result.exact;
+      }
+
+      for (const match of knockoutMatches) {
+        const pred = knockoutPredMap.get(`${player.id}-${match.id}`);
+        const result = calculateKnockoutPredictionPoints(pred, match);
         total += result.points;
         exacts += result.exact;
       }
@@ -56,18 +72,34 @@ export function calculateRanking(
       if (b.total !== a.total) return b.total - a.total;
       return b.exacts - a.exacts;
     });
-}
 
+    let currentPosition = 0;
+  let previousTotal: number | null = null;
+
+  return ranking.map((player, index) => {
+    if (previousTotal === null || player.total !== previousTotal) {
+      currentPosition = index + 1;
+      previousTotal = player.total;
+    }
+
+    return {
+      ...player,
+      position: currentPosition,
+    };
+  });
+}
 /**
  * Returns a map of playerId → position change since last round.
  * Positive = moved up, negative = moved down, 0 = unchanged.
  * Returns empty map when no round has been scored yet.
  */
 export function calculatePositionChanges(
-  currentRanking: (Player & { total: number; exacts: number })[],
+  currentRanking: (Player & { total: number; exacts: number; position: number })[],
   games: Game[],
   predictions: Prediction[],
-  players: Player[]
+  players: Player[],
+  knockoutMatches: KnockoutMatchRecord[] = [],
+  knockoutPredictions: KnockoutPrediction[] = []
 ): Map<string, number> {
   const lastRoundIds = getLastRoundGameIds(games);
   if (!lastRoundIds.size) return new Map();
@@ -78,12 +110,18 @@ export function calculatePositionChanges(
       : g
   );
 
-  const prevRanking = calculateRanking(players, gamesWithoutLastRound, predictions);
-  const prevPositions = new Map(prevRanking.map((p, i) => [p.id, i + 1]));
+  const prevRanking = calculateRanking(
+    players,
+    gamesWithoutLastRound,
+    predictions,
+    knockoutMatches,
+    knockoutPredictions
+  );
+  const prevPositions = new Map(prevRanking.map((p) => [p.id, p.position]));
 
   const changes = new Map<string, number>();
   currentRanking.forEach((player, i) => {
-    const currentPos = i + 1;
+    const currentPos = player.position;
     const prevPos = prevPositions.get(player.id) ?? currentPos;
     changes.set(player.id, prevPos - currentPos); // positive = moved up
   });

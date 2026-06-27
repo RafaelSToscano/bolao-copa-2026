@@ -41,4 +41,32 @@ export const auditService = {
       match_date:  row.games?.match_date ?? null,
     }));
   },
+    async getFinalPredictionsAudit() {
+    const supabase = getSupabaseClient();
+
+    const { data, error } = await supabase
+      .from("final_predictions")
+      .select(`
+        player_id,
+        champion,
+        runner_up,
+        third_place,
+        updated_at,
+        players ( name )
+      `)
+      .order("updated_at", { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to fetch final predictions audit: ${error.message}`);
+    }
+
+    return (data ?? []).map((row: any) => ({
+      player_id: row.player_id,
+      player_name: row.players?.name ?? "—",
+      champion: row.champion ?? "—",
+      runner_up: row.runner_up ?? "—",
+      third_place: row.third_place ?? "—",
+      updated_at: row.updated_at,
+    }));
+  },
 };

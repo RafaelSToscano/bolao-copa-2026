@@ -1,22 +1,30 @@
 import { getSupabaseClient } from "./supabaseClient";
 import { Prediction } from "@/types/prediction";
+import { USE_MOCK_DATA, MOCK_PREDICTIONS } from "@/services/mock";
+
+const PREDICTION_COLUMNS =
+  "id, player_id, game_id, predicted_score_a, predicted_score_b, created_at";
 
 export const predictionsService = {
   /**
    * Fetches all predictions
    */
   async getAllPredictions(): Promise<Prediction[]> {
+  if (USE_MOCK_DATA) {
+    return MOCK_PREDICTIONS;
+  }
+
   const supabase = getSupabaseClient();
 
   const pageSize = 1000;
   let from = 0;
   let allData: Prediction[] = [];
 
-  while (true) {
-    const { data, error } = await supabase
-      .from("predictions")
-      .select("*")
-      .range(from, from + pageSize - 1);
+    while (true) {
+      const { data, error } = await supabase
+        .from("predictions")
+        .select(PREDICTION_COLUMNS)
+        .range(from, from + pageSize - 1);
 
     if (error) {
       throw new Error(`Failed to fetch predictions: ${error.message}`);
@@ -42,10 +50,14 @@ export const predictionsService = {
    * Gets predictions for a specific player
    */
   async getPredictionsForPlayer(playerId: string): Promise<Prediction[]> {
+    if (USE_MOCK_DATA) {
+      return MOCK_PREDICTIONS.filter((p) => p.player_id === playerId);
+    }
+
     const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from("predictions")
-      .select("*")
+      .select(PREDICTION_COLUMNS)
       .eq("player_id", playerId);
 
     if (error) {
@@ -59,6 +71,8 @@ export const predictionsService = {
    * Upserts a single prediction
    */
   async upsertPrediction(prediction: Prediction): Promise<void> {
+    if (USE_MOCK_DATA) return;
+
     const supabase = getSupabaseClient();
     const { error } = await supabase
       .from("predictions")
@@ -73,6 +87,8 @@ export const predictionsService = {
    * Upserts multiple predictions
    */
   async upsertPredictions(predictions: Prediction[]): Promise<void> {
+    if (USE_MOCK_DATA) return;
+
     const supabase = getSupabaseClient();
     const { error } = await supabase
       .from("predictions")
@@ -83,6 +99,8 @@ export const predictionsService = {
     }
   },
   async deletePredictionsForPlayer(playerId: string): Promise<void> {
+  if (USE_MOCK_DATA) return;
+
   const supabase = getSupabaseClient();
 
   const { error } = await supabase

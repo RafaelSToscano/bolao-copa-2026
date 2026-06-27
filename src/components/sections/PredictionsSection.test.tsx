@@ -33,7 +33,6 @@ const baseProps = {
   currentUserId: 'p1',
   onDraftChange: vi.fn(),
   onSinglePrediction: vi.fn(),
-  onRandomPredictions: vi.fn(),
   onSingleRandomPrediction: vi.fn(),
   onClearPredictions: vi.fn(),
   userStats: mockStats,
@@ -88,6 +87,9 @@ describe('PredictionsSection Component', () => {
 
   it('should render group sections', () => {
     render(<PredictionsSection {...baseProps} />);
-    expect(screen.getByText('Grupo A')).toBeInTheDocument();
+    // "Grupo A" also appears inside NextGameBanner's MatchCards now
+    // that no-score games surface regardless of kickoff timing — use
+    // getAllByText so the assertion is robust to the banner content.
+    expect(screen.getAllByText('Grupo A').length).toBeGreaterThanOrEqual(1);
   });
 });
