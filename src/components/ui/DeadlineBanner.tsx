@@ -44,10 +44,8 @@ function computeBannerMode(now: number): BannerMode {
   return { mode: "done" };
 }
 
-function dismissKey(bm: Exclude<BannerMode, null | { mode: "done" }>): string {
-  return bm.mode === "open"
-    ? `bolao_open_${bm.phase.name}`
-    : `bolao_blocked_${bm.nextPhase.name}`;
+function blockedDismissKey(nextPhase: KnockoutPhase): string {
+  return `bolao_blocked_${nextPhase.name}`;
 }
 
 // ── Groups-phase countdown banner ─────────────────────────────────────────────
@@ -113,31 +111,35 @@ export function LockedBanner({ onGoToPlayoff }: LockedBannerProps) {
   const [timeLeft, setTimeLeft] = useState<ReturnType<typeof getTimeLeft>>(null);
 
   useEffect(() => {
-    const bm = computeBannerMode(Date.now());
-    if (!bm || bm.mode === "done") return;
+    function tick() {
+      const bm = computeBannerMode(Date.now());
 
-    if (bm.mode === "blocked") {
-      const key = dismissKey(bm);
-      if (sessionStorage.getItem(key) === "1") return;
+      if (!bm || bm.mode === "done") {
+        setVisible(false);
+        setBannerMode(null);
+        return;
+      }
+
+      // Blocked banners are dismissable per session; respect that across transitions.
+      if (bm.mode === "blocked" && sessionStorage.getItem(blockedDismissKey(bm.nextPhase)) === "1") {
+        setVisible(false);
+        setBannerMode(null);
+        return;
+      }
+
+      setBannerMode(bm);
+      setVisible(true);
+      setTimeLeft(bm.mode === "open" ? getTimeLeft(bm.phase.deadline) : null);
     }
 
-    setBannerMode(bm);
-    setVisible(true);
-
-    if (bm.mode === "open") {
-      setTimeLeft(getTimeLeft(bm.phase.deadline));
-      const id = setInterval(() => {
-        const tl = getTimeLeft(bm.phase.deadline);
-        setTimeLeft(tl);
-        if (!tl) setVisible(false); // auto-hide when deadline passes
-      }, 1000);
-      return () => clearInterval(id);
-    }
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
   }, []);
 
   const dismiss = () => {
-    if (!bannerMode || bannerMode.mode === "done" || bannerMode.mode === "open") return;
-    sessionStorage.setItem(dismissKey(bannerMode), "1");
+    if (!bannerMode || bannerMode.mode !== "blocked") return;
+    sessionStorage.setItem(blockedDismissKey(bannerMode.nextPhase), "1");
     setVisible(false);
   };
 
