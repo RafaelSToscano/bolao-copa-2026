@@ -90,7 +90,7 @@ export function AppLayout({
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      <LockedBanner />
+      <LockedBanner onGoToPlayoff={() => onTabChange("playoff")} />
       <DeadlineBanner
         userCompletion={userCompletion}
         onGoToPredictions={() => {

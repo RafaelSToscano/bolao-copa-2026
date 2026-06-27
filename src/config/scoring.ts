@@ -8,6 +8,9 @@ export const SCORING_RULES = {
 // Group phase deadline - after this time, no more group predictions can be made
 export const GROUPS_PHASE_DEADLINE = new Date("2026-06-10T23:59:59");
 
+// Playoffs 16-avos deadline - Sunday June 28 at 15h BRT (18:00 UTC)
+export const PLAYOFFS_AVOS_DEADLINE = new Date("2026-06-28T18:00:00Z");
+
 // Team flag country codes mapping
 export const TEAM_FLAG_CODES: Record<string, string> = {
   "México": "mx",
