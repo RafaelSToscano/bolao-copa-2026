@@ -20,7 +20,7 @@ type Slot = WinnerSlot | RunnerUpSlot | ThirdSlot;
 // team is the actual opponent, via Annexe C — see thirdPlaceCombinations.ts.
 const BRACKET: ReadonlyArray<{ home: Slot; away: Slot }> = [
   { home: { kind: "runnerUp", group: "A" }, away: { kind: "runnerUp", group: "B" } },
-  { home: { kind: "winner", group: "E" }, away: { kind: "third", matchSlot: "1E" } },
+  { home: { kind: "winner", group: "E" }, away: { kind: "runnerUp", group: "D" } },
   { home: { kind: "winner", group: "F" }, away: { kind: "runnerUp", group: "C" } },
   { home: { kind: "winner", group: "C" }, away: { kind: "runnerUp", group: "F" } },
   { home: { kind: "winner", group: "I" }, away: { kind: "third", matchSlot: "1I" } },

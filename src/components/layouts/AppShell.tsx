@@ -57,12 +57,12 @@ type AppShellContextValue = {
     value: string
   ) => Promise<void>;
   handleUpdateKnockoutOfficialResult: (
-  matchId: number,
-  scoreHome: number | null,
-  scoreAway: number | null,
-  homeTeam?: string | null,
-  awayTeam?: string | null
-) => Promise<void>;
+    matchId: number,
+    scoreHome: number | null,
+    scoreAway: number | null,
+    homeTeam?: string | null,
+    awayTeam?: string | null
+  ) => Promise<void>;
   handleApprovePlayer: (playerId: string) => Promise<void>;
   handleRejectPlayer: (playerId: string) => Promise<void>;
   handleApplySingleRandomPrediction: (
@@ -114,10 +114,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     includePrivatePlayers: currentUser?.is_admin === true,
   });
 
-  // Wrap each prediction mutation so the sessionStorage snapshot is
-  // evicted before useData's optimistic state update — that way a
-  // navigation in the next ~60s revalidates against supabase instead
-  // of serving the now-stale snapshot.
   const setPredictionsAndInvalidate = useCallback<typeof setPredictions>(
     (updater) => {
       invalidateCache();
@@ -149,6 +145,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     games,
     predictions
   );
+
   const { ranking, positionChanges } = useRanking(
     players,
     games,
@@ -156,6 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     knockoutMatches,
     knockoutPredictions
   );
+
   const stats = useAppStats(
     players,
     games,
@@ -165,9 +163,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     knockoutPredictions
   );
 
-   // Refresh only when the authenticated user changes. Route changes
-  // should reuse the AppShell context data instead of refetching
-  // players, games and predictions on every tab switch.
   useEffect(() => {
     if (currentUser?.id) {
       loadData();
@@ -202,19 +197,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   ) => {
     try {
       const parsed = value === "" ? null : Number(value);
+
       await gamesService.updateOfficialResult(gameId, field, parsed);
 
-      invalidateCache();
-      setGames((prev) =>
-        prev.map((g) =>
-          g.id === gameId
-            ? {
-                ...g,
-                [field]: parsed,
-              }
-            : g
-        )
+      const nextGames = games.map((game) =>
+        game.id === gameId
+          ? {
+              ...game,
+              [field]: parsed,
+            }
+          : game
       );
+
+      invalidateCache();
+      setGames(() => nextGames);
+
+      const updatedKnockoutMatches =
+        await knockoutPredictionsService.syncRound32FromGroups(nextGames);
+
+      setKnockoutMatches(updatedKnockoutMatches);
 
       if (currentUser?.id) {
         void fetch("/api/dashboard/cache/evict", {
@@ -224,6 +225,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }).catch(() => {});
       }
 
+      window.dispatchEvent(new Event("knockout-matches-updated"));
+
       setMessage("Resultado atualizado com sucesso!");
       setTimeout(() => setMessage(""), 3000);
     } catch (err) {
@@ -232,53 +235,55 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       );
     }
   };
-const handleUpdateKnockoutOfficialResult = async (
-  matchId: number,
-  scoreHome: number | null,
-  scoreAway: number | null,
-  homeTeam?: string | null,
-  awayTeam?: string | null
-) => {
-  try {
-    if (homeTeam && awayTeam) {
-      await knockoutPredictionsService.updateKnockoutMatchTeams(
+
+  const handleUpdateKnockoutOfficialResult = async (
+    matchId: number,
+    scoreHome: number | null,
+    scoreAway: number | null,
+    homeTeam?: string | null,
+    awayTeam?: string | null
+  ) => {
+    try {
+      if (homeTeam && awayTeam) {
+        await knockoutPredictionsService.updateKnockoutMatchTeams(
+          matchId,
+          homeTeam,
+          awayTeam
+        );
+      }
+
+      await knockoutPredictionsService.updateKnockoutMatchResult(
         matchId,
-        homeTeam,
-        awayTeam
+        scoreHome,
+        scoreAway
+      );
+
+      invalidateCache();
+
+      const updatedMatches = await knockoutPredictionsService.getKnockoutMatches();
+      setKnockoutMatches(updatedMatches);
+
+      if (currentUser?.id) {
+        void fetch("/api/dashboard/cache/evict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: currentUser.id }),
+        }).catch(() => {});
+      }
+
+      window.dispatchEvent(new Event("knockout-matches-updated"));
+
+      setMessage("Resultado atualizado com sucesso!");
+      setTimeout(() => setMessage(""), 3000);
+    } catch (err) {
+      setMessage(
+        err instanceof Error
+          ? err.message
+          : "Erro ao atualizar resultado do mata-mata."
       );
     }
+  };
 
-    await knockoutPredictionsService.updateKnockoutMatchResult(
-      matchId,
-      scoreHome,
-      scoreAway
-    );
-
-    invalidateCache();
-
-    const updatedMatches = await knockoutPredictionsService.getKnockoutMatches();
-    setKnockoutMatches(updatedMatches);
-
-    if (currentUser?.id) {
-      void fetch("/api/dashboard/cache/evict", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: currentUser.id }),
-      }).catch(() => {});
-    }
-
-    window.dispatchEvent(new Event("knockout-matches-updated"));
-
-    setMessage("Resultado atualizado com sucesso!");
-    setTimeout(() => setMessage(""), 3000);
-  } catch (err) {
-    setMessage(
-      err instanceof Error
-        ? err.message
-        : "Erro ao atualizar resultado do mata-mata."
-    );
-  }
-};
   const handleApplySingleRandomPrediction = async (
     randomPrediction: RandomPrediction
   ) => {
