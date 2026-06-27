@@ -17,21 +17,13 @@ import {
   MessageSquare,
   Menu,
   X,
-  ClipboardList,
 } from "lucide-react";
 import { DeadlineBanner, LockedBanner } from "@/components/ui/DeadlineBanner";
-
-interface SubMenuItem {
-  href: string;
-  label: string;
-  icon: typeof Home;
-}
 
 interface MenuItem {
   href: string;
   label: string;
   icon: typeof Home;
-  children?: SubMenuItem[];
 }
 
 interface AppLayoutProps {
@@ -60,7 +52,6 @@ export function AppLayout({
     };
   }, [drawerOpen]);
 
-  // Close the drawer whenever the route changes.
   useEffect(() => {
     setDrawerOpen((open) => (open ? false : open));
   }, [pathname]);
@@ -74,10 +65,6 @@ export function AppLayout({
     return () => window.removeEventListener("keydown", onKey);
   }, [drawerOpen]);
 
-  const adminSubItems: SubMenuItem[] = [
-    { href: "/admin/mata-mata", label: "Resultados Mata-mata", icon: ClipboardList },
-  ];
-
   const menuItems: MenuItem[] = [
     { href: "/", label: "Dashboard", icon: Home },
     { href: "/palpites", label: "Palpites", icon: Shield },
@@ -88,7 +75,7 @@ export function AppLayout({
     { href: "/palpites-da-galera", label: "Palpites da Galera", icon: MessageSquare },
     { href: "/regras", label: "Regras", icon: BookOpen },
     ...(currentUser.is_admin
-      ? [{ href: "/admin", label: "Admin", icon: Lock, children: adminSubItems }]
+      ? [{ href: "/admin", label: "Admin", icon: Lock }]
       : []),
   ];
 
@@ -110,7 +97,6 @@ export function AppLayout({
         onGoToPredictions={goToPredictions}
       />
 
-      {/* MOBILE HEADER — compact, with hamburger button */}
       <header className="lg:hidden sticky top-0 z-30 bg-slate-950/95 backdrop-blur border-b border-slate-800">
         <div className="flex items-center gap-3 px-4 py-3">
           <button
@@ -145,7 +131,6 @@ export function AppLayout({
         </div>
       </header>
 
-      {/* MOBILE DRAWER */}
       {drawerOpen && (
         <div
           className="lg:hidden fixed inset-0 z-50 flex"
@@ -186,44 +171,21 @@ export function AppLayout({
               {menuItems.map((item) => {
                 const Icon = item.icon;
                 const active = pathname === item.href;
+
                 return (
-                  <div key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={() => setDrawerOpen(false)}
-                      className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left font-bold transition ${
-                        active
-                          ? "bg-yellow-500 text-slate-950"
-                          : "bg-slate-900/70 text-slate-300 hover:bg-slate-800 border border-slate-800"
-                      }`}
-                    >
-                      <Icon size={18} />
-                      {item.label}
-                    </Link>
-                    {item.children && (
-                      <div className="ml-4 mt-1 space-y-1 border-l border-slate-700 pl-3">
-                        {item.children.map((child) => {
-                          const ChildIcon = child.icon;
-                          const childActive = pathname === child.href;
-                          return (
-                            <Link
-                              key={child.href}
-                              href={child.href}
-                              onClick={() => setDrawerOpen(false)}
-                              className={`w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition ${
-                                childActive
-                                  ? "bg-yellow-500 text-slate-950"
-                                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-                              }`}
-                            >
-                              <ChildIcon size={14} />
-                              {child.label}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setDrawerOpen(false)}
+                    className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left font-bold transition ${
+                      active
+                        ? "bg-yellow-500 text-slate-950"
+                        : "bg-slate-900/70 text-slate-300 hover:bg-slate-800 border border-slate-800"
+                    }`}
+                  >
+                    <Icon size={18} />
+                    {item.label}
+                  </Link>
                 );
               })}
             </nav>
@@ -238,43 +200,42 @@ export function AppLayout({
                 Sair
               </Button>
             </div>
-          </aside>
 
-          <style jsx>{`
-            .app-drawer-fade {
-              animation: drawer-fade-in 0.2s ease-out;
-            }
-            .app-drawer-slide {
-              animation: drawer-slide-in 0.25s cubic-bezier(0.32, 0.72, 0, 1);
-            }
-            @keyframes drawer-fade-in {
-              from {
-                opacity: 0;
+            <style jsx>{`
+              .app-drawer-fade {
+                animation: drawer-fade-in 0.2s ease-out;
               }
-              to {
-                opacity: 1;
-              }
-            }
-            @keyframes drawer-slide-in {
-              from {
-                transform: translateX(-100%);
-              }
-              to {
-                transform: translateX(0);
-              }
-            }
-            @media (prefers-reduced-motion: reduce) {
-              .app-drawer-fade,
               .app-drawer-slide {
-                animation: none;
+                animation: drawer-slide-in 0.25s cubic-bezier(0.32, 0.72, 0, 1);
               }
-            }
-          `}</style>
+              @keyframes drawer-fade-in {
+                from {
+                  opacity: 0;
+                }
+                to {
+                  opacity: 1;
+                }
+              }
+              @keyframes drawer-slide-in {
+                from {
+                  transform: translateX(-100%);
+                }
+                to {
+                  transform: translateX(0);
+                }
+              }
+              @media (prefers-reduced-motion: reduce) {
+                .app-drawer-fade,
+                .app-drawer-slide {
+                  animation: none;
+                }
+              }
+            `}</style>
+          </aside>
         </div>
       )}
 
       <div className="lg:flex">
-        {/* DESKTOP SIDEBAR */}
         <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-72 bg-slate-950 border-r border-slate-800 pt-14 pb-6 px-6 flex-col justify-between">
           <div className="space-y-8">
             <div className="text-center space-y-3">
@@ -300,41 +261,18 @@ export function AppLayout({
                 const active = pathname === item.href;
 
                 return (
-                  <div key={item.href}>
-                    <Link
-                      href={item.href}
-                      className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left font-bold transition ${
-                        active
-                          ? "bg-yellow-500 text-slate-950"
-                          : "bg-slate-900/70 text-slate-300 hover:bg-slate-800 border border-slate-800"
-                      }`}
-                    >
-                      <Icon size={18} />
-                      {item.label}
-                    </Link>
-                    {item.children && (
-                      <div className="ml-4 mt-1 space-y-1 border-l border-slate-700 pl-3">
-                        {item.children.map((child) => {
-                          const ChildIcon = child.icon;
-                          const childActive = pathname === child.href;
-                          return (
-                            <Link
-                              key={child.href}
-                              href={child.href}
-                              className={`w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition ${
-                                childActive
-                                  ? "bg-yellow-500 text-slate-950"
-                                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
-                              }`}
-                            >
-                              <ChildIcon size={14} />
-                              {child.label}
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-left font-bold transition ${
+                      active
+                        ? "bg-yellow-500 text-slate-950"
+                        : "bg-slate-900/70 text-slate-300 hover:bg-slate-800 border border-slate-800"
+                    }`}
+                  >
+                    <Icon size={18} />
+                    {item.label}
+                  </Link>
                 );
               })}
             </nav>
@@ -350,12 +288,10 @@ export function AppLayout({
           </Button>
         </aside>
 
-        {/* MOBILE CONTENT */}
         <main className="lg:hidden max-w-7xl mx-auto p-4 md:p-6 space-y-6">
           {children}
         </main>
 
-        {/* DESKTOP CONTENT */}
         <main className="hidden lg:block ml-72 w-[calc(100%-18rem)] min-h-screen">
           <div className="pt-14 p-8 space-y-6 max-w-[1600px] mx-auto">
             {children}
