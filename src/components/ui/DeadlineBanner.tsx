@@ -116,8 +116,10 @@ export function LockedBanner({ onGoToPlayoff }: LockedBannerProps) {
     const bm = computeBannerMode(Date.now());
     if (!bm || bm.mode === "done") return;
 
-    const key = dismissKey(bm);
-    if (sessionStorage.getItem(key) === "1") return;
+    if (bm.mode === "blocked") {
+      const key = dismissKey(bm);
+      if (sessionStorage.getItem(key) === "1") return;
+    }
 
     setBannerMode(bm);
     setVisible(true);
@@ -134,7 +136,7 @@ export function LockedBanner({ onGoToPlayoff }: LockedBannerProps) {
   }, []);
 
   const dismiss = () => {
-    if (!bannerMode || bannerMode.mode === "done") return;
+    if (!bannerMode || bannerMode.mode === "done" || bannerMode.mode === "open") return;
     sessionStorage.setItem(dismissKey(bannerMode), "1");
     setVisible(false);
   };
@@ -169,23 +171,14 @@ export function LockedBanner({ onGoToPlayoff }: LockedBannerProps) {
             )}
           </span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {onGoToPlayoff && (
-            <button
-              onClick={onGoToPlayoff}
-              className="rounded-lg bg-white/20 hover:bg-white/30 px-3 py-1 text-xs font-black transition cursor-pointer"
-            >
-              Palpitar agora →
-            </button>
-          )}
+        {onGoToPlayoff && (
           <button
-            onClick={dismiss}
-            aria-label="Fechar aviso"
-            className="rounded-lg p-1 hover:bg-white/10 transition cursor-pointer"
+            onClick={onGoToPlayoff}
+            className="shrink-0 rounded-lg bg-white/20 hover:bg-white/30 px-3 py-1 text-xs font-black transition cursor-pointer"
           >
-            <X size={15} />
+            Palpitar agora →
           </button>
-        </div>
+        )}
       </div>
     );
   }
