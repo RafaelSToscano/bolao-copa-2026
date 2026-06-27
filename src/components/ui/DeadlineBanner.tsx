@@ -1,11 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { GROUPS_PHASE_DEADLINE, PLAYOFFS_AVOS_DEADLINE } from "@/config/scoring";
+import { GROUPS_PHASE_DEADLINE, KNOCKOUT_PHASES, type KnockoutPhase } from "@/config/scoring";
 import { AlertTriangle, Lock, Trophy, X } from "lucide-react";
-
-const LOCKED_BANNER_KEY = "bolao_locked_banner_dismissed";
-const PLAYOFF_OPEN_BANNER_KEY = "bolao_playoff_open_banner_dismissed_v2";
 
 function BlinkingAlert() {
   return <AlertTriangle size={16} className="shrink-0 animate-blink" />;
@@ -28,6 +25,33 @@ function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
+// ── Banner state machine ──────────────────────────────────────────────────────
+
+type BannerMode =
+  | { mode: "open"; phase: KnockoutPhase }
+  | { mode: "blocked"; nextPhase: KnockoutPhase }
+  | { mode: "done" }
+  | null;
+
+function computeBannerMode(now: number): BannerMode {
+  if (now < GROUPS_PHASE_DEADLINE.getTime()) return null; // DeadlineBanner handles this
+
+  for (const phase of KNOCKOUT_PHASES) {
+    if (now < phase.opensAt.getTime()) return { mode: "blocked", nextPhase: phase };
+    if (now < phase.deadline.getTime()) return { mode: "open", phase };
+  }
+
+  return { mode: "done" };
+}
+
+function dismissKey(bm: Exclude<BannerMode, null | { mode: "done" }>): string {
+  return bm.mode === "open"
+    ? `bolao_open_${bm.phase.name}`
+    : `bolao_blocked_${bm.nextPhase.name}`;
+}
+
+// ── Groups-phase countdown banner ─────────────────────────────────────────────
+
 interface DeadlineBannerProps {
   userCompletion: number;
   onGoToPredictions: () => void;
@@ -46,11 +70,12 @@ export function DeadlineBanner({ userCompletion, onGoToPredictions }: DeadlineBa
 
   const { days, hours, minutes, seconds } = timeLeft;
   const urgency = days === 0 && hours < 3;
-  const actionLabel = userCompletion === 0
-    ? "Preencher palpites"
-    : userCompletion < 100
-    ? "Revisar palpites"
-    : "Ver meus palpites";
+  const actionLabel =
+    userCompletion === 0
+      ? "Preencher palpites"
+      : userCompletion < 100
+      ? "Revisar palpites"
+      : "Ver meus palpites";
 
   return (
     <div
@@ -59,17 +84,13 @@ export function DeadlineBanner({ userCompletion, onGoToPredictions }: DeadlineBa
       }`}
     >
       <BlinkingAlert />
-
       <span>
         Prazo para palpites encerra em{" "}
-        {days > 0 && (
-          <span className="tabular-nums">{days}d </span>
-        )}
+        {days > 0 && <span className="tabular-nums">{days}d </span>}
         <span className="tabular-nums tracking-widest">
           {pad(hours)}:{pad(minutes)}:{pad(seconds)}
         </span>
       </span>
-
       <button
         onClick={onGoToPredictions}
         className="ml-2 rounded-lg bg-white/20 hover:bg-white/30 px-3 py-1 text-xs font-black transition shrink-0 cursor-pointer"
@@ -80,50 +101,49 @@ export function DeadlineBanner({ userCompletion, onGoToPredictions }: DeadlineBa
   );
 }
 
+// ── Knockout-phase banner (open / blocked) ────────────────────────────────────
+
 interface LockedBannerProps {
   onGoToPlayoff?: () => void;
 }
 
 export function LockedBanner({ onGoToPlayoff }: LockedBannerProps) {
+  const [bannerMode, setBannerMode] = useState<BannerMode>(null);
   const [visible, setVisible] = useState(false);
-  const [mode, setMode] = useState<"playoff-open" | "locked" | null>(null);
   const [timeLeft, setTimeLeft] = useState<ReturnType<typeof getTimeLeft>>(null);
 
   useEffect(() => {
-    const now = Date.now();
-    const groupsPassed = now > GROUPS_PHASE_DEADLINE.getTime();
-    const playoffOpen = groupsPassed && now < PLAYOFFS_AVOS_DEADLINE.getTime();
+    const bm = computeBannerMode(Date.now());
+    if (!bm || bm.mode === "done") return;
 
-    if (!groupsPassed) return;
+    const key = dismissKey(bm);
+    if (sessionStorage.getItem(key) === "1") return;
 
-    if (playoffOpen) {
-      const dismissed = sessionStorage.getItem(PLAYOFF_OPEN_BANNER_KEY) === "1";
-      if (!dismissed) {
-        setMode("playoff-open");
-        setVisible(true);
-        setTimeLeft(getTimeLeft(PLAYOFFS_AVOS_DEADLINE));
-        const id = setInterval(() => setTimeLeft(getTimeLeft(PLAYOFFS_AVOS_DEADLINE)), 1000);
-        return () => clearInterval(id);
-      }
-    } else {
-      const dismissed = sessionStorage.getItem(LOCKED_BANNER_KEY) === "1";
-      if (!dismissed) {
-        setMode("locked");
-        setVisible(true);
-      }
+    setBannerMode(bm);
+    setVisible(true);
+
+    if (bm.mode === "open") {
+      setTimeLeft(getTimeLeft(bm.phase.deadline));
+      const id = setInterval(() => {
+        const tl = getTimeLeft(bm.phase.deadline);
+        setTimeLeft(tl);
+        if (!tl) setVisible(false); // auto-hide when deadline passes
+      }, 1000);
+      return () => clearInterval(id);
     }
   }, []);
 
   const dismiss = () => {
-    const key = mode === "playoff-open" ? PLAYOFF_OPEN_BANNER_KEY : LOCKED_BANNER_KEY;
-    sessionStorage.setItem(key, "1");
+    if (!bannerMode || bannerMode.mode === "done") return;
+    sessionStorage.setItem(dismissKey(bannerMode), "1");
     setVisible(false);
   };
 
-  if (!visible || !mode) return null;
+  if (!visible || !bannerMode || bannerMode.mode === "done") return null;
 
-  if (mode === "playoff-open") {
-    const urgency = timeLeft ? timeLeft.days === 0 && timeLeft.hours < 3 : false;
+  // ── "Predictions open" banner ──
+  if (bannerMode.mode === "open") {
+    const urgency = timeLeft ? timeLeft.days === 0 && timeLeft.hours < 1 : false;
     return (
       <div
         className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-3 px-4 py-2 text-white text-sm font-bold shadow-lg ${
@@ -133,13 +153,15 @@ export function LockedBanner({ onGoToPlayoff }: LockedBannerProps) {
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Trophy size={15} className="shrink-0 text-yellow-300" />
           <span className="truncate">
-            Palpites dos{" "}
-            <span className="text-yellow-300">16 avos de final</span>{" "}
+            Palpites{" "}
+            <span className="text-yellow-300">{bannerMode.phase.name}</span>{" "}
             abertos!{" "}
             {timeLeft && (
               <span className="text-white/90">
-                Prazo: dom 28/jun às 15h BRT —{" "}
-                {timeLeft.days > 0 && <span className="tabular-nums">{timeLeft.days}d </span>}
+                Prazo: {bannerMode.phase.deadlineLabel} —{" "}
+                {timeLeft.days > 0 && (
+                  <span className="tabular-nums">{timeLeft.days}d </span>
+                )}
                 <span className="tabular-nums tracking-widest">
                   {pad(timeLeft.hours)}:{pad(timeLeft.minutes)}:{pad(timeLeft.seconds)}
                 </span>
@@ -168,13 +190,16 @@ export function LockedBanner({ onGoToPlayoff }: LockedBannerProps) {
     );
   }
 
+  // ── "Predictions blocked" banner ──
   return (
     <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-3 px-4 py-2 bg-slate-800/95 border-b border-slate-700 text-white text-sm font-bold shadow-lg">
       <div className="flex items-center gap-2 min-w-0">
         <Lock size={15} className="shrink-0 text-yellow-400" />
         <span className="truncate">
-          Palpites da fase de grupos encerrados.{" "}
-          <span className="text-yellow-400">Playoffs encerrados.</span>
+          Palpites bloqueados —{" "}
+          <span className="text-yellow-400">
+            voltam {bannerMode.nextPhase.opensAtLabel}
+          </span>
         </span>
       </div>
       <button
