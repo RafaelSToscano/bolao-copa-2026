@@ -8,10 +8,12 @@ import { PredictionsSection } from "@/components/sections/PredictionsSection";
 function PalpitesPageContent() {
   const searchParams = useSearchParams();
   const focus = searchParams.get("focus");
+
   const {
     currentUser,
     games,
     predictions,
+    knockoutPredictions,
     drafts,
     setDrafts,
     saveSinglePrediction,
@@ -23,11 +25,13 @@ function PalpitesPageContent() {
 
   useEffect(() => {
     if (focus !== "group-predictions") return;
+
     const id = window.setTimeout(() => {
       document
         .getElementById("group-predictions")
         ?.scrollIntoView({ behavior: "smooth" });
     }, 150);
+
     return () => window.clearTimeout(id);
   }, [focus]);
 
@@ -35,6 +39,7 @@ function PalpitesPageContent() {
     <PredictionsSection
       games={games}
       predictions={predictions}
+      knockoutPredictions={knockoutPredictions}
       drafts={drafts}
       groupsLocked={groupsLocked}
       currentUserId={currentUser.id}

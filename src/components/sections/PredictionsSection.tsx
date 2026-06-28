@@ -2,6 +2,7 @@
 
 import { Game } from "@/types/game";
 import { Prediction, DraftPrediction } from "@/types/prediction";
+import { KnockoutPrediction } from "@/types/knockout";
 import { TeamStanding } from "@/types/standings";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import { KnockoutPredictionsCard } from "@/components/sections/predictions/Knock
 interface PredictionsSectionProps {
   games: Game[];
   predictions: Prediction[];
+  knockoutPredictions?: KnockoutPrediction[];
   drafts: Record<string, DraftPrediction>;
   groupsLocked: boolean;
   currentUserId: string;
@@ -45,6 +47,7 @@ function generateSimpleRandomPrediction(gameId: string): RandomPrediction {
 export function PredictionsSection({
   games,
   predictions,
+  knockoutPredictions = [],
   drafts,
   groupsLocked,
   currentUserId,
@@ -67,10 +70,11 @@ export function PredictionsSection({
   return (
     <div className="space-y-4">
       <PalpitesHero
-        games={games}
+       games={games}
         predictions={predictions}
-        currentUserId={currentUserId}
-      />
+        knockoutPredictions={knockoutPredictions}
+       currentUserId={currentUserId}
+/>
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
         <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[92px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
