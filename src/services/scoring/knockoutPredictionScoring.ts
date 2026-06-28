@@ -26,30 +26,23 @@ export function calculateKnockoutPredictionPoints(
     return { points: 0, exact: 0 };
   }
 
-  const predictedHome = prediction.predicted_score_home;
-  const predictedAway = prediction.predicted_score_away;
-  const officialHome = match.official_score_home;
-  const officialAway = match.official_score_away;
+  const pa = prediction.predicted_score_home;
+  const pb = prediction.predicted_score_away;
+  const ra = match.official_score_home;
+  const rb = match.official_score_away;
+
+  if (pa === ra && pb === rb) {
+    return { points: SCORING_RULES.EXACT_SCORE, exact: 1 };
+  }
 
   let points = 0;
-  let exact = 0;
 
-  if (predictedHome === officialHome && predictedAway === officialAway) {
-    points += SCORING_RULES.EXACT_SCORE;
-    exact = 1;
-  } else if (
-    getOutcome(predictedHome, predictedAway) === getOutcome(officialHome, officialAway)
-  ) {
+  if (getOutcome(pa, pb) === getOutcome(ra, rb)) {
     points += SCORING_RULES.CORRECT_OUTCOME;
   }
 
-  if (predictedHome === officialHome) {
-    points += SCORING_RULES.CORRECT_TEAM_SCORE;
-  }
+  if (pa === ra) points += SCORING_RULES.CORRECT_TEAM_SCORE;
+  if (pb === rb) points += SCORING_RULES.CORRECT_TEAM_SCORE;
 
-  if (predictedAway === officialAway) {
-    points += SCORING_RULES.CORRECT_TEAM_SCORE;
-  }
-
-  return { points, exact };
+  return { points, exact: 0 };
 }
