@@ -1,6 +1,5 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
 import { Flag } from "@/components/ui/Flag";
 import { ROUND_LABELS, ROUND_ORDER } from "@/lib/knockoutRounds";
 import { formatDate } from "@/lib/formatting";
@@ -12,16 +11,16 @@ type Props = {
   matches: DisplayKnockoutMatch[];
 };
 
-const DESKTOP_ROUND_STYLE: Record<
+const ROUND_STYLE: Record<
   KnockoutRound,
-  { paddingTop: string; gap: string; title: string }
+  { title: string; gap: string; top: string }
 > = {
-  r32: { paddingTop: "pt-0", gap: "gap-4", title: "16 avos" },
-  r16: { paddingTop: "pt-16", gap: "gap-20", title: "Oitavas" },
-  qf: { paddingTop: "pt-40", gap: "gap-44", title: "Quartas" },
-  sf: { paddingTop: "pt-72", gap: "gap-72", title: "Semifinais" },
-  third_place: { paddingTop: "pt-32", gap: "gap-6", title: "3º lugar" },
-  final: { paddingTop: "pt-80", gap: "gap-6", title: "Final" },
+  r32: { title: "16 avos", gap: "gap-4", top: "pt-0" },
+  r16: { title: "Oitavas", gap: "gap-20", top: "pt-16" },
+  qf: { title: "Quartas", gap: "gap-44", top: "pt-40" },
+  sf: { title: "Semifinais", gap: "gap-72", top: "pt-72" },
+  third_place: { title: "3º lugar", gap: "gap-6", top: "pt-32" },
+  final: { title: "Final", gap: "gap-6", top: "pt-80" },
 };
 
 function TeamRow({
@@ -34,7 +33,7 @@ function TeamRow({
   return (
     <div
       className={`flex items-center gap-2 rounded-xl px-2 py-1.5 ${
-        isWinner ? "bg-yellow-400/15 text-yellow-300" : "text-slate-100"
+        isWinner ? "bg-yellow-400/15 text-yellow-300" : "text-white"
       }`}
     >
       {team ? (
@@ -48,7 +47,7 @@ function TeamRow({
   );
 }
 
-function BracketMatchCard({
+function MatchCard({
   match,
   showLeftConnector,
   showRightConnector,
@@ -67,29 +66,29 @@ function BracketMatchCard({
   const awayWinner = match.winner_team !== null && match.winner_team === awayTeam;
 
   return (
-    <div className="relative">
+    <div className="relative w-56 shrink-0">
       {showLeftConnector && (
-        <div className="absolute -left-6 top-1/2 hidden h-px w-6 bg-slate-700 lg:block" />
+        <div className="absolute -left-6 top-1/2 h-px w-6 bg-slate-700" />
       )}
 
       {showRightConnector && (
         <>
-          <div className="absolute -right-6 top-1/2 hidden h-px w-6 bg-slate-700 lg:block" />
-          <div className="absolute -right-6 top-1/2 hidden h-20 w-px -translate-y-1/2 bg-slate-700 lg:block" />
+          <div className="absolute -right-6 top-1/2 h-px w-6 bg-slate-700" />
+          <div className="absolute -right-6 top-1/2 h-20 w-px -translate-y-1/2 bg-slate-700" />
         </>
       )}
 
-      <div className="w-full rounded-2xl border border-slate-700/80 bg-slate-950/95 p-3 shadow-xl shadow-black/20">
+      <div className="rounded-2xl border border-slate-700/80 bg-slate-950/95 p-3 shadow-xl shadow-black/20">
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="truncate text-xs font-semibold text-slate-400">
             {formatDate(match.match_date)}
           </p>
 
-          <div className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-2 py-0.5 text-xs font-black text-slate-300">
+          <span className="shrink-0 rounded-full border border-slate-700 bg-slate-900 px-2 py-0.5 text-xs font-black text-slate-300">
             {hasScore
               ? `${match.official_score_home} x ${match.official_score_away}`
               : "x"}
-          </div>
+          </span>
         </div>
 
         <div className="space-y-1">
@@ -110,61 +109,26 @@ export function KnockoutBracketView({ matches }: Props) {
   }));
 
   return (
-    <>
-      <div className="space-y-5 lg:hidden">
-        {matchesByRound.map(({ round, matches: roundMatches }) => (
-          <Card
-            key={round}
-            className="rounded-3xl border-slate-800 bg-slate-900/80 text-white"
-          >
-            <CardContent className="space-y-4 p-4">
-              <div>
-                <h3 className="text-sm font-black uppercase tracking-wide text-yellow-400">
-                  {ROUND_LABELS[round]}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  {roundMatches.length
-                    ? `${roundMatches.length} confronto(s)`
-                    : "A definir"}
-                </p>
-              </div>
+    <div className="-mx-4 overflow-x-auto pb-6 md:mx-0">
+      <div className="min-w-[1480px] px-4 md:px-1">
+        <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-xs font-bold text-slate-300 md:hidden">
+          Arraste para o lado para ver todo o chaveamento →
+        </div>
 
-              <div className="space-y-3">
-                {roundMatches.length > 0 ? (
-                  roundMatches.map((match) => (
-                    <BracketMatchCard
-                      key={match.id}
-                      match={match}
-                      showLeftConnector={false}
-                      showRightConnector={false}
-                    />
-                  ))
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-700 p-4 text-sm text-slate-500">
-                    A definir
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="hidden overflow-x-auto pb-6 lg:block">
-        <div className="flex min-w-[1480px] gap-12">
+        <div className="flex gap-12">
           {matchesByRound.map(({ round, matches: roundMatches }, index) => {
-            const style = DESKTOP_ROUND_STYLE[round];
+            const style = ROUND_STYLE[round];
 
             return (
               <section key={round} className="w-56 shrink-0">
                 <h3 className="mb-5 text-center text-sm font-black uppercase tracking-wide text-yellow-400">
-                  {style.title}
+                  {style.title || ROUND_LABELS[round]}
                 </h3>
 
-                <div className={`flex flex-col ${style.paddingTop} ${style.gap}`}>
+                <div className={`flex flex-col ${style.top} ${style.gap}`}>
                   {roundMatches.length > 0 ? (
                     roundMatches.map((match) => (
-                      <BracketMatchCard
+                      <MatchCard
                         key={match.id}
                         match={match}
                         showLeftConnector={index > 0}
@@ -172,7 +136,7 @@ export function KnockoutBracketView({ matches }: Props) {
                       />
                     ))
                   ) : (
-                    <div className="rounded-2xl border border-dashed border-slate-700 p-4 text-sm text-slate-500">
+                    <div className="w-56 rounded-2xl border border-dashed border-slate-700 p-4 text-sm text-slate-500">
                       A definir
                     </div>
                   )}
@@ -182,6 +146,6 @@ export function KnockoutBracketView({ matches }: Props) {
           })}
         </div>
       </div>
-    </>
+    </div>
   );
 }

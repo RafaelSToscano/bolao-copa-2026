@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
 import { Player } from "@/types/player";
-import { KnockoutMatchRecord } from "@/types/knockout";
+import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ interface AdminSectionProps {
   games: Game[];
   predictions: Prediction[];
   knockoutMatches: KnockoutMatchRecord[];
+  knockoutPredictions: KnockoutPrediction[];
   players: Player[];
   ranking: (Player & { total: number; exacts: number; position: number })[];
   onUpdateResult: (
@@ -49,6 +50,7 @@ export function AdminSection({
   games,
   predictions,
   knockoutMatches,
+  knockoutPredictions,
   players,
   ranking,
   onUpdateResult,
@@ -96,6 +98,63 @@ export function AdminSection({
         }),
     [knockoutMatches, games]
   );
+
+  const knockoutAuditMatches = useMemo(
+  () =>
+    buildDisplayKnockoutMatches(knockoutMatches, games)
+      .filter((match) => match.display_home_team && match.display_away_team)
+      .sort((a, b) => {
+        const dateA = a.match_date
+          ? new Date(a.match_date).getTime()
+          : Number.MAX_SAFE_INTEGER;
+        const dateB = b.match_date
+          ? new Date(b.match_date).getTime()
+          : Number.MAX_SAFE_INTEGER;
+
+        if (dateA !== dateB) return dateA - dateB;
+
+        return a.match_number - b.match_number;
+      }),
+  [knockoutMatches, games]
+);
+
+const knockoutPredictionAudit = useMemo(() => {
+  const approvedPlayers = players.filter(
+    (player) => player.approved && !player.is_admin
+  );
+
+  return approvedPlayers
+    .map((player) => {
+      const missingMatches = knockoutAuditMatches.filter((match) => {
+        const prediction = knockoutPredictions.find(
+          (item) => item.player_id === player.id && item.match_id === match.id
+        );
+
+        return (
+          !prediction ||
+          prediction.predicted_score_home === null ||
+          prediction.predicted_score_away === null
+        );
+      });
+
+      return {
+        player,
+        total: knockoutAuditMatches.length,
+        completed: knockoutAuditMatches.length - missingMatches.length,
+        missingMatches,
+      };
+    })
+    .sort((a, b) => {
+      const missingA = a.total - a.completed;
+      const missingB = b.total - b.completed;
+
+      if (missingA !== missingB) return missingB - missingA;
+
+      return a.player.name.localeCompare(b.player.name);
+    });
+}, [players, knockoutAuditMatches, knockoutPredictions]);
+
+
 
   const getKnockoutDraft = (match: (typeof round32Matches)[number]) =>
     knockoutDrafts[match.id] ?? {
@@ -152,6 +211,55 @@ export function AdminSection({
       console.error(error);
       alert("Erro ao exportar auditoria CSV.");
     }
+  };
+
+
+  const handleExportKnockoutAuditCsv = () => {
+    const header = [
+      "Participante",
+      "Status",
+      "Preenchidos",
+      "Total",
+      "Faltam",
+      "Jogos faltantes",
+    ];
+
+    const rows = knockoutPredictionAudit.map((item) => {
+      const missingCount = item.total - item.completed;
+      const missingGames = item.missingMatches
+        .map(
+          (match) =>
+            `Jogo ${match.match_number}: ${match.display_home_team} x ${match.display_away_team}`
+        )
+        .join(" | ");
+
+      return [
+        item.player.name,
+        missingCount === 0 ? "Completo" : "Incompleto",
+        item.completed,
+        item.total,
+        missingCount,
+        missingGames,
+      ];
+    });
+
+    const escapeCsv = (value: string | number) =>
+      `"${String(value).replace(/"/g, '""')}"`;
+
+    const csv = [header, ...rows]
+      .map((row) => row.map(escapeCsv).join(";"))
+      .join("\n");
+
+    const blob = new Blob(["\uFEFF" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "auditoria-palpites-mata-mata.csv";
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const renderGroupResultRow = (game: Game) => (
@@ -395,6 +503,13 @@ export function AdminSection({
           >
             Exportar auditoria CSV
           </Button>
+
+          <Button
+            onClick={handleExportKnockoutAuditCsv}
+            className="bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-bold"
+          >
+            Exportar mata-mata CSV
+          </Button>
         </div>
       </div>
 
@@ -502,7 +617,6 @@ export function AdminSection({
           </CardContent>
         </Card>
       )}
-
       <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
         <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide rounded-2xl">
           RESULTADOS OFICIAIS - FASE DE GRUPOS

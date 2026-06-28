@@ -7,7 +7,7 @@ import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Flag } from "@/components/ui/Flag";
 import { formatDate } from "@/lib/formatting";
-import { isPredictableKnockoutRound } from "@/config/knockout";
+import { getNextVisibleMatches } from "@/lib/nextVisibleMatches";
 
 interface CrowdPredictionsSectionProps {
   games: Game[];
@@ -44,55 +44,7 @@ export function CrowdPredictionsSection({
   currentUserId,
   ranking,
 }: CrowdPredictionsSectionProps) {
-  const now = new Date().getTime();
-
-  const groupNextGames = [...games]
-    .filter((game) => {
-      if (!game.match_date) return false;
-      const hasOfficialResult =
-        game.official_score_a !== null && game.official_score_b !== null;
-      return !hasOfficialResult && new Date(game.match_date).getTime() >= now - 3 * 60 * 60 * 1000;
-    })
-    .sort((a, b) => {
-      const dateA = a.match_date ? new Date(a.match_date).getTime() : Number.MAX_SAFE_INTEGER;
-      const dateB = b.match_date ? new Date(b.match_date).getTime() : Number.MAX_SAFE_INTEGER;
-      return dateA - dateB;
-    })
-    .map((game) => ({
-      id: game.id,
-      matchDate: game.match_date,
-      teamA: game.team_a,
-      teamB: game.team_b,
-      label: game.group_name ? `Grupo ${game.group_name}` : "",
-      type: "group" as const,
-    }));
-
-  const knockoutNextGames = knockoutMatches
-    .filter((match) => {
-      if (!isPredictableKnockoutRound(match.round)) return false;
-      if (!match.home_team || !match.away_team || !match.match_date) return false;
-      if (match.official_score_home !== null && match.official_score_away !== null) {
-        return false;
-      }
-      return new Date(match.match_date).getTime() >= now - 3 * 60 * 60 * 1000;
-    })
-    .map((match) => ({
-      id: String(match.id),
-      matchDate: match.match_date,
-      teamA: match.home_team!,
-      teamB: match.away_team!,
-      label: `16 avos - Jogo ${match.match_number}`,
-      type: "knockout" as const,
-    }));
-
-  const nextGames = [...groupNextGames, ...knockoutNextGames]
-    .sort((a, b) => {
-      const dateA = a.matchDate ? new Date(a.matchDate).getTime() : Number.MAX_SAFE_INTEGER;
-      const dateB = b.matchDate ? new Date(b.matchDate).getTime() : Number.MAX_SAFE_INTEGER;
-      return dateA - dateB;
-    })
-    .slice(0, 2);
-
+  const nextGames = getNextVisibleMatches(games, knockoutMatches, 2);
   const approvedPlayers = players.filter(
   (p) => p.approved
 );

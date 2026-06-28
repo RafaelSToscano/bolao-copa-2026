@@ -13,6 +13,7 @@ export default function AdminPage() {
     games,
     predictions,
     knockoutMatches,
+    knockoutPredictions,
     players,
     ranking,
     handleUpdateOfficialResult,
@@ -35,6 +36,7 @@ export default function AdminPage() {
       games={games}
       predictions={predictions}
       knockoutMatches={knockoutMatches}
+      knockoutPredictions={knockoutPredictions}
       players={players}
       ranking={ranking}
       onUpdateResult={handleUpdateOfficialResult}
