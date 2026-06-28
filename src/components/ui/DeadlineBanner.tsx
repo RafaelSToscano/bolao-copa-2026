@@ -25,8 +25,6 @@ function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
-// ── Banner state machine ──────────────────────────────────────────────────────
-
 type BannerMode =
   | { mode: "open"; phase: KnockoutPhase }
   | { mode: "blocked"; nextPhase: KnockoutPhase }
@@ -34,7 +32,7 @@ type BannerMode =
   | null;
 
 function computeBannerMode(now: number): BannerMode {
-  if (now < GROUPS_PHASE_DEADLINE.getTime()) return null; // DeadlineBanner handles this
+  if (now < GROUPS_PHASE_DEADLINE.getTime()) return null;
 
   for (const phase of KNOCKOUT_PHASES) {
     if (now < phase.opensAt.getTime()) return { mode: "blocked", nextPhase: phase };
@@ -47,8 +45,6 @@ function computeBannerMode(now: number): BannerMode {
 function blockedDismissKey(nextPhase: KnockoutPhase): string {
   return `bolao_blocked_${nextPhase.name}`;
 }
-
-// ── Groups-phase countdown banner ─────────────────────────────────────────────
 
 interface DeadlineBannerProps {
   userCompletion: number;
@@ -72,17 +68,17 @@ export function DeadlineBanner({ userCompletion, onGoToPredictions }: DeadlineBa
     userCompletion === 0
       ? "Preencher palpites"
       : userCompletion < 100
-      ? "Revisar palpites"
-      : "Ver meus palpites";
+        ? "Revisar palpites"
+        : "Ver meus palpites";
 
   return (
     <div
-      className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-3 px-4 py-2 text-white text-sm font-bold shadow-lg ${
+      className={`fixed left-0 right-0 top-[56px] md:top-0 z-30 flex items-center justify-center gap-2 px-3 py-2 text-white text-xs md:text-sm font-bold shadow-lg ${
         urgency ? "bg-red-900/90 animate-pulse" : "bg-red-950/90"
       }`}
     >
       <BlinkingAlert />
-      <span>
+      <span className="truncate">
         Prazo para palpites encerra em{" "}
         {days > 0 && <span className="tabular-nums">{days}d </span>}
         <span className="tabular-nums tracking-widest">
@@ -91,15 +87,13 @@ export function DeadlineBanner({ userCompletion, onGoToPredictions }: DeadlineBa
       </span>
       <button
         onClick={onGoToPredictions}
-        className="ml-2 rounded-lg bg-white/20 hover:bg-white/30 px-3 py-1 text-xs font-black transition shrink-0 cursor-pointer"
+        className="ml-1 rounded-lg bg-white/20 hover:bg-white/30 px-2 md:px-3 py-1 text-[11px] md:text-xs font-black transition shrink-0 cursor-pointer"
       >
         {actionLabel} →
       </button>
     </div>
   );
 }
-
-// ── Knockout-phase banner (open / blocked) ────────────────────────────────────
 
 interface LockedBannerProps {
   onGoToPlayoff?: () => void;
@@ -120,7 +114,6 @@ export function LockedBanner({ onGoToPlayoff }: LockedBannerProps) {
         return;
       }
 
-      // Blocked banners are dismissable per session; respect that across transitions.
       if (bm.mode === "blocked" && sessionStorage.getItem(blockedDismissKey(bm.nextPhase)) === "1") {
         setVisible(false);
         setBannerMode(null);
@@ -145,12 +138,12 @@ export function LockedBanner({ onGoToPlayoff }: LockedBannerProps) {
 
   if (!visible || !bannerMode || bannerMode.mode === "done") return null;
 
-  // ── "Predictions open" banner ──
   if (bannerMode.mode === "open") {
     const urgency = timeLeft ? timeLeft.days === 0 && timeLeft.hours < 1 : false;
+
     return (
       <div
-        className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-3 px-4 py-2 text-white text-sm font-bold shadow-lg ${
+        className={`fixed left-0 right-0 top-[56px] md:top-0 z-30 flex items-center justify-between gap-2 px-3 md:px-4 py-2 text-white text-xs md:text-sm font-bold shadow-lg ${
           urgency ? "bg-yellow-700/95 animate-pulse" : "bg-yellow-800/95"
         }`}
       >
@@ -173,10 +166,11 @@ export function LockedBanner({ onGoToPlayoff }: LockedBannerProps) {
             )}
           </span>
         </div>
+
         {onGoToPlayoff && (
           <button
             onClick={onGoToPlayoff}
-            className="shrink-0 rounded-lg bg-white/20 hover:bg-white/30 px-3 py-1 text-xs font-black transition cursor-pointer"
+            className="shrink-0 rounded-lg bg-white/20 hover:bg-white/30 px-2 md:px-3 py-1 text-[11px] md:text-xs font-black transition cursor-pointer"
           >
             Palpitar agora →
           </button>
@@ -185,9 +179,8 @@ export function LockedBanner({ onGoToPlayoff }: LockedBannerProps) {
     );
   }
 
-  // ── "Predictions blocked" banner ──
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between gap-3 px-4 py-2 bg-slate-800/95 border-b border-slate-700 text-white text-sm font-bold shadow-lg">
+    <div className="fixed left-0 right-0 top-[56px] md:top-0 z-30 flex items-center justify-between gap-2 px-3 md:px-4 py-2 bg-slate-800/95 border-b border-slate-700 text-white text-xs md:text-sm font-bold shadow-lg">
       <div className="flex items-center gap-2 min-w-0">
         <Lock size={15} className="shrink-0 text-yellow-400" />
         <span className="truncate">
