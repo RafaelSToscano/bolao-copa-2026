@@ -2,6 +2,7 @@
 
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
+import { KnockoutPrediction } from "@/types/knockout";
 import { Calendar } from "lucide-react";
 import { formatKickoffTime, formatWeekdayShort } from "@/lib/formatting";
 import {
@@ -12,20 +13,57 @@ import {
 interface UpcomingMatchesCardProps {
   games: Game[];
   predictions?: Prediction[];
+  knockoutPredictions?: KnockoutPrediction[];
   currentUserId?: string;
+}
+
+function getKnockoutMatchId(game: Game): number | null {
+  const raw = String(game.id);
+
+  if (raw.startsWith("knockout-")) {
+    const id = Number(raw.replace("knockout-", ""));
+    return Number.isFinite(id) ? id : null;
+  }
+
+  if (game.phase !== "groups" && game.match_order) {
+    return Number(game.match_order);
+  }
+
+  return null;
 }
 
 export function UpcomingMatchesCard({
   games,
   predictions = [],
+  knockoutPredictions = [],
   currentUserId,
 }: UpcomingMatchesCardProps) {
   const listItems: DashboardMatchListItem[] = games.map((game) => {
-    const prediction = currentUserId
+    const knockoutMatchId = getKnockoutMatchId(game);
+
+    const groupPrediction = currentUserId
       ? predictions.find(
           (p) => p.player_id === currentUserId && p.game_id === game.id
         )
       : undefined;
+
+    const knockoutPrediction =
+      currentUserId && knockoutMatchId
+        ? knockoutPredictions.find(
+            (p) =>
+              p.player_id === currentUserId &&
+              p.match_id === knockoutMatchId
+          )
+        : undefined;
+
+    const prediction: Prediction | undefined = knockoutPrediction
+      ? {
+          player_id: knockoutPrediction.player_id,
+          game_id: game.id,
+          predicted_score_a: knockoutPrediction.predicted_score_home,
+          predicted_score_b: knockoutPrediction.predicted_score_away,
+        }
+      : groupPrediction;
 
     return {
       game,

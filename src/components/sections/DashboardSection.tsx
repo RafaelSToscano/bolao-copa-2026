@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Prediction } from "@/types/prediction";
+import { KnockoutPrediction } from "@/types/knockout";
 import { Game } from "@/types/game";
 import {
   findLiveScoreForGame,
@@ -36,6 +37,7 @@ interface DashboardSectionProps {
   // "Próximos Jogos" cards on the dashboard pick from the exact same
   // pool as Palpites instead of the cached, pre-filtered server
   // payload, so the two screens always agree on which games come next.
+  knockoutPredictions?: KnockoutPrediction[];
   games?: Game[];
   onNavigate: (target: DashboardNavigationTarget) => void;
 }
@@ -87,6 +89,7 @@ function detectScoringTeam(
 export function DashboardSection({
   currentUserId,
   myPredictions,
+  knockoutPredictions = [],
   games,
   onNavigate,
 }: DashboardSectionProps) {
@@ -211,6 +214,7 @@ export function DashboardSection({
           <UpcomingMatchesCard
             games={data.upcoming?.games ?? []}
             predictions={myPredictions ?? []}
+            knockoutPredictions={knockoutPredictions}
             currentUserId={currentUserId}
           />
 
