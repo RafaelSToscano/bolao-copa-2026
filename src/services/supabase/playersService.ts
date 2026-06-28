@@ -6,8 +6,11 @@ function normalizeAccessCode(value: string): string {
   return value.replace(/\D/g, "");
 }
 
-const PUBLIC_PLAYER_COLUMNS = "id, name, is_admin, approved, created_at";
-const PRIVATE_PLAYER_COLUMNS = "id, name, access_code, is_admin, approved, created_at";
+const PUBLIC_PLAYER_COLUMNS =
+  "id, name, is_admin, approved, ranking_visible, created_at";
+
+const PRIVATE_PLAYER_COLUMNS =
+  "id, name, access_code, is_admin, approved, ranking_visible, created_at";
 
 export const playersService = {
   async getPublicPlayers(): Promise<Player[]> {

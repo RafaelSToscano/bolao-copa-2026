@@ -4,5 +4,6 @@ export interface Player {
   access_code?: string;
   is_admin: boolean;
   approved: boolean;
+  ranking_visible?: boolean;
   created_at?: string;
 }

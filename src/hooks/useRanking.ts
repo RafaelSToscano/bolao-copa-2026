@@ -12,16 +12,21 @@ export function useRanking(
   knockoutMatches: KnockoutMatchRecord[] = [],
   knockoutPredictions: KnockoutPrediction[] = []
 ) {
+  const rankingPlayers = useMemo(
+    () => players.filter((player) => player.ranking_visible !== false),
+    [players]
+  );
+
   const ranking = useMemo(
     () =>
       calculateRanking(
-        players,
+        rankingPlayers,
         games,
         predictions,
         knockoutMatches,
         knockoutPredictions
       ),
-    [players, games, predictions, knockoutMatches, knockoutPredictions]
+    [rankingPlayers, games, predictions, knockoutMatches, knockoutPredictions]
   );
 
   const positionChanges = useMemo(
@@ -30,11 +35,11 @@ export function useRanking(
         ranking,
         games,
         predictions,
-        players,
+        rankingPlayers,
         knockoutMatches,
         knockoutPredictions
       ),
-    [ranking, games, predictions, players, knockoutMatches, knockoutPredictions]
+    [ranking, games, predictions, rankingPlayers, knockoutMatches, knockoutPredictions]
   );
 
   return { ranking, positionChanges };
