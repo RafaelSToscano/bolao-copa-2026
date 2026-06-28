@@ -14,10 +14,6 @@ type RunnerUpSlot = { kind: "runnerUp"; group: string };
 type ThirdSlot = { kind: "third"; matchSlot: ThirdPlaceMatchSlot };
 type Slot = WinnerSlot | RunnerUpSlot | ThirdSlot;
 
-// Official round-of-32 bracket, "Regulations for the FIFA World Cup 26",
-// article 12.6 (matches M73-M88, in that exact order). `third` slots
-// reference the match-slot key used to resolve which group's 3rd-place
-// team is the actual opponent, via Annexe C — see thirdPlaceCombinations.ts.
 const BRACKET: ReadonlyArray<{ home: Slot; away: Slot }> = [
   { home: { kind: "runnerUp", group: "A" }, away: { kind: "runnerUp", group: "B" } },
   { home: { kind: "winner", group: "E" }, away: { kind: "runnerUp", group: "D" } },
@@ -37,31 +33,64 @@ const BRACKET: ReadonlyArray<{ home: Slot; away: Slot }> = [
   { home: { kind: "runnerUp", group: "D" }, away: { kind: "runnerUp", group: "G" } },
 ];
 
-export function generateRound32(games: Game[]): KnockoutMatch[] {
-  const qualified = calculateQualifiedTeams(games);
-  const bestThirds = calculateBestThirdPlace(games).slice(0, 8) as Array<
-    QualifiedTeam & { group: string }
-  >;
+function isGroupComplete(games: Game[], group: string): boolean {
+  const groupGames = games.filter((game) => game.group_name === group);
 
-  // Annexe C only resolves cleanly once exactly 8 groups have a qualifying
-  // third; with fewer (e.g. group stage still in progress) we leave those
-  // slots undefined rather than guess.
+  return (
+    groupGames.length > 0 &&
+    groupGames.every(
+      (game) =>
+        game.official_score_a !== null &&
+        game.official_score_b !== null
+    )
+  );
+}
+
+function areAllGroupsComplete(games: Game[]): boolean {
+  const groupGames = games.filter((game) => game.phase === "groups");
+  return (
+    groupGames.length > 0 &&
+    groupGames.every(
+      (game) =>
+        game.official_score_a !== null &&
+        game.official_score_b !== null
+    )
+  );
+}
+
+export function generateRound32(games: Game[]): KnockoutMatch[] {
+  const allGroupsComplete = areAllGroupsComplete(games);
+
+  const qualified = calculateQualifiedTeams(games).filter((team) =>
+    isGroupComplete(games, team.group)
+  );
+
+  const bestThirds = allGroupsComplete
+    ? (calculateBestThirdPlace(games).slice(0, 8) as Array<
+        QualifiedTeam & { group: string }
+      >)
+    : [];
+
   const thirdPlaceOpponents =
     bestThirds.length === 8
-      ? resolveThirdPlaceOpponents(bestThirds.map((t) => t.group))
+      ? resolveThirdPlaceOpponents(bestThirds.map((team) => team.group))
       : null;
 
   function findTeam(position: "1" | "2", group: string): QualifiedTeam | undefined {
+    if (!isGroupComplete(games, group)) return undefined;
+
     return qualified.find(
-      (t) => t.position === position && t.group === group
+      (team) => team.position === position && team.group === group
     ) as QualifiedTeam | undefined;
   }
 
   function findThird(matchSlot: ThirdPlaceMatchSlot): QualifiedTeam | undefined {
+    if (!allGroupsComplete) return undefined;
+
     const sourceGroup = thirdPlaceOpponents?.[matchSlot];
     if (!sourceGroup) return undefined;
 
-    const third = bestThirds.find((t) => t.group === sourceGroup);
+    const third = bestThirds.find((team) => team.group === sourceGroup);
     if (!third) return undefined;
 
     return { ...third, position: "3" } as QualifiedTeam;

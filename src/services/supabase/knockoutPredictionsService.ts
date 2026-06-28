@@ -36,7 +36,9 @@ function isAllGroupStageComplete(games: Game[]): boolean {
   );
 }
 
-function matchUsesThirdPlace(match: Pick<KnockoutMatchRecord, "home_slot" | "away_slot">) {
+function matchUsesThirdPlace(
+  match: Pick<KnockoutMatchRecord, "home_slot" | "away_slot">
+): boolean {
   return match.home_slot.includes("3") || match.away_slot.includes("3");
 }
 
@@ -250,7 +252,6 @@ export const knockoutPredictionsService = {
     for (let i = 0; i < round32.length; i++) {
       const matchNumber = i + 1;
       const current = existingByMatchNumber.get(matchNumber);
-
       if (!current) continue;
 
       const hasOfficialResult =
@@ -260,17 +261,81 @@ export const knockoutPredictionsService = {
 
       if (hasOfficialResult) continue;
 
-      const homeTeam = round32[i].home?.team ?? null;
-      const awayTeam = round32[i].away?.team ?? null;
+      const alreadyHasBothTeams = Boolean(current.home_team && current.away_team);
+
+      if (alreadyHasBothTeams) {
+        if (current.home_team === current.away_team) {
+          await supabase
+            .from("knockout_matches")
+            .update({
+              locked: true,
+              official_score_home: null,
+              official_score_away: null,
+              winner_team: null,
+            })
+            .eq("id", current.id);
+          continue;
+        }
+
+        if (current.locked) {
+          const { error } = await supabase
+            .from("knockout_matches")
+            .update({ locked: false })
+            .eq("id", current.id);
+
+          if (error) {
+            throw new Error(
+              `Failed to unlock consolidated match ${current.id}: ${error.message}`
+            );
+          }
+        }
+
+        continue;
+      }
+
+      const calculatedHome = round32[i].home?.team ?? null;
+      const calculatedAway = round32[i].away?.team ?? null;
 
       const usesThirdPlace = matchUsesThirdPlace(current);
+      const canUseCalculatedTeams = !usesThirdPlace || allGroupsComplete;
 
-      const shouldUnlock =
-        Boolean(homeTeam && awayTeam) &&
-        (!usesThirdPlace || allGroupsComplete);
+      let nextHomeTeam = current.home_team;
+      let nextAwayTeam = current.away_team;
 
-      const nextHomeTeam = shouldUnlock ? homeTeam : null;
-      const nextAwayTeam = shouldUnlock ? awayTeam : null;
+      if (canUseCalculatedTeams) {
+        if (!nextHomeTeam && calculatedHome !== nextAwayTeam) {
+          nextHomeTeam = calculatedHome;
+        }
+
+        if (!nextAwayTeam && calculatedAway !== nextHomeTeam) {
+          nextAwayTeam = calculatedAway;
+        }
+      }
+
+      const hasDuplicateTeams =
+        Boolean(nextHomeTeam && nextAwayTeam) && nextHomeTeam === nextAwayTeam;
+
+      if (hasDuplicateTeams) {
+        const { error } = await supabase
+          .from("knockout_matches")
+          .update({
+            locked: true,
+            official_score_home: null,
+            official_score_away: null,
+            winner_team: null,
+          })
+          .eq("id", current.id);
+
+        if (error) {
+          throw new Error(
+            `Failed to lock duplicated knockout match ${current.id}: ${error.message}`
+          );
+        }
+
+        continue;
+      }
+
+      const shouldUnlock = Boolean(nextHomeTeam && nextAwayTeam);
 
       const teamsChanged =
         current.home_team !== nextHomeTeam || current.away_team !== nextAwayTeam;
@@ -294,15 +359,6 @@ export const knockoutPredictionsService = {
       if (error) {
         throw new Error(`Failed to sync round of 32 match ${current.id}: ${error.message}`);
       }
-
-      if (teamsChanged) {
-        await supabase
-          .from("knockout_predictions")
-          .delete()
-          .eq("match_id", current.id);
-
-        await clearDependentBracket(supabase, current.id);
-      }
     }
 
     return this.getKnockoutMatches();
@@ -321,19 +377,6 @@ export const knockoutPredictionsService = {
 
     const supabase = getSupabaseClient();
 
-    const { data: current, error: fetchError } = await supabase
-      .from("knockout_matches")
-      .select("home_team, away_team")
-      .eq("id", matchId)
-      .single();
-
-    if (fetchError) {
-      throw new Error(`Failed to load knockout match: ${fetchError.message}`);
-    }
-
-    const teamsChanged =
-      current?.home_team !== homeTeam || current?.away_team !== awayTeam;
-
     const { error } = await supabase
       .from("knockout_matches")
       .update({
@@ -350,14 +393,7 @@ export const knockoutPredictionsService = {
       throw new Error(`Failed to update knockout match teams: ${error.message}`);
     }
 
-    if (teamsChanged) {
-      await supabase
-        .from("knockout_predictions")
-        .delete()
-        .eq("match_id", matchId);
-
-      await clearDependentBracket(supabase, matchId);
-    }
+    await clearDependentBracket(supabase, matchId);
   },
 
   async setMatchLocked(matchId: number, locked: boolean): Promise<void> {

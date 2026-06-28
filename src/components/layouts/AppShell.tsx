@@ -108,9 +108,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setKnockoutMatches,
   } = useData(currentUser?.id, {
     includeAllPredictions:
-      currentUser?.is_admin === true ||
-      pathname === "/ranking" ||
-      pathname === "/palpites-da-galera",
+  currentUser?.is_admin === true ||
+  pathname === "/ranking" ||
+  pathname === "/simulador" ||
+  pathname === "/palpites-da-galera",
     includePrivatePlayers: currentUser?.is_admin === true,
   });
 
