@@ -37,7 +37,10 @@ const baseProps = {
   predictions: [],
   players: mockPlayers,
   ranking: mockRanking,
+  knockoutMatches: [],
+  knockoutPredictions: [],
   onUpdateResult: vi.fn(),
+  onUpdateKnockoutResult: vi.fn(),
   onApprovePlayer: vi.fn(),
   onRejectPlayer: vi.fn(),
   stats: mockStats,
@@ -67,8 +70,8 @@ describe('AdminSection Component', () => {
 
   it('should render team names in game list', () => {
     render(<AdminSection {...baseProps} />);
-    const allText = screen.getByText(/RESULTADOS OFICIAIS/);
-    expect(allText).toBeInTheDocument();
+    const headings = screen.getAllByText(/RESULTADOS OFICIAIS/);
+    expect(headings.length).toBeGreaterThanOrEqual(1);
     // Verify teams appear in the game list section
     const braElements = screen.getAllByText('BRA');
     expect(braElements.length).toBeGreaterThanOrEqual(1);

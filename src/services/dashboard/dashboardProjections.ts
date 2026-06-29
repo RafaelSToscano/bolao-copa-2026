@@ -70,9 +70,19 @@ export function projectRankingTop(
   // to the DB position throughout the live match, not just between
   // consecutive polls.
   const { games: merged, provisional } = applyLiveScoresToGames(games, liveScores);
-  const liveRanking = calculateRanking(players, merged, predictions);
+  const liveRanking = calculateRanking(
+    players,
+    merged,
+    predictions,
+    knockoutMatches,
+    knockoutPredictions
+  );
+  // The OFFICIAL ranking must use the un-merged `games` array so live
+  // in-progress scores do NOT leak into it — that's the whole point of
+  // shipping a separate officialTotal/officialPosition pair alongside the
+  // provisional live ranking.
   const officialRanking = provisional
-    ? calculateRanking(players, merged, predictions, knockoutMatches, knockoutPredictions)
+    ? calculateRanking(players, games, predictions, knockoutMatches, knockoutPredictions)
     : liveRanking;
 
   const officialPositionByPlayerId = new Map(

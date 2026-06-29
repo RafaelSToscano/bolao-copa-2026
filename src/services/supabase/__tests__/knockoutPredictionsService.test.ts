@@ -2,7 +2,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Game } from "@/types/game";
 import { KnockoutMatch } from "@/types/knockout";
 
-type ExistingRow = { id: number; home_team: string | null; away_team: string | null };
+type ExistingRow = {
+  id: number;
+  match_number: number;
+  home_team: string | null;
+  away_team: string | null;
+  official_score_home: number | null;
+  official_score_away: number | null;
+  winner_team: string | null;
+  locked: boolean;
+  home_slot: string;
+  away_slot: string;
+};
 
 const updateCalls: Array<{ id: number; payload: Record<string, unknown> }> = [];
 let existingRows: ExistingRow[] = [];
@@ -10,9 +21,15 @@ let existingRows: ExistingRow[] = [];
 vi.mock("@/services/supabase/supabaseClient", () => ({
   getSupabaseClient: () => ({
     from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        lte: vi.fn(async () => ({ data: existingRows, error: null })),
-      })),
+      select: vi.fn(() => {
+        const builder: Record<string, unknown> = {
+          eq: vi.fn(() => builder),
+          order: vi.fn(async () => ({ data: existingRows, error: null })),
+          or: vi.fn(async () => ({ data: [], error: null })),
+          lte: vi.fn(async () => ({ data: existingRows, error: null })),
+        };
+        return builder;
+      }),
       update: vi.fn((payload: Record<string, unknown>) => ({
         eq: vi.fn(async (_col: string, id: number) => {
           updateCalls.push({ id, payload });
@@ -39,6 +56,22 @@ function round32Of(home: string, away: string): KnockoutMatch[] {
   ];
 }
 
+function existingRow(overrides: Partial<ExistingRow> = {}): ExistingRow {
+  return {
+    id: 1,
+    match_number: 1,
+    home_team: null,
+    away_team: null,
+    official_score_home: null,
+    official_score_away: null,
+    winner_team: null,
+    locked: false,
+    home_slot: "2A",
+    away_slot: "2B",
+    ...overrides,
+  };
+}
+
 function game(
   id: string,
   group: string,
@@ -59,7 +92,7 @@ function game(
   };
 }
 
-describe("knockoutPredictionsService.populateRound32FromGroups", () => {
+describe("knockoutPredictionsService.syncRound32FromGroups", () => {
   beforeEach(() => {
     updateCalls.length = 0;
     existingRows = [];
@@ -68,36 +101,45 @@ describe("knockoutPredictionsService.populateRound32FromGroups", () => {
 
   it("fills both slots for a match with no teams yet", async () => {
     vi.mocked(generateRound32).mockReturnValue(round32Of("Brasil", "Argentina"));
-    existingRows = [{ id: 1, home_team: null, away_team: null }];
+    existingRows = [existingRow({ id: 1, home_slot: "2A", away_slot: "2B" })];
 
-    await knockoutPredictionsService.populateRound32FromGroups([] as Game[]);
+    await knockoutPredictionsService.syncRound32FromGroups([] as Game[]);
 
-    expect(updateCalls).toEqual([
-      { id: 1, payload: { home_team: "Brasil", away_team: "Argentina" } },
-    ]);
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0].id).toBe(1);
+    expect(updateCalls[0].payload).toMatchObject({
+      home_team: "Brasil",
+      away_team: "Argentina",
+    });
   });
 
   it("does not overwrite a manually-set team, but fills the missing side", async () => {
     vi.mocked(generateRound32).mockReturnValue(round32Of("Brasil", "Argentina"));
-    existingRows = [{ id: 1, home_team: "Alemanha", away_team: null }];
+    existingRows = [existingRow({ id: 1, home_team: "Alemanha" })];
 
-    await knockoutPredictionsService.populateRound32FromGroups([] as Game[]);
+    await knockoutPredictionsService.syncRound32FromGroups([] as Game[]);
 
-    expect(updateCalls).toEqual([{ id: 1, payload: { away_team: "Argentina" } }]);
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0].payload).toMatchObject({
+      home_team: "Alemanha",
+      away_team: "Argentina",
+    });
   });
 
   it("skips a match entirely when both teams are already set", async () => {
     vi.mocked(generateRound32).mockReturnValue(round32Of("Brasil", "Argentina"));
-    existingRows = [{ id: 1, home_team: "Alemanha", away_team: "Espanha" }];
+    existingRows = [
+      existingRow({ id: 1, home_team: "Alemanha", away_team: "Espanha" }),
+    ];
 
-    await knockoutPredictionsService.populateRound32FromGroups([] as Game[]);
+    await knockoutPredictionsService.syncRound32FromGroups([] as Game[]);
 
     expect(updateCalls).toEqual([]);
   });
 
-  it("excludes games from groups that haven't finished all their matches", async () => {
+  it("forwards the full game list to generateRound32 (which handles incomplete groups internally)", async () => {
     vi.mocked(generateRound32).mockReturnValue(round32Of("Brasil", "Argentina"));
-    existingRows = [{ id: 1, home_team: null, away_team: null }];
+    existingRows = [existingRow({ id: 1 })];
 
     const games = [
       game("a1", "A", 2, 1),
@@ -106,10 +148,10 @@ describe("knockoutPredictionsService.populateRound32FromGroups", () => {
       game("b2", "B", null, null), // group B still has a pending match
     ];
 
-    await knockoutPredictionsService.populateRound32FromGroups(games);
+    await knockoutPredictionsService.syncRound32FromGroups(games);
 
     const passedGames = vi.mocked(generateRound32).mock.calls[0][0];
-    expect(passedGames.map((g) => g.id)).toEqual(["a1", "a2"]);
+    expect(passedGames.map((g) => g.id)).toEqual(["a1", "a2", "b1", "b2"]);
   });
 });
 
@@ -121,15 +163,23 @@ describe("knockoutPredictionsService.updateKnockoutMatchTeams", () => {
   it("writes home_team/away_team for the given match", async () => {
     await knockoutPredictionsService.updateKnockoutMatchTeams(5, "Brasil", "Alemanha");
 
-    expect(updateCalls).toEqual([
-      { id: 5, payload: { home_team: "Brasil", away_team: "Alemanha" } },
-    ]);
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0].id).toBe(5);
+    expect(updateCalls[0].payload).toMatchObject({
+      home_team: "Brasil",
+      away_team: "Alemanha",
+    });
   });
 
   it("clears a side back to unresolved when passed null", async () => {
     await knockoutPredictionsService.updateKnockoutMatchTeams(5, null, "Alemanha");
 
-    expect(updateCalls).toEqual([{ id: 5, payload: { home_team: null, away_team: "Alemanha" } }]);
+    expect(updateCalls).toHaveLength(1);
+    expect(updateCalls[0].id).toBe(5);
+    expect(updateCalls[0].payload).toMatchObject({
+      home_team: null,
+      away_team: "Alemanha",
+    });
   });
 });
 
