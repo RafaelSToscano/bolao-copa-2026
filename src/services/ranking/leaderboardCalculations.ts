@@ -5,18 +5,26 @@ import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 import { calculatePredictionPoints } from "../predictions/predictionCalculations";
 import { calculateKnockoutPredictionPoints } from "../scoring/knockoutPredictionScoring";
 
-function getLastRoundGameIds(games: Game[]): Set<string> {
-  const scored = games.filter(
-    (g) => g.official_score_a !== null && g.official_score_b !== null
-  );
-  if (!scored.length) return new Set();
-  const dates = [
-    ...new Set(scored.map((g) => g.match_date?.slice(0, 10)).filter(Boolean)),
-  ].sort() as string[];
-  const lastDate = dates[dates.length - 1];
-  return new Set(
-    scored.filter((g) => g.match_date?.startsWith(lastDate)).map((g) => g.id)
-  );
+function getLastScoredDate(
+  games: Game[],
+  knockoutMatches: KnockoutMatchRecord[]
+): string | null {
+  const dates: string[] = [];
+
+  for (const g of games) {
+    if (g.official_score_a === null || g.official_score_b === null) continue;
+    const d = g.match_date?.slice(0, 10);
+    if (d) dates.push(d);
+  }
+
+  for (const m of knockoutMatches) {
+    if (m.official_score_home === null || m.official_score_away === null) continue;
+    const d = m.match_date?.slice(0, 10);
+    if (d) dates.push(d);
+  }
+
+  if (dates.length === 0) return null;
+  return dates.sort()[dates.length - 1];
 }
 
 /**
@@ -101,20 +109,25 @@ export function calculatePositionChanges(
   knockoutMatches: KnockoutMatchRecord[] = [],
   knockoutPredictions: KnockoutPrediction[] = []
 ): Map<string, number> {
-  const lastRoundIds = getLastRoundGameIds(games);
-  if (!lastRoundIds.size) return new Map();
+  const lastDate = getLastScoredDate(games, knockoutMatches);
+  if (!lastDate) return new Map();
 
   const gamesWithoutLastRound = games.map((g) =>
-    lastRoundIds.has(g.id)
+    g.match_date?.startsWith(lastDate)
       ? { ...g, official_score_a: null, official_score_b: null }
       : g
+  );
+  const knockoutMatchesWithoutLastRound = knockoutMatches.map((m) =>
+    m.match_date?.startsWith(lastDate)
+      ? { ...m, official_score_home: null, official_score_away: null }
+      : m
   );
 
   const prevRanking = calculateRanking(
     players,
     gamesWithoutLastRound,
     predictions,
-    knockoutMatches,
+    knockoutMatchesWithoutLastRound,
     knockoutPredictions
   );
   const prevPositions = new Map(prevRanking.map((p) => [p.id, p.position]));

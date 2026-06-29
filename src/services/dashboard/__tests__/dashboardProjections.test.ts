@@ -9,8 +9,27 @@ import {
 import { Game } from "@/types/game";
 import { Player } from "@/types/player";
 import { Prediction } from "@/types/prediction";
+import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 
 const NOW = new Date("2026-06-12T12:00:00.000Z").getTime();
+
+function koMatch(overrides: Partial<KnockoutMatchRecord>): KnockoutMatchRecord {
+  return {
+    id: 1,
+    round: "r16",
+    match_number: 1,
+    home_slot: "A1",
+    away_slot: "B2",
+    home_team: "Team A",
+    away_team: "Team B",
+    official_score_home: null,
+    official_score_away: null,
+    winner_team: null,
+    match_date: null,
+    locked: false,
+    ...overrides,
+  };
+}
 
 function game(overrides: Partial<Game>): Game {
   return {
@@ -182,6 +201,83 @@ describe("projectRankingTop", () => {
     const players = [player("p1", "P1"), player("p2", "P2")];
     const result = projectRankingTop(players, [], [], 5);
     expect(result.top.every((r) => r.lastRoundDelta === 0)).toBe(true);
+  });
+
+  it("populates lastRoundDelta when the last activity was a knockout match", () => {
+    // Group round dated 2026-06-10: p1 nails, p2 misses → p1 leads.
+    // R16 dated 2026-07-04 (later): p2 nails, p1 misses → p2 overtakes.
+    const players = [player("p1", "P1"), player("p2", "P2")];
+    const games: Game[] = [
+      game({
+        id: "g1",
+        match_date: "2026-06-10T18:00:00.000Z",
+        official_score_a: 2,
+        official_score_b: 0,
+      }),
+    ];
+    const predictions: Prediction[] = [
+      { player_id: "p1", game_id: "g1", predicted_score_a: 2, predicted_score_b: 0 },
+      { player_id: "p2", game_id: "g1", predicted_score_a: 0, predicted_score_b: 2 },
+    ];
+    const knockoutMatches: KnockoutMatchRecord[] = [
+      koMatch({
+        id: 101,
+        match_date: "2026-07-04T18:00:00.000Z",
+        official_score_home: 3,
+        official_score_away: 1,
+      }),
+      koMatch({
+        id: 102,
+        match_date: "2026-07-04T22:00:00.000Z",
+        official_score_home: 2,
+        official_score_away: 0,
+      }),
+    ];
+    const knockoutPredictions: KnockoutPrediction[] = [
+      {
+        player_id: "p1",
+        match_id: 101,
+        predicted_score_home: 0,
+        predicted_score_away: 2,
+        predicted_winner: "away",
+      },
+      {
+        player_id: "p2",
+        match_id: 101,
+        predicted_score_home: 3,
+        predicted_score_away: 1,
+        predicted_winner: "home",
+      },
+      {
+        player_id: "p1",
+        match_id: 102,
+        predicted_score_home: 0,
+        predicted_score_away: 3,
+        predicted_winner: "away",
+      },
+      {
+        player_id: "p2",
+        match_id: 102,
+        predicted_score_home: 2,
+        predicted_score_away: 0,
+        predicted_winner: "home",
+      },
+    ];
+
+    const result = projectRankingTop(
+      players,
+      games,
+      predictions,
+      5,
+      [],
+      knockoutMatches,
+      knockoutPredictions
+    );
+    const p1 = result.top.find((r) => r.id === "p1");
+    const p2 = result.top.find((r) => r.id === "p2");
+    expect(p2?.position).toBe(1);
+    expect(p2?.lastRoundDelta).toBe(1);
+    expect(p1?.lastRoundDelta).toBe(-1);
   });
 
   it("does not modify games whose official score is already set", () => {
