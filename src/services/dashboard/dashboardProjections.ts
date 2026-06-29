@@ -15,6 +15,7 @@ import {
   calculateRanking,
 } from "@/services/ranking/leaderboardCalculations";
 import { calculatePredictionPoints } from "@/services/predictions/predictionCalculations";
+import { calculateKnockoutPredictionPoints } from "@/services/scoring/knockoutPredictionScoring";
 import { calculateAllGroupStandings } from "@/services/standings/standingsCalculations";
 
 /**
@@ -100,7 +101,9 @@ export function projectRankingTop(
     officialRanking,
     games,
     predictions,
-    players
+    players,
+    knockoutMatches,
+    knockoutPredictions
   );
 
   const decorate = (row: (typeof liveRanking)[number]) => ({
@@ -156,28 +159,72 @@ export function projectRecent(
   games: Game[],
   predictions: Prediction[],
   userId: string | null,
-  limit = 5
+  limit = 5,
+  knockoutMatches: KnockoutMatchRecord[] = [],
+  knockoutPredictions: KnockoutPrediction[] = []
 ): DashboardRecentPayload {
-  const finished = games
+  const groupItems = games
     .filter((g) => g.official_score_a !== null && g.official_score_b !== null)
+    .map((game) => {
+      const myPrediction = userId
+        ? predictions.find(
+            (p) => p.player_id === userId && p.game_id === game.id
+          ) ?? null
+        : null;
+      const myPoints = myPrediction
+        ? calculatePredictionPoints(myPrediction, game).points
+        : 0;
+      return { game, myPrediction, myPoints };
+    });
+
+  const knockoutItems = knockoutMatches
+    .filter(
+      (m) =>
+        m.official_score_home !== null &&
+        m.official_score_away !== null &&
+        m.match_date &&
+        m.home_team &&
+        m.away_team
+    )
+    .map((match) => {
+      const game: Game = {
+        id: `knockout-${match.id}`,
+        phase: match.round,
+        group_name: "Mata-mata",
+        match_order: match.match_number,
+        match_date: match.match_date,
+        team_a: match.home_team!,
+        team_b: match.away_team!,
+        official_score_a: match.official_score_home,
+        official_score_b: match.official_score_away,
+        locked: true,
+      };
+      const kpred = userId
+        ? knockoutPredictions.find(
+            (p) => p.player_id === userId && p.match_id === match.id
+          ) ?? null
+        : null;
+      const myPrediction: Prediction | null = kpred
+        ? {
+            player_id: kpred.player_id,
+            game_id: game.id,
+            predicted_score_a: kpred.predicted_score_home,
+            predicted_score_b: kpred.predicted_score_away,
+          }
+        : null;
+      const myPoints = kpred
+        ? calculateKnockoutPredictionPoints(kpred, match).points
+        : 0;
+      return { game, myPrediction, myPoints };
+    });
+
+  const items = [...groupItems, ...knockoutItems]
     .sort((a, b) => {
-      const ad = a.match_date ? new Date(a.match_date).getTime() : 0;
-      const bd = b.match_date ? new Date(b.match_date).getTime() : 0;
+      const ad = a.game.match_date ? new Date(a.game.match_date).getTime() : 0;
+      const bd = b.game.match_date ? new Date(b.game.match_date).getTime() : 0;
       return bd - ad;
     })
     .slice(0, limit);
-
-  const items = finished.map((game) => {
-    const myPrediction = userId
-      ? predictions.find(
-          (p) => p.player_id === userId && p.game_id === game.id
-        ) ?? null
-      : null;
-    const myPoints = myPrediction
-      ? calculatePredictionPoints(myPrediction, game).points
-      : 0;
-    return { game, myPrediction, myPoints };
-  });
 
   return { items };
 }
@@ -192,7 +239,13 @@ export function projectMyStatus(
   knockoutPredictions: KnockoutPrediction[] = []
 ): DashboardMyStatusPayload {
   const { games: merged, provisional } = applyLiveScoresToGames(games, liveScores);
-  const ranking = calculateRanking(players, merged, predictions);
+  const ranking = calculateRanking(
+    players,
+    merged,
+    predictions,
+    knockoutMatches,
+    knockoutPredictions
+  );
   const me = ranking.find((p) => p.id === userId);
 
   const userPredictions = predictions.filter(
@@ -201,11 +254,18 @@ export function projectMyStatus(
       p.predicted_score_a !== null &&
       p.predicted_score_b !== null
   );
-  const totalGames = games.length;
+  const userKnockoutPredictions = knockoutPredictions.filter(
+    (p) =>
+      p.player_id === userId &&
+      p.predicted_score_home !== null &&
+      p.predicted_score_away !== null
+  );
+  const totalMatches = games.length + knockoutMatches.length;
+  const totalFilled = userPredictions.length + userKnockoutPredictions.length;
   const completion =
-    totalGames === 0
+    totalMatches === 0
       ? 0
-      : Math.round((userPredictions.length / totalGames) * 100);
+      : Math.round((totalFilled / totalMatches) * 100);
 
   return {
     position: me?.position ?? null,
