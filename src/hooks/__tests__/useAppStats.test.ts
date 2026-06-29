@@ -113,7 +113,6 @@ describe('useAppStats Hook', () => {
     );
 
     expect(result.current).toHaveProperty('totalPlayers');
-    expect(result.current).toHaveProperty('playersWithPredictions');
     expect(result.current).toHaveProperty('approvedPlayers');
     expect(result.current).toHaveProperty('pendingPlayers');
     expect(result.current).toHaveProperty('activePlayers');
@@ -150,8 +149,8 @@ describe('useAppStats Hook', () => {
       useAppStats(mockPlayers, mockGames, mockPredictions)
     );
 
-    // player1 and player2 have predictions (even if empty)
-    expect(result.current.playersWithPredictions).toBeGreaterThanOrEqual(1);
+    // player1 has at least one complete prediction; player2 has only empty ones
+    expect(result.current.activePlayers).toBeGreaterThanOrEqual(1);
   });
 
   it('should calculate user completion percentage', () => {
@@ -194,7 +193,7 @@ describe('useAppStats Hook', () => {
       useAppStats(mockPlayers, mockGames, [])
     );
 
-    expect(result.current.playersWithPredictions).toBe(0);
+    expect(result.current.activePlayers).toBe(0);
   });
 
   it('should only count non-admin players in active players', () => {

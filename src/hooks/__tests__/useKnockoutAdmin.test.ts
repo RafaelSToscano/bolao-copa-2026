@@ -8,7 +8,7 @@ vi.mock("@/services/supabase/knockoutPredictionsService", () => ({
   knockoutPredictionsService: {
     getKnockoutMatches: vi.fn(),
     updateKnockoutMatchResult: vi.fn(),
-    populateRound32FromGroups: vi.fn(),
+    syncRound32FromGroups: vi.fn(),
     updateKnockoutMatchTeams: vi.fn(),
     setMatchLocked: vi.fn(),
     clearAllOfficialResults: vi.fn(),
@@ -37,7 +37,7 @@ describe("useKnockoutAdmin", () => {
     vi.clearAllMocks();
     vi.mocked(knockoutPredictionsService.getKnockoutMatches).mockResolvedValue([baseMatch]);
     vi.mocked(knockoutPredictionsService.updateKnockoutMatchResult).mockResolvedValue(undefined);
-    vi.mocked(knockoutPredictionsService.populateRound32FromGroups).mockResolvedValue(undefined);
+    vi.mocked(knockoutPredictionsService.syncRound32FromGroups).mockResolvedValue([]);
     vi.mocked(knockoutPredictionsService.updateKnockoutMatchTeams).mockResolvedValue(undefined);
     vi.mocked(knockoutPredictionsService.setMatchLocked).mockResolvedValue(undefined);
     vi.mocked(knockoutPredictionsService.clearAllOfficialResults).mockResolvedValue(undefined);
@@ -57,30 +57,35 @@ describe("useKnockoutAdmin", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     await act(async () => {
-      await result.current.recordResult(1, 2, 1, "Brasil");
+      await result.current.recordResult(1, 2, 1);
     });
 
     expect(knockoutPredictionsService.updateKnockoutMatchResult).toHaveBeenCalledWith(
       1,
       2,
-      1,
-      "Brasil"
+      1
     );
     expect(knockoutPredictionsService.getKnockoutMatches).toHaveBeenCalledTimes(2);
     expect(result.current.isSaving).toBe(false);
   });
 
-  it("populateRound32 fills missing teams then refreshes", async () => {
+  it("syncRound32 sends games and seeds matches from the response", async () => {
     const games = [] as Game[];
+    const synced = [{ ...baseMatch, home_team: "Alemanha" }];
+    vi.mocked(knockoutPredictionsService.syncRound32FromGroups).mockResolvedValue(synced);
+
     const { result } = renderHook(() => useKnockoutAdmin());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     await act(async () => {
-      await result.current.populateRound32(games);
+      await result.current.syncRound32(games);
     });
 
-    expect(knockoutPredictionsService.populateRound32FromGroups).toHaveBeenCalledWith(games);
-    expect(knockoutPredictionsService.getKnockoutMatches).toHaveBeenCalledTimes(2);
+    expect(knockoutPredictionsService.syncRound32FromGroups).toHaveBeenCalledWith(games);
+    // The hook now seeds local state from syncRound32's return value, so it
+    // does NOT refetch (only the initial mount call is expected).
+    expect(knockoutPredictionsService.getKnockoutMatches).toHaveBeenCalledTimes(1);
+    expect(result.current.matches).toEqual(synced);
   });
 
   it("setMatchTeams overrides teams manually then refreshes", async () => {

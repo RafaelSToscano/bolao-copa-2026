@@ -17,6 +17,20 @@ vi.mock("@/services/supabase/predictionsService", () => ({
     getPredictionsForPlayer: vi.fn(async () => []),
   },
 }));
+vi.mock("@/services/supabase/knockoutPredictionsService", () => ({
+  knockoutPredictionsService: {
+    getKnockoutMatches: vi.fn(async () => []),
+    getAllKnockoutPredictions: vi.fn(async () => []),
+    getKnockoutPredictionsForPlayer: vi.fn(async () => []),
+  },
+}));
+vi.mock("@/lib/server/footballData", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/server/footballData")>();
+  return {
+    ...actual,
+    getCachedLiveScores: vi.fn(async () => []),
+  };
+});
 
 describe("dashboard route handlers", () => {
   beforeEach(() => {
