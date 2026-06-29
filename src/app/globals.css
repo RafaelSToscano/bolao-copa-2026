@@ -9,6 +9,15 @@
   50% { opacity: 0; }
 }
 
+/* Golden fog halo around the Final card. Pulses opacity + scale so the
+   cloud feels like it's breathing around the card rather than being a
+   flat outline. The element sits behind the card and bleeds well past
+   the card edges via -inset-12 and a heavy blur. */
+@keyframes bracket-fog {
+  0%, 100% { opacity: 0.55; transform: scale(0.95); }
+  50%      { opacity: 1;    transform: scale(1.05); }
+}
+
 @theme inline {
   --animate-blink: blink 1s step-start infinite;
   --color-background: var(--background);
