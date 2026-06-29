@@ -11,11 +11,11 @@ type Props = {
   matches: DisplayKnockoutMatch[];
 };
 
-type BracketRound = Exclude<KnockoutRound, "third_place">;
+export type BracketRound = Exclude<KnockoutRound, "third_place">;
 
 const BRACKET_ROUNDS: BracketRound[] = ["r32", "r16", "qf", "sf", "final"];
 
-const ROUND_TITLE: Record<BracketRound, string> = {
+export const BRACKET_ROUND_TITLE: Record<BracketRound, string> = {
   r32: "16 avos",
   r16: "Oitavas",
   qf: "Quartas",
@@ -23,7 +23,7 @@ const ROUND_TITLE: Record<BracketRound, string> = {
   final: "Final",
 };
 
-const ROUND_SPAN: Record<BracketRound, number> = {
+export const BRACKET_ROUND_SPAN: Record<BracketRound, number> = {
   r32: 1,
   r16: 2,
   qf: 4,
@@ -33,12 +33,22 @@ const ROUND_SPAN: Record<BracketRound, number> = {
 
 // Vertical ordering so siblings sit next to each other and connectors form
 // clean Ls all the way up to the final. Indexes follow knockout_matches.match_number.
-const ROUND_ORDER_BY_MATCH_NUMBER: Record<BracketRound, number[]> = {
+export const BRACKET_ROUND_ORDER_BY_MATCH_NUMBER: Record<BracketRound, number[]> = {
   r32: [2, 5, 1, 3, 11, 12, 9, 10, 4, 6, 7, 8, 14, 16, 13, 15],
   r16: [1, 2, 5, 6, 3, 4, 7, 8],
   qf: [1, 2, 3, 4],
   sf: [1, 2],
   final: [1],
+};
+
+// Bracket geometry knobs — all sizing flows from these so the
+// connectors stay aligned with the cards at any tuning. Exported so
+// dashboard previews can mount BracketColumn with the same scale.
+export const BRACKET_GEOMETRY: React.CSSProperties = {
+  ["--bracket-row" as string]: "7.5rem",
+  ["--bracket-col-w" as string]: "14rem",
+  ["--bracket-gap" as string]: "2rem",
+  ["--bracket-elbow" as string]: "1rem",
 };
 
 function TeamRow({
@@ -87,12 +97,16 @@ function TeamRow({
   );
 }
 
-function MatchCard({
+export function MatchCard({
   match,
   emphasis = false,
+  compact = false,
 }: {
   match: DisplayKnockoutMatch;
   emphasis?: boolean;
+  /** Flag-only layout. Used by the dashboard's next-round preview so the
+   * two-column bracket fragment fits on mobile without horizontal scroll. */
+  compact?: boolean;
 }) {
   const homeTeam = match.display_home_team;
   const awayTeam = match.display_away_team;
@@ -102,6 +116,29 @@ function MatchCard({
 
   const homeWinner = match.winner_team !== null && match.winner_team === homeTeam;
   const awayWinner = match.winner_team !== null && match.winner_team === awayTeam;
+
+  if (compact) {
+    return (
+      <div className="w-full rounded-xl border border-slate-700/80 bg-slate-950/95 px-3 py-3 shadow-xl shadow-black/20">
+        <p className="mb-2 truncate text-center text-[11px] font-semibold text-slate-400">
+          {formatDate(match.match_date)}
+        </p>
+        <div className="flex items-center justify-center gap-3">
+          {homeTeam ? (
+            <Flag team={homeTeam} size="medium" />
+          ) : (
+            <Shield size={20} className="text-slate-500" />
+          )}
+          <span className="text-sm font-black text-slate-500">×</span>
+          {awayTeam ? (
+            <Flag team={awayTeam} size="medium" />
+          ) : (
+            <Shield size={20} className="text-slate-500" />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (emphasis) {
     return (
@@ -177,14 +214,14 @@ function EmptyMatchCard() {
   );
 }
 
-type Slot = { match: DisplayKnockoutMatch | null; rowSpan: number };
+export type BracketSlot = { match: DisplayKnockoutMatch | null; rowSpan: number };
 
-function buildRoundSlots(
+export function buildRoundSlots(
   round: BracketRound,
   matches: DisplayKnockoutMatch[]
-): Slot[] {
-  const order = ROUND_ORDER_BY_MATCH_NUMBER[round];
-  const span = ROUND_SPAN[round];
+): BracketSlot[] {
+  const order = BRACKET_ROUND_ORDER_BY_MATCH_NUMBER[round];
+  const span = BRACKET_ROUND_SPAN[round];
   const byNumber = new Map(matches.map((m) => [m.match_number, m]));
 
   return order.map((matchNumber) => ({
@@ -193,35 +230,43 @@ function buildRoundSlots(
   }));
 }
 
-function BracketColumn({
+export function BracketColumn({
   round,
   slots,
   isLastRound,
+  compact = false,
 }: {
   round: BracketRound;
-  slots: Slot[];
+  slots: BracketSlot[];
   isLastRound: boolean;
+  /** Flag-only cards, narrower column width. Used by the dashboard
+   * preview to keep two rounds visible on mobile without horizontal
+   * scroll. */
+  compact?: boolean;
 }) {
   const isFinal = round === "final";
+  const columnWidth = compact
+    ? "var(--bracket-col-compact-w, 8.5rem)"
+    : isFinal
+      ? "calc(var(--bracket-col-w) * 2)"
+      : "var(--bracket-col-w)";
 
   return (
     <div className="flex shrink-0 flex-col" data-round={round}>
       <h3
         className={`mb-3 text-center font-black uppercase tracking-wide ${
-          isFinal
+          isFinal && !compact
             ? "text-xl text-yellow-300"
             : "text-sm text-yellow-400/90"
         }`}
       >
-        {ROUND_TITLE[round]}
+        {BRACKET_ROUND_TITLE[round]}
       </h3>
 
       <div
         className="grid"
         style={{
-          width: isFinal
-            ? "calc(var(--bracket-col-w) * 2)"
-            : "var(--bracket-col-w)",
+          width: columnWidth,
           gridTemplateRows: "repeat(16, var(--bracket-row))",
         }}
       >
@@ -236,7 +281,7 @@ function BracketColumn({
               // own bounds, so we can't clip its cell. R32 (rowSpan 1)
               // still needs overflow-hidden so cards don't overlap.
               className={`relative flex items-center ${
-                isFinal ? "" : "overflow-hidden"
+                isFinal && !compact ? "" : "overflow-hidden"
               }`}
               style={{ gridRow: `span ${slot.rowSpan} / span ${slot.rowSpan}` }}
             >
@@ -245,7 +290,11 @@ function BracketColumn({
                 style={{ paddingRight: "var(--bracket-gap)" }}
               >
                 {slot.match ? (
-                  <MatchCard match={slot.match} emphasis={isFinal} />
+                  <MatchCard
+                    match={slot.match}
+                    emphasis={isFinal && !compact}
+                    compact={compact}
+                  />
                 ) : (
                   <EmptyMatchCard />
                 )}
@@ -391,19 +440,7 @@ export function KnockoutBracketView({ matches }: Props) {
       // bubbling out, and pinch-zoom on the page). pan-x alone blocks the
       // vertical scroll bubble; pinch-zoom alone blocks horizontal pan.
       className="-mx-4 overflow-x-auto pb-6 md:mx-0 [touch-action:manipulation]"
-      style={
-        {
-          // Bracket geometry knobs — all sizing flows from these so the
-          // connectors stay aligned with the cards at any tuning. The row
-          // height must be ≥ the rendered card height + a hair of breathing
-          // room; R32 cards each occupy exactly ONE row, so a too-small row
-          // makes adjacent R32 matches visually overlap.
-          ["--bracket-row" as string]: "7.5rem",
-          ["--bracket-col-w" as string]: "14rem",
-          ["--bracket-gap" as string]: "2rem",
-          ["--bracket-elbow" as string]: "1rem",
-        } as React.CSSProperties
-      }
+      style={BRACKET_GEOMETRY}
     >
       <div className="min-w-max px-4 md:px-1">
         <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm font-bold text-slate-300 md:hidden">

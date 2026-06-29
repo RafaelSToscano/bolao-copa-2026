@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Prediction } from "@/types/prediction";
 import { Game } from "@/types/game";
-import { KnockoutPrediction } from "@/types/knockout";
+import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
+import { buildDisplayKnockoutMatches } from "@/lib/knockoutDisplayMatches";
+import {
+  pickCurrentKnockoutRound,
+  pickNextKnockoutRound,
+} from "@/lib/knockoutRounds";
 import {
   findLiveScoreForGame,
   LiveScoreMatch,
@@ -19,6 +24,7 @@ import { UpcomingMatchesCard } from "./dashboard/UpcomingMatchesCard";
 import { RecentResultsCard } from "./dashboard/RecentResultsCard";
 import { MyStatusCard } from "./dashboard/MyStatusCard";
 import { GroupLeadersCard } from "./dashboard/GroupLeadersCard";
+import { KnockoutBracketPreview } from "./dashboard/KnockoutNextRoundCard";
 import { GoalAnimation } from "./dashboard/GoalAnimation";
 import { GoalScorerModal } from "./dashboard/GoalScorerModal";
 
@@ -34,6 +40,7 @@ interface DashboardSectionProps {
   currentUserId: string;
   myPredictions?: Prediction[];
   knockoutPredictions?: KnockoutPrediction[];
+  knockoutMatches?: KnockoutMatchRecord[];
   games?: Game[];
   onNavigate: (target: DashboardNavigationTarget) => void;
 }
@@ -87,6 +94,7 @@ export function DashboardSection({
   currentUserId,
   myPredictions,
   knockoutPredictions = [],
+  knockoutMatches = [],
   games,
   onNavigate,
 }: DashboardSectionProps) {
@@ -144,6 +152,48 @@ const liveSignals = useMemo(
     hero.kind === "finished+upcoming" ? hero.upcoming : null;
   const upcomingPool =
     hero.kind === "upcoming-only" ? hero.games : heroPool;
+
+  const knockoutsStarted = useMemo(
+    () => knockoutMatches.some((match) => match.winner_team !== null),
+    [knockoutMatches]
+  );
+
+  const currentKnockoutRound = useMemo(
+    () => (knockoutsStarted ? pickCurrentKnockoutRound(knockoutMatches) : null),
+    [knockoutsStarted, knockoutMatches]
+  );
+
+  const nextKnockoutRound = useMemo(
+    () => (knockoutsStarted ? pickNextKnockoutRound(knockoutMatches) : null),
+    [knockoutsStarted, knockoutMatches]
+  );
+
+  const displayKnockoutMatches = useMemo(
+    () =>
+      knockoutsStarted
+        ? buildDisplayKnockoutMatches(knockoutMatches, allGames)
+        : [],
+    [knockoutsStarted, knockoutMatches, allGames]
+  );
+
+  const currentRoundMatches = useMemo(
+    () =>
+      currentKnockoutRound
+        ? displayKnockoutMatches.filter((m) => m.round === currentKnockoutRound)
+        : [],
+    [displayKnockoutMatches, currentKnockoutRound]
+  );
+
+  const nextRoundMatches = useMemo(
+    () =>
+      nextKnockoutRound
+        ? displayKnockoutMatches.filter((m) => m.round === nextKnockoutRound)
+        : [],
+    [displayKnockoutMatches, nextKnockoutRound]
+  );
+
+  const showBracketPreview =
+    knockoutsStarted && (currentKnockoutRound || nextKnockoutRound);
 
   const [goalTrigger, setGoalTrigger] = useState<string | null>(null);
   const [scoringTeam, setScoringTeam] = useState<string | null>(null);
@@ -231,10 +281,19 @@ const liveSignals = useMemo(
         </div>
       </div>
 
-      <GroupLeadersCard
-        groups={data.groupLeaders?.groups ?? []}
-        onSeeAll={() => onNavigate("/classificacao")}
-      />
+      {showBracketPreview ? (
+        <KnockoutBracketPreview
+          currentRound={currentKnockoutRound}
+          currentMatches={currentRoundMatches}
+          nextRound={nextKnockoutRound}
+          nextMatches={nextRoundMatches}
+        />
+      ) : (
+        <GroupLeadersCard
+          groups={data.groupLeaders?.groups ?? []}
+          onSeeAll={() => onNavigate("/classificacao")}
+        />
+      )}
     </div>
   );
 }

@@ -6,13 +6,20 @@ import { DashboardSection } from "@/components/sections/DashboardSection";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { currentUser, predictions, knockoutPredictions, games } = useAppShell();
+  const {
+    currentUser,
+    predictions,
+    knockoutPredictions,
+    knockoutMatches,
+    games,
+  } = useAppShell();
 
   return (
     <DashboardSection
       currentUserId={currentUser.id}
       myPredictions={predictions}
       knockoutPredictions={knockoutPredictions}
+      knockoutMatches={knockoutMatches}
       games={games}
       onNavigate={(href) => router.push(href)}
     />
