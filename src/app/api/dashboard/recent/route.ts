@@ -3,6 +3,7 @@ import { withCache } from "@/lib/server/memoryCache";
 import { cachePublic } from "@/lib/server/cacheHeaders";
 import { gamesService } from "@/services/supabase/gamesService";
 import { predictionsService } from "@/services/supabase/predictionsService";
+import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
 import { projectRecent } from "@/services/dashboard/dashboardProjections";
 
 const TTL_SECONDS = 30;
@@ -21,13 +22,25 @@ export async function GET(req: NextRequest) {
     `dashboard:recent:${userId ?? "anon"}`,
     TTL_SECONDS,
     async () => {
-      const [games, userPredictions] = await Promise.all([
-        gamesService.getAllGames(),
-        userId
-          ? predictionsService.getPredictionsForPlayer(userId)
-          : Promise.resolve([]),
-      ]);
-      return projectRecent(games, userPredictions, userId, 5);
+      const [games, userPredictions, knockoutMatches, userKnockoutPredictions] =
+        await Promise.all([
+          gamesService.getAllGames(),
+          userId
+            ? predictionsService.getPredictionsForPlayer(userId)
+            : Promise.resolve([]),
+          knockoutPredictionsService.getKnockoutMatches(),
+          userId
+            ? knockoutPredictionsService.getKnockoutPredictionsForPlayer(userId)
+            : Promise.resolve([]),
+        ]);
+      return projectRecent(
+        games,
+        userPredictions,
+        userId,
+        5,
+        knockoutMatches,
+        userKnockoutPredictions
+      );
     }
   );
 

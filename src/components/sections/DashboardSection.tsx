@@ -198,6 +198,7 @@ const liveSignals = useMemo(
         <NextGameBanner
           games={upcomingPool}
           predictions={myPredictions ?? []}
+          knockoutPredictions={knockoutPredictions}
           currentUserId={currentUserId}
         />
       )}
