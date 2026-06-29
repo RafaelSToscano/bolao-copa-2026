@@ -254,13 +254,21 @@ export function projectMyStatus(
       p.predicted_score_a !== null &&
       p.predicted_score_b !== null
   );
+  // Only count knockout slots whose teams are decided — TBD slots can't
+  // be predicted yet, so including them in the denominator means the
+  // user can never reach 100% until the whole bracket fills in.
+  const knownKnockoutMatches = knockoutMatches.filter(
+    (m) => m.home_team !== null && m.away_team !== null
+  );
+  const knownKnockoutMatchIds = new Set(knownKnockoutMatches.map((m) => m.id));
   const userKnockoutPredictions = knockoutPredictions.filter(
     (p) =>
       p.player_id === userId &&
       p.predicted_score_home !== null &&
-      p.predicted_score_away !== null
+      p.predicted_score_away !== null &&
+      knownKnockoutMatchIds.has(p.match_id)
   );
-  const totalMatches = games.length + knockoutMatches.length;
+  const totalMatches = games.length + knownKnockoutMatches.length;
   const totalFilled = userPredictions.length + userKnockoutPredictions.length;
   const completion =
     totalMatches === 0

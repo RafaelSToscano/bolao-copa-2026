@@ -494,6 +494,86 @@ describe("projectMyStatus", () => {
     expect(result.exacts).toBe(0);
     expect(result.completion).toBe(0);
   });
+
+  it("excludes knockout slots with TBD teams from completion %", () => {
+    const players = [player("u1", "Me")];
+    const games: Game[] = [
+      game({ id: "g1" }),
+      game({ id: "g2" }),
+    ];
+    const predictions: Prediction[] = [
+      { player_id: "u1", game_id: "g1", predicted_score_a: 1, predicted_score_b: 0 },
+      { player_id: "u1", game_id: "g2", predicted_score_a: 2, predicted_score_b: 1 },
+    ];
+    // 1 knockout match with both teams known, 3 still TBD.
+    const knockoutMatches: KnockoutMatchRecord[] = [
+      koMatch({ id: 1, home_team: "Team A", away_team: "Team B" }),
+      koMatch({ id: 2, home_team: null, away_team: null }),
+      koMatch({ id: 3, home_team: "Team C", away_team: null }),
+      koMatch({ id: 4, home_team: null, away_team: "Team D" }),
+    ];
+    const knockoutPredictions: KnockoutPrediction[] = [
+      {
+        player_id: "u1",
+        match_id: 1,
+        predicted_score_home: 1,
+        predicted_score_away: 0,
+        predicted_winner: "home",
+      },
+    ];
+
+    const result = projectMyStatus(
+      "u1",
+      players,
+      games,
+      predictions,
+      [],
+      knockoutMatches,
+      knockoutPredictions
+    );
+
+    // 2 groups + 1 known KO = 3 slots; user filled all 3 → 100%.
+    expect(result.completion).toBe(100);
+  });
+
+  it("ignores knockout predictions saved against later-TBD'd slots", () => {
+    const players = [player("u1", "Me")];
+    const knockoutMatches: KnockoutMatchRecord[] = [
+      koMatch({ id: 1, home_team: "Team A", away_team: "Team B" }),
+      koMatch({ id: 2, home_team: null, away_team: null }),
+    ];
+    // User has two saved predictions — one against a known slot,
+    // one against a slot whose teams reverted to TBD.
+    const knockoutPredictions: KnockoutPrediction[] = [
+      {
+        player_id: "u1",
+        match_id: 1,
+        predicted_score_home: 1,
+        predicted_score_away: 0,
+        predicted_winner: "home",
+      },
+      {
+        player_id: "u1",
+        match_id: 2,
+        predicted_score_home: 2,
+        predicted_score_away: 2,
+        predicted_winner: "home",
+      },
+    ];
+
+    const result = projectMyStatus(
+      "u1",
+      players,
+      [],
+      [],
+      [],
+      knockoutMatches,
+      knockoutPredictions
+    );
+
+    // Denominator is 1 known KO, numerator is the one valid prediction.
+    expect(result.completion).toBe(100);
+  });
 });
 
 describe("projectGroupLeaders", () => {
