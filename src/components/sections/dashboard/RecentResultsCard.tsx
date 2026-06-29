@@ -3,6 +3,7 @@
 import { Clock } from "lucide-react";
 import { DashboardRecentItem } from "@/types/dashboard";
 import { calculatePredictionPointsBreakdown } from "@/services/predictions/predictionCalculations";
+import { KnockoutRound } from "@/types/knockout";
 import {
   DashboardMatchListCard,
   DashboardMatchListItem,
@@ -13,12 +14,30 @@ interface RecentResultsCardProps {
   items: DashboardRecentItem[];
 }
 
+const KNOCKOUT_PHASE_SHORT: Record<KnockoutRound, string> = {
+  r32: "16 avos",
+  r16: "Oitavas",
+  qf: "Quartas",
+  sf: "Semi",
+  third_place: "3º lugar",
+  final: "Final",
+};
+
+function getPhaseLabel(phase: string, groupName: string | null) {
+  if (phase in KNOCKOUT_PHASE_SHORT) {
+    return KNOCKOUT_PHASE_SHORT[phase as KnockoutRound];
+  }
+  return groupName ? `Grupo ${groupName}` : null;
+}
+
 export function RecentResultsCard({ items }: RecentResultsCardProps) {
   const listItems: DashboardMatchListItem[] = items.map(
     ({ game, myPrediction, myPoints }) => {
       const hasPrediction =
         myPrediction?.predicted_score_a != null &&
         myPrediction?.predicted_score_b != null;
+
+      const phaseLabel = getPhaseLabel(game.phase, game.group_name);
 
       return {
         game,
@@ -34,9 +53,9 @@ export function RecentResultsCard({ items }: RecentResultsCardProps) {
             </span>
           </div>
         ),
-        metaInline: game.group_name ? (
+        metaInline: phaseLabel ? (
           <span className="font-semibold whitespace-nowrap">
-            · Grupo {game.group_name}
+            · {phaseLabel}
           </span>
         ) : null,
         metaRight: hasPrediction ? (
@@ -61,6 +80,7 @@ export function RecentResultsCard({ items }: RecentResultsCardProps) {
       title="Resultados recentes"
       emptyMessage="Aguardando primeiros resultados."
       items={listItems}
+      showTodayLabel={false}
     />
   );
 }
