@@ -56,6 +56,47 @@ export function applyLiveScoresToGames(
   return { games: merged, provisional };
 }
 
+/**
+ * Folds live scores into knockout matches the same way `applyLiveScoresToGames`
+ * does for group games. Matches without a kickoff date or with teams still TBD
+ * are skipped (nothing to overlay). Final official scores win.
+ */
+export function applyLiveScoresToKnockoutMatches(
+  matches: KnockoutMatchRecord[],
+  liveScores: LiveScoreMatch[]
+): { matches: KnockoutMatchRecord[]; provisional: boolean } {
+  if (liveScores.length === 0) return { matches, provisional: false };
+
+  let provisional = false;
+  const merged = matches.map((match) => {
+    if (
+      match.official_score_home !== null &&
+      match.official_score_away !== null
+    ) {
+      return match;
+    }
+    if (!match.match_date) return match;
+    if (match.home_team === null || match.away_team === null) return match;
+
+    const matchTime = new Date(match.match_date).getTime();
+    const live = liveScores.find((m) => {
+      const apiTime = new Date(m.utcDate).getTime();
+      return Math.abs(apiTime - matchTime) / 60000 <= 90;
+    });
+    if (!live) return match;
+    if (live.homeScore == null || live.awayScore == null) return match;
+
+    provisional = true;
+    return {
+      ...match,
+      official_score_home: live.homeScore,
+      official_score_away: live.awayScore,
+    };
+  });
+
+  return { matches: merged, provisional };
+}
+
 export function projectRankingTop(
   players: Player[],
   games: Game[],
@@ -70,15 +111,20 @@ export function projectRankingTop(
   // Ship both so the client can show stable +N/-N deltas relative
   // to the DB position throughout the live match, not just between
   // consecutive polls.
-  const { games: merged, provisional } = applyLiveScoresToGames(games, liveScores);
+  const { games: mergedGames, provisional: groupProvisional } =
+    applyLiveScoresToGames(games, liveScores);
+  const { matches: mergedKnockoutMatches, provisional: knockoutProvisional } =
+    applyLiveScoresToKnockoutMatches(knockoutMatches, liveScores);
+  const provisional = groupProvisional || knockoutProvisional;
+
   const liveRanking = calculateRanking(
     players,
-    merged,
+    mergedGames,
     predictions,
-    knockoutMatches,
+    mergedKnockoutMatches,
     knockoutPredictions
   );
-  // The OFFICIAL ranking must use the un-merged `games` array so live
+  // The OFFICIAL ranking must use the un-merged arrays so live
   // in-progress scores do NOT leak into it — that's the whole point of
   // shipping a separate officialTotal/officialPosition pair alongside the
   // provisional live ranking.
@@ -238,12 +284,17 @@ export function projectMyStatus(
   knockoutMatches: KnockoutMatchRecord[] = [],
   knockoutPredictions: KnockoutPrediction[] = []
 ): DashboardMyStatusPayload {
-  const { games: merged, provisional } = applyLiveScoresToGames(games, liveScores);
+  const { games: mergedGames, provisional: groupProvisional } =
+    applyLiveScoresToGames(games, liveScores);
+  const { matches: mergedKnockoutMatches, provisional: knockoutProvisional } =
+    applyLiveScoresToKnockoutMatches(knockoutMatches, liveScores);
+  const provisional = groupProvisional || knockoutProvisional;
+
   const ranking = calculateRanking(
     players,
-    merged,
+    mergedGames,
     predictions,
-    knockoutMatches,
+    mergedKnockoutMatches,
     knockoutPredictions
   );
   const me = ranking.find((p) => p.id === userId);
@@ -254,13 +305,21 @@ export function projectMyStatus(
       p.predicted_score_a !== null &&
       p.predicted_score_b !== null
   );
+  // Only count knockout slots whose teams are decided — TBD slots can't
+  // be predicted yet, so including them in the denominator means the
+  // user can never reach 100% until the whole bracket fills in.
+  const knownKnockoutMatches = knockoutMatches.filter(
+    (m) => m.home_team !== null && m.away_team !== null
+  );
+  const knownKnockoutMatchIds = new Set(knownKnockoutMatches.map((m) => m.id));
   const userKnockoutPredictions = knockoutPredictions.filter(
     (p) =>
       p.player_id === userId &&
       p.predicted_score_home !== null &&
-      p.predicted_score_away !== null
+      p.predicted_score_away !== null &&
+      knownKnockoutMatchIds.has(p.match_id)
   );
-  const totalMatches = games.length + knockoutMatches.length;
+  const totalMatches = games.length + knownKnockoutMatches.length;
   const totalFilled = userPredictions.length + userKnockoutPredictions.length;
   const completion =
     totalMatches === 0

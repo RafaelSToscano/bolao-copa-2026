@@ -9,8 +9,27 @@ import {
 import { Game } from "@/types/game";
 import { Player } from "@/types/player";
 import { Prediction } from "@/types/prediction";
+import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 
 const NOW = new Date("2026-06-12T12:00:00.000Z").getTime();
+
+function koMatch(overrides: Partial<KnockoutMatchRecord>): KnockoutMatchRecord {
+  return {
+    id: 1,
+    round: "r16",
+    match_number: 1,
+    home_slot: "A1",
+    away_slot: "B2",
+    home_team: "Team A",
+    away_team: "Team B",
+    official_score_home: null,
+    official_score_away: null,
+    winner_team: null,
+    match_date: null,
+    locked: false,
+    ...overrides,
+  };
+}
 
 function game(overrides: Partial<Game>): Game {
   return {
@@ -182,6 +201,216 @@ describe("projectRankingTop", () => {
     const players = [player("p1", "P1"), player("p2", "P2")];
     const result = projectRankingTop(players, [], [], 5);
     expect(result.top.every((r) => r.lastRoundDelta === 0)).toBe(true);
+  });
+
+  it("populates lastRoundDelta when the last activity was a knockout match", () => {
+    // Group round dated 2026-06-10: p1 nails, p2 misses → p1 leads.
+    // R16 dated 2026-07-04 (later): p2 nails, p1 misses → p2 overtakes.
+    const players = [player("p1", "P1"), player("p2", "P2")];
+    const games: Game[] = [
+      game({
+        id: "g1",
+        match_date: "2026-06-10T18:00:00.000Z",
+        official_score_a: 2,
+        official_score_b: 0,
+      }),
+    ];
+    const predictions: Prediction[] = [
+      { player_id: "p1", game_id: "g1", predicted_score_a: 2, predicted_score_b: 0 },
+      { player_id: "p2", game_id: "g1", predicted_score_a: 0, predicted_score_b: 2 },
+    ];
+    const knockoutMatches: KnockoutMatchRecord[] = [
+      koMatch({
+        id: 101,
+        match_date: "2026-07-04T18:00:00.000Z",
+        official_score_home: 3,
+        official_score_away: 1,
+      }),
+      koMatch({
+        id: 102,
+        match_date: "2026-07-04T22:00:00.000Z",
+        official_score_home: 2,
+        official_score_away: 0,
+      }),
+    ];
+    const knockoutPredictions: KnockoutPrediction[] = [
+      {
+        player_id: "p1",
+        match_id: 101,
+        predicted_score_home: 0,
+        predicted_score_away: 2,
+        predicted_winner: "away",
+      },
+      {
+        player_id: "p2",
+        match_id: 101,
+        predicted_score_home: 3,
+        predicted_score_away: 1,
+        predicted_winner: "home",
+      },
+      {
+        player_id: "p1",
+        match_id: 102,
+        predicted_score_home: 0,
+        predicted_score_away: 3,
+        predicted_winner: "away",
+      },
+      {
+        player_id: "p2",
+        match_id: 102,
+        predicted_score_home: 2,
+        predicted_score_away: 0,
+        predicted_winner: "home",
+      },
+    ];
+
+    const result = projectRankingTop(
+      players,
+      games,
+      predictions,
+      5,
+      [],
+      knockoutMatches,
+      knockoutPredictions
+    );
+    const p1 = result.top.find((r) => r.id === "p1");
+    const p2 = result.top.find((r) => r.id === "p2");
+    expect(p2?.position).toBe(1);
+    expect(p2?.lastRoundDelta).toBe(1);
+    expect(p1?.lastRoundDelta).toBe(-1);
+  });
+
+  it("folds live scores into knockout matches and flags provisional", () => {
+    const players = [player("u1", "Me"), player("u2", "Other")];
+    const knockoutMatches: KnockoutMatchRecord[] = [
+      koMatch({
+        id: 201,
+        match_date: "2026-07-04T18:00:00.000Z",
+      }),
+    ];
+    const knockoutPredictions: KnockoutPrediction[] = [
+      {
+        player_id: "u1",
+        match_id: 201,
+        predicted_score_home: 1,
+        predicted_score_away: 0,
+        predicted_winner: "home",
+      },
+      {
+        player_id: "u2",
+        match_id: 201,
+        predicted_score_home: 0,
+        predicted_score_away: 1,
+        predicted_winner: "away",
+      },
+    ];
+    const liveScores = [
+      {
+        id: 1,
+        utcDate: "2026-07-04T18:00:00.000Z",
+        status: "IN_PLAY",
+        homeTeam: "Team A",
+        awayTeam: "Team B",
+        homeScore: 1,
+        awayScore: 0,
+      },
+    ];
+
+    const result = projectRankingTop(
+      players,
+      [],
+      [],
+      5,
+      liveScores,
+      knockoutMatches,
+      knockoutPredictions
+    );
+    expect(result.provisional).toBe(true);
+
+    const me = result.top.find((r) => r.id === "u1");
+    const other = result.top.find((r) => r.id === "u2");
+    expect(me?.total).toBe(15);
+    expect(other?.total).toBe(0);
+    expect(me?.officialTotal).toBe(0);
+    expect(other?.officialTotal).toBe(0);
+  });
+
+  it("does not modify knockout matches whose official score is already set", () => {
+    const players = [player("u1", "Me")];
+    const knockoutMatches: KnockoutMatchRecord[] = [
+      koMatch({
+        id: 301,
+        match_date: "2026-07-04T18:00:00.000Z",
+        official_score_home: 2,
+        official_score_away: 0,
+      }),
+    ];
+    const knockoutPredictions: KnockoutPrediction[] = [
+      {
+        player_id: "u1",
+        match_id: 301,
+        predicted_score_home: 2,
+        predicted_score_away: 0,
+        predicted_winner: "home",
+      },
+    ];
+    const liveScores = [
+      {
+        id: 1,
+        utcDate: "2026-07-04T18:00:00.000Z",
+        status: "FINISHED",
+        homeTeam: "Team A",
+        awayTeam: "Team B",
+        homeScore: 5,
+        awayScore: 5,
+      },
+    ];
+
+    const result = projectRankingTop(
+      players,
+      [],
+      [],
+      5,
+      liveScores,
+      knockoutMatches,
+      knockoutPredictions
+    );
+    expect(result.provisional).toBe(false);
+    expect(result.top[0].total).toBe(15);
+  });
+
+  it("skips knockout matches with TBD teams when applying live scores", () => {
+    const players = [player("u1", "Me")];
+    const knockoutMatches: KnockoutMatchRecord[] = [
+      koMatch({
+        id: 401,
+        match_date: "2026-07-04T18:00:00.000Z",
+        home_team: null,
+        away_team: null,
+      }),
+    ];
+    const liveScores = [
+      {
+        id: 1,
+        utcDate: "2026-07-04T18:00:00.000Z",
+        status: "IN_PLAY",
+        homeTeam: "Team A",
+        awayTeam: "Team B",
+        homeScore: 3,
+        awayScore: 0,
+      },
+    ];
+
+    const result = projectRankingTop(
+      players,
+      [],
+      [],
+      5,
+      liveScores,
+      knockoutMatches,
+      []
+    );
+    expect(result.provisional).toBe(false);
   });
 
   it("does not modify games whose official score is already set", () => {
@@ -397,6 +626,86 @@ describe("projectMyStatus", () => {
     expect(result.total).toBe(0);
     expect(result.exacts).toBe(0);
     expect(result.completion).toBe(0);
+  });
+
+  it("excludes knockout slots with TBD teams from completion %", () => {
+    const players = [player("u1", "Me")];
+    const games: Game[] = [
+      game({ id: "g1" }),
+      game({ id: "g2" }),
+    ];
+    const predictions: Prediction[] = [
+      { player_id: "u1", game_id: "g1", predicted_score_a: 1, predicted_score_b: 0 },
+      { player_id: "u1", game_id: "g2", predicted_score_a: 2, predicted_score_b: 1 },
+    ];
+    // 1 knockout match with both teams known, 3 still TBD.
+    const knockoutMatches: KnockoutMatchRecord[] = [
+      koMatch({ id: 1, home_team: "Team A", away_team: "Team B" }),
+      koMatch({ id: 2, home_team: null, away_team: null }),
+      koMatch({ id: 3, home_team: "Team C", away_team: null }),
+      koMatch({ id: 4, home_team: null, away_team: "Team D" }),
+    ];
+    const knockoutPredictions: KnockoutPrediction[] = [
+      {
+        player_id: "u1",
+        match_id: 1,
+        predicted_score_home: 1,
+        predicted_score_away: 0,
+        predicted_winner: "home",
+      },
+    ];
+
+    const result = projectMyStatus(
+      "u1",
+      players,
+      games,
+      predictions,
+      [],
+      knockoutMatches,
+      knockoutPredictions
+    );
+
+    // 2 groups + 1 known KO = 3 slots; user filled all 3 → 100%.
+    expect(result.completion).toBe(100);
+  });
+
+  it("ignores knockout predictions saved against later-TBD'd slots", () => {
+    const players = [player("u1", "Me")];
+    const knockoutMatches: KnockoutMatchRecord[] = [
+      koMatch({ id: 1, home_team: "Team A", away_team: "Team B" }),
+      koMatch({ id: 2, home_team: null, away_team: null }),
+    ];
+    // User has two saved predictions — one against a known slot,
+    // one against a slot whose teams reverted to TBD.
+    const knockoutPredictions: KnockoutPrediction[] = [
+      {
+        player_id: "u1",
+        match_id: 1,
+        predicted_score_home: 1,
+        predicted_score_away: 0,
+        predicted_winner: "home",
+      },
+      {
+        player_id: "u1",
+        match_id: 2,
+        predicted_score_home: 2,
+        predicted_score_away: 2,
+        predicted_winner: "home",
+      },
+    ];
+
+    const result = projectMyStatus(
+      "u1",
+      players,
+      [],
+      [],
+      [],
+      knockoutMatches,
+      knockoutPredictions
+    );
+
+    // Denominator is 1 known KO, numerator is the one valid prediction.
+    expect(result.completion).toBe(100);
   });
 });
 
