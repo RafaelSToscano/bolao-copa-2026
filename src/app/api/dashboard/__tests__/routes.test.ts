@@ -106,6 +106,28 @@ describe("dashboard route handlers", () => {
     expect(cc).not.toMatch(/public/);
   });
 
+  it("/api/dashboard/my-status uses every player's knockout predictions so its ranking matches /ranking-top", async () => {
+    // Regression: the route used to fetch only the current user's
+    // knockout predictions, which made projectMyStatus compute the
+    // ranking against an incomplete dataset and diverge from
+    // /ranking-top — same total points, different position.
+    const { knockoutPredictionsService } = await import(
+      "@/services/supabase/knockoutPredictionsService"
+    );
+    const { GET } = await import("@/app/api/dashboard/my-status/route");
+    const req = new Request(
+      "http://localhost/api/dashboard/my-status?userId=user-123"
+    );
+    const { NextRequest } = await import("next/server");
+    await GET(new NextRequest(req));
+    expect(
+      knockoutPredictionsService.getAllKnockoutPredictions
+    ).toHaveBeenCalled();
+    expect(
+      knockoutPredictionsService.getKnockoutPredictionsForPlayer
+    ).not.toHaveBeenCalled();
+  });
+
   it("/api/dashboard/group-leaders returns groups array", async () => {
     const { GET } = await import("@/app/api/dashboard/group-leaders/route");
     const res = await GET();
