@@ -752,6 +752,73 @@ describe("projectMyStatus", () => {
     // Denominator is 1 known KO, numerator is the one valid prediction.
     expect(result.completion).toBe(100);
   });
+
+  it("position agrees with projectRankingTop when both receive the same dataset", () => {
+    // Regression: /api/dashboard/my-status used to query only the
+    // current user's knockout predictions, so projectMyStatus saw a
+    // partial dataset and the ranking math placed the user above
+    // others who had also scored on knockouts — diverging from the
+    // /ranking-top view which always sees the full dataset.
+    const players = [
+      player("u1", "Me"),
+      player("u2", "Other"),
+      player("u3", "Third"),
+    ];
+    const knockoutMatches: KnockoutMatchRecord[] = [
+      koMatch({
+        id: 1,
+        official_score_home: 2,
+        official_score_away: 1,
+      }),
+    ];
+    const knockoutPredictions: KnockoutPrediction[] = [
+      {
+        player_id: "u1",
+        match_id: 1,
+        predicted_score_home: 1,
+        predicted_score_away: 0,
+        predicted_winner: null,
+      },
+      {
+        player_id: "u2",
+        match_id: 1,
+        predicted_score_home: 2,
+        predicted_score_away: 1,
+        predicted_winner: null,
+      },
+      {
+        player_id: "u3",
+        match_id: 1,
+        predicted_score_home: 2,
+        predicted_score_away: 1,
+        predicted_winner: null,
+      },
+    ];
+
+    const myStatus = projectMyStatus(
+      "u1",
+      players,
+      [],
+      [],
+      [],
+      knockoutMatches,
+      knockoutPredictions
+    );
+    const rankingTop = projectRankingTop(
+      players,
+      [],
+      [],
+      10,
+      [],
+      knockoutMatches,
+      knockoutPredictions,
+      "u1"
+    );
+
+    expect(rankingTop.currentUser).not.toBeNull();
+    expect(myStatus.position).toBe(rankingTop.currentUser?.position);
+    expect(myStatus.total).toBe(rankingTop.currentUser?.total);
+  });
 });
 
 describe("projectGroupLeaders", () => {

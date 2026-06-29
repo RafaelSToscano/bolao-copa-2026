@@ -27,6 +27,10 @@ export async function GET(req: NextRequest) {
     `dashboard:my-status:${userId}`,
     TTL_SECONDS,
     async () => {
+      // We need every player's knockout predictions, not just this
+      // user's: projectMyStatus computes the full ranking to find the
+      // user's position, and dropping other players' knockout points
+      // would inflate the user's position relative to /ranking-top.
       const [
         players,
         games,
@@ -40,7 +44,7 @@ export async function GET(req: NextRequest) {
         predictionsService.getAllPredictions(),
         getCachedLiveScores(),
         knockoutPredictionsService.getKnockoutMatches(),
-        knockoutPredictionsService.getKnockoutPredictionsForPlayer(userId),
+        knockoutPredictionsService.getAllKnockoutPredictions(),
       ]);
       return projectMyStatus(
         userId,
