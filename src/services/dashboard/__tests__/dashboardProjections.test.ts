@@ -280,6 +280,139 @@ describe("projectRankingTop", () => {
     expect(p1?.lastRoundDelta).toBe(-1);
   });
 
+  it("folds live scores into knockout matches and flags provisional", () => {
+    const players = [player("u1", "Me"), player("u2", "Other")];
+    const knockoutMatches: KnockoutMatchRecord[] = [
+      koMatch({
+        id: 201,
+        match_date: "2026-07-04T18:00:00.000Z",
+      }),
+    ];
+    const knockoutPredictions: KnockoutPrediction[] = [
+      {
+        player_id: "u1",
+        match_id: 201,
+        predicted_score_home: 1,
+        predicted_score_away: 0,
+        predicted_winner: "home",
+      },
+      {
+        player_id: "u2",
+        match_id: 201,
+        predicted_score_home: 0,
+        predicted_score_away: 1,
+        predicted_winner: "away",
+      },
+    ];
+    const liveScores = [
+      {
+        id: 1,
+        utcDate: "2026-07-04T18:00:00.000Z",
+        status: "IN_PLAY",
+        homeTeam: "Team A",
+        awayTeam: "Team B",
+        homeScore: 1,
+        awayScore: 0,
+      },
+    ];
+
+    const result = projectRankingTop(
+      players,
+      [],
+      [],
+      5,
+      liveScores,
+      knockoutMatches,
+      knockoutPredictions
+    );
+    expect(result.provisional).toBe(true);
+
+    const me = result.top.find((r) => r.id === "u1");
+    const other = result.top.find((r) => r.id === "u2");
+    expect(me?.total).toBe(15);
+    expect(other?.total).toBe(0);
+    expect(me?.officialTotal).toBe(0);
+    expect(other?.officialTotal).toBe(0);
+  });
+
+  it("does not modify knockout matches whose official score is already set", () => {
+    const players = [player("u1", "Me")];
+    const knockoutMatches: KnockoutMatchRecord[] = [
+      koMatch({
+        id: 301,
+        match_date: "2026-07-04T18:00:00.000Z",
+        official_score_home: 2,
+        official_score_away: 0,
+      }),
+    ];
+    const knockoutPredictions: KnockoutPrediction[] = [
+      {
+        player_id: "u1",
+        match_id: 301,
+        predicted_score_home: 2,
+        predicted_score_away: 0,
+        predicted_winner: "home",
+      },
+    ];
+    const liveScores = [
+      {
+        id: 1,
+        utcDate: "2026-07-04T18:00:00.000Z",
+        status: "FINISHED",
+        homeTeam: "Team A",
+        awayTeam: "Team B",
+        homeScore: 5,
+        awayScore: 5,
+      },
+    ];
+
+    const result = projectRankingTop(
+      players,
+      [],
+      [],
+      5,
+      liveScores,
+      knockoutMatches,
+      knockoutPredictions
+    );
+    expect(result.provisional).toBe(false);
+    expect(result.top[0].total).toBe(15);
+  });
+
+  it("skips knockout matches with TBD teams when applying live scores", () => {
+    const players = [player("u1", "Me")];
+    const knockoutMatches: KnockoutMatchRecord[] = [
+      koMatch({
+        id: 401,
+        match_date: "2026-07-04T18:00:00.000Z",
+        home_team: null,
+        away_team: null,
+      }),
+    ];
+    const liveScores = [
+      {
+        id: 1,
+        utcDate: "2026-07-04T18:00:00.000Z",
+        status: "IN_PLAY",
+        homeTeam: "Team A",
+        awayTeam: "Team B",
+        homeScore: 3,
+        awayScore: 0,
+      },
+    ];
+
+    const result = projectRankingTop(
+      players,
+      [],
+      [],
+      5,
+      liveScores,
+      knockoutMatches,
+      []
+    );
+    expect(result.provisional).toBe(false);
+  });
+
   it("does not modify games whose official score is already set", () => {
     const players = [player("u1", "Me")];
     const games: Game[] = [
