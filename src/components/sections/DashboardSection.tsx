@@ -259,6 +259,7 @@ const liveSignals = useMemo(
             top={data.rankingTop?.top ?? []}
             lanterna={data.rankingTop?.lanterna ?? null}
             relegationZone={data.rankingTop?.relegationZone ?? []}
+            currentUser={data.rankingTop?.currentUser ?? null}
             provisional={data.rankingTop?.provisional ?? false}
             onSeeAll={() => onNavigate("/ranking")}
           />

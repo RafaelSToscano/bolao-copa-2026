@@ -30,6 +30,13 @@ export interface DashboardRankingTopPayload {
   top: LiveRankingRow[];
   lanterna: LiveRankingRow | null;
   relegationZone: LiveRankingRow[];
+  /**
+   * The logged-in user's row, when a userId is supplied. Always present
+   * if the user exists in the ranking — even if they already appear in
+   * `top` or `relegationZone`. The client decides whether to render the
+   * extra "you are here" highlight row.
+   */
+  currentUser: LiveRankingRow | null;
   /** True when at least one in-progress game contributed live points */
   provisional: boolean;
 }

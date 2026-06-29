@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { withCache } from "@/lib/server/memoryCache";
-import { cachePublic } from "@/lib/server/cacheHeaders";
+import { cachePrivate, cachePublic } from "@/lib/server/cacheHeaders";
 import { playersService } from "@/services/supabase/playersService";
 import { gamesService } from "@/services/supabase/gamesService";
 import { predictionsService } from "@/services/supabase/predictionsService";
@@ -11,40 +11,50 @@ import { getCachedLiveScores } from "@/lib/server/footballData";
 const TTL_SECONDS = 8;
 const SWR_SECONDS = 30;
 const MAX_AGE = 4;
+const UUID_OR_MOCK_ID = /^[a-zA-Z0-9-]{1,128}$/;
 
-export async function GET() {
-  const payload = await withCache(
-    "dashboard:ranking-top",
-    TTL_SECONDS,
-    async () => {
-      const [
-        players,
-        games,
-        predictions,
-        liveScores,
-        knockoutMatches,
-        knockoutPredictions,
-      ] = await Promise.all([
-        playersService.getAllPlayers(),
-        gamesService.getAllGames(),
-        predictionsService.getAllPredictions(),
-        getCachedLiveScores(),
-        knockoutPredictionsService.getKnockoutMatches(),
-        knockoutPredictionsService.getAllKnockoutPredictions(),
-      ]);
-      return projectRankingTop(
-        players,
-        games,
-        predictions,
-        10,
-        liveScores,
-        knockoutMatches,
-        knockoutPredictions
-      );
-    }
-  );
+export async function GET(req: NextRequest) {
+  const rawUserId = req.nextUrl.searchParams.get("userId");
+  const userId =
+    rawUserId && UUID_OR_MOCK_ID.test(rawUserId) ? rawUserId : null;
 
+  const cacheKey = userId
+    ? `dashboard:ranking-top:${userId}`
+    : "dashboard:ranking-top";
+
+  const payload = await withCache(cacheKey, TTL_SECONDS, async () => {
+    const [
+      players,
+      games,
+      predictions,
+      liveScores,
+      knockoutMatches,
+      knockoutPredictions,
+    ] = await Promise.all([
+      playersService.getAllPlayers(),
+      gamesService.getAllGames(),
+      predictionsService.getAllPredictions(),
+      getCachedLiveScores(),
+      knockoutPredictionsService.getKnockoutMatches(),
+      knockoutPredictionsService.getAllKnockoutPredictions(),
+    ]);
+    return projectRankingTop(
+      players,
+      games,
+      predictions,
+      10,
+      liveScores,
+      knockoutMatches,
+      knockoutPredictions,
+      userId
+    );
+  });
+
+  // When a userId is supplied, the `currentUser` field is user-specific,
+  // so don't let a shared CDN cache a private payload.
   return NextResponse.json(payload, {
-    headers: cachePublic(TTL_SECONDS, SWR_SECONDS, MAX_AGE),
+    headers: userId
+      ? cachePrivate(TTL_SECONDS)
+      : cachePublic(TTL_SECONDS, SWR_SECONDS, MAX_AGE),
   });
 }

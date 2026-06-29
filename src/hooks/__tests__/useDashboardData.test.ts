@@ -128,6 +128,28 @@ describe("useDashboardData", () => {
     expect(paths).not.toContain("/api/dashboard/live");
   });
 
+  it("forwards userId on ranking-top so the server can attach the user's row", async () => {
+    const responses = baseResponses();
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = url.split("?")[0];
+      const body = responses[path as keyof typeof responses] ?? null;
+      return { ok: true, json: async () => body } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderHook(() => useDashboardData("user-42", baselineSignals));
+
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    const rankingCalls = fetchMock.mock.calls
+      .map((c) => c[0] as string)
+      .filter((url) => url.startsWith("/api/dashboard/ranking-top"));
+    expect(rankingCalls.length).toBeGreaterThan(0);
+    expect(rankingCalls.every((url) => url.includes("userId=user-42"))).toBe(true);
+  });
+
   it("does not call my-status when no userId is provided", async () => {
     const responses = baseResponses();
     const fetchMock = vi.fn(async (url: string) => {

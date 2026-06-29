@@ -35,6 +35,13 @@ interface RankingTopTenProps {
   top: LiveRankingRow[];
   lanterna: LiveRankingRow | null;
   relegationZone?: LiveRankingRow[];
+  /**
+   * The logged-in user's row. Rendered as an extra "you are here"
+   * highlight when the user sits outside both `top` and
+   * `relegationZone` so they always have a reference point on the
+   * dashboard.
+   */
+  currentUser?: LiveRankingRow | null;
   provisional?: boolean;
   onSeeAll?: () => void;
 }
@@ -59,22 +66,25 @@ function RankingRow({
 }: {
   player: LiveRankingRow;
   provisional: boolean;
-  variant?: "default" | "relegation" | "lanterna";
+  variant?: "default" | "relegation" | "lanterna" | "self";
 }) {
   const delta = deltaOf(player, provisional);
   const isLanterna = variant === "lanterna";
   const isRelegation = variant === "relegation" || isLanterna;
+  const isSelf = variant === "self";
+
+  let positionColor = "text-yellow-400";
+  if (isRelegation) positionColor = "text-red-300";
+  else if (isSelf) positionColor = "text-blue-300";
 
   return (
     <div
       className={`grid grid-cols-12 px-3 border-b border-slate-800 items-center min-h-14 ${
         isRelegation ? "bg-red-500/10" : ""
-      }`}
+      } ${isSelf ? "bg-blue-500/15" : ""}`}
     >
       <div
-        className={`col-span-2 font-black flex items-center gap-1 ${
-          isRelegation ? "text-red-300" : "text-yellow-400"
-        }`}
+        className={`col-span-2 font-black flex items-center gap-1 ${positionColor}`}
       >
         {isLanterna && <span className="text-xl">🔦</span>}
         {player.position}º
@@ -85,6 +95,11 @@ function RankingRow({
        <span className="text-xs md:text-sm text-red-300 font-bold mr-1">
        Lanterna
        </span>
+        )}
+        {isSelf && (
+          <span className="text-xs md:text-sm text-blue-300 font-bold mr-1">
+            Você
+          </span>
         )}
 
   {player.name}
@@ -97,7 +112,7 @@ function RankingRow({
       <div
         className={`col-span-2 text-right font-bold ${
           isRelegation ? "text-red-300" : ""
-        }`}
+        } ${isSelf ? "text-blue-200" : ""}`}
       >
         {player.total}
       </div>
@@ -113,6 +128,7 @@ export function RankingTopTen({
   top,
   lanterna,
   relegationZone = [],
+  currentUser = null,
   provisional = false,
   onSeeAll,
 }: RankingTopTenProps) {
@@ -133,6 +149,17 @@ export function RankingTopTen({
   const relegationWithoutLanterna = relegationZone.filter(
     (player) => player.id !== lanterna?.id
   );
+
+  // Render an extra "you are here" row only when the logged-in user
+  // doesn't already appear in the top 10 nor in the relegation zone.
+  // Mid-table players need a reference point on the dashboard; everyone
+  // else already sees themselves above.
+  const showSelfRow = (() => {
+    if (!currentUser) return false;
+    if (top.some((p) => p.id === currentUser.id)) return false;
+    if (relegationZone.some((p) => p.id === currentUser.id)) return false;
+    return true;
+  })();
 
   return (
     <div className="space-y-3">
@@ -208,7 +235,7 @@ export function RankingTopTen({
         </div>
       )}
 
-      {tail.length > 0 && (
+      {(tail.length > 0 || (showSelfRow && currentUser)) && (
         <Card className="bg-slate-900 border-slate-800 text-white rounded-3xl">
           <CardContent className="p-0 relative">
             <div
@@ -241,6 +268,14 @@ export function RankingTopTen({
                   );
                 })}
             </div>
+
+            {showSelfRow && currentUser && (
+              <RankingRow
+                player={currentUser}
+                provisional={provisional}
+                variant="self"
+              />
+            )}
           </CardContent>
         </Card>
       )}
