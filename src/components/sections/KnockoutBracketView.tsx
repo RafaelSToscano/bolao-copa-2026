@@ -329,25 +329,18 @@ function ThirdPlaceCard({ match }: { match: DisplayKnockoutMatch | null }) {
 }
 
 // Picks the round the user most likely wants to see first: the earliest
-// round in tournament order that still has any match yet to be played. A
-// match counts as "yet to be played" when its date is in the future OR it
-// hasn't been scheduled yet (no date). A round whose every match has a
-// past date is treated as finished and loses anchor relevance. Falls back
-// to r32 before any rounds have started.
-function pickAnchorRound(
-  matches: DisplayKnockoutMatch[],
-  now: number = Date.now()
-): BracketRound {
+// round in tournament order that still has any match without a confirmed
+// winner. `winner_team` is the only reliable "this match is done" signal —
+// `match_date` is unreliable because a scheduled date in the past does NOT
+// mean the match has been played (admin may not have entered the result
+// yet), and using it would push the anchor all the way to the final on
+// match day. Falls back to the final once every round is decided.
+function pickAnchorRound(matches: DisplayKnockoutMatch[]): BracketRound {
   for (const round of BRACKET_ROUNDS) {
     const roundMatches = matches.filter((m) => m.round === round);
     if (roundMatches.length === 0) continue;
 
-    const hasPendingMatch = roundMatches.some((m) => {
-      if (!m.match_date) return true;
-      const t = new Date(m.match_date).getTime();
-      return Number.isNaN(t) || t >= now;
-    });
-
+    const hasPendingMatch = roundMatches.some((m) => m.winner_team === null);
     if (hasPendingMatch) return round;
   }
 
@@ -372,8 +365,6 @@ export function KnockoutBracketView({ matches }: Props) {
   useEffect(() => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
-    // r32 already sits at scrollLeft 0 — don't scroll for the default case.
-    if (anchorRound === "r32") return;
 
     const column = scroller.querySelector<HTMLElement>(
       `[data-round="${anchorRound}"]`
@@ -381,7 +372,11 @@ export function KnockoutBracketView({ matches }: Props) {
     if (!column) return;
 
     // Position the anchor round flush with the container's left edge so
-    // the active round is the first thing the user sees on open.
+    // the active round is the first thing the user sees on open. We
+    // always run this — even when the anchor is r32 (which technically
+    // sits at scrollLeft 0) — because browsers restore the previous
+    // horizontal scroll position on reload, which would otherwise leave
+    // the user staring at whatever round they last visited.
     const containerRect = scroller.getBoundingClientRect();
     const columnRect = column.getBoundingClientRect();
     const left = columnRect.left - containerRect.left + scroller.scrollLeft;

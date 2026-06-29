@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { RecentResultsCard } from "../RecentResultsCard";
 import { Game } from "@/types/game";
@@ -10,7 +10,8 @@ function game(
   scoreB: number,
   teamA = "T1",
   teamB = "T2",
-  matchDate = "2026-06-15T18:00:00.000Z"
+  matchDate = "2026-06-15T18:00:00.000Z",
+  overrides: Partial<Game> = {}
 ): Game {
   return {
     id,
@@ -23,6 +24,7 @@ function game(
     official_score_a: scoreA,
     official_score_b: scoreB,
     locked: true,
+    ...overrides,
   };
 }
 
@@ -76,21 +78,64 @@ describe("RecentResultsCard", () => {
       vi.useRealTimers();
     });
 
-    it("highlights matches played today with a 'Hoje' badge", () => {
+    it("keeps the amber row highlight but suppresses the 'Hoje' text label", () => {
+      // The amber background + left border still mark today's row so
+      // the user gets a visual cue; the redundant text label gets
+      // dropped because the row already shows the final score.
       const items = [
         {
           game: game("today", 2, 1, "Brasil", "Argentina", "2026-06-20T20:00:00.000Z"),
           myPrediction: null,
           myPoints: 0,
         },
+      ];
+      const { container } = render(<RecentResultsCard items={items} />);
+      expect(screen.queryByText("Hoje")).not.toBeInTheDocument();
+      expect(
+        container.querySelector(".bg-amber-500\\/\\[0\\.04\\]")
+      ).not.toBeNull();
+    });
+  });
+
+  describe("phase label", () => {
+    it("renders 'Grupo X' for group-phase games", () => {
+      const items = [
         {
-          game: game("yesterday", 0, 0, "México", "Canadá", "2026-06-19T20:00:00.000Z"),
+          game: game("g1", 1, 0, "Brasil", "Argentina", "2026-06-15T18:00:00.000Z", {
+            phase: "groups",
+            group_name: "C",
+          }),
           myPrediction: null,
           myPoints: 0,
         },
       ];
       render(<RecentResultsCard items={items} />);
-      expect(screen.getAllByText("Hoje")).toHaveLength(1);
+      expect(screen.getByText(/Grupo C/)).toBeInTheDocument();
+    });
+
+    it.each([
+      ["r32", "16 avos"],
+      ["r16", "Oitavas"],
+      ["qf", "Quartas"],
+      ["sf", "Semi"],
+      ["final", "Final"],
+      ["third_place", "3º lugar"],
+    ])("renders the round name for knockout phase %s", (phase, label) => {
+      const items = [
+        {
+          game: game("k1", 1, 0, "Brasil", "Argentina", "2026-07-01T18:00:00.000Z", {
+            phase,
+            // Knockout games carry group_name "Mata-mata" in API payloads;
+            // make sure we ignore it in favor of the round name.
+            group_name: "Mata-mata",
+          }),
+          myPrediction: null,
+          myPoints: 0,
+        },
+      ];
+      render(<RecentResultsCard items={items} />);
+      expect(screen.getByText(new RegExp(label))).toBeInTheDocument();
+      expect(screen.queryByText(/Grupo /)).not.toBeInTheDocument();
     });
   });
 });

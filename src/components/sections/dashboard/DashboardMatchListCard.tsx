@@ -31,6 +31,11 @@ interface DashboardMatchListCardProps {
    * date-only formatter because the kickoff time already appears in
    * the row headline. */
   formatDate?: (value: string | null) => string;
+  /** Whether rows should render the "Hoje" text label for matches
+   * scheduled today. The amber row highlight always renders regardless —
+   * this just hides the redundant text on cards where the row already
+   * carries the final score. Defaults to `true`. */
+  showTodayLabel?: boolean;
 }
 
 export function DashboardMatchListCard({
@@ -39,6 +44,7 @@ export function DashboardMatchListCard({
   emptyMessage,
   items,
   formatDate = formatWeekdayDate,
+  showTodayLabel = true,
 }: DashboardMatchListCardProps) {
   return (
     <div className="space-y-3">
@@ -61,6 +67,7 @@ export function DashboardMatchListCard({
                 key={item.game.id}
                 item={item}
                 formatDate={formatDate}
+                showTodayLabel={showTodayLabel}
               />
             ))
           )}
@@ -73,9 +80,11 @@ export function DashboardMatchListCard({
 function MatchRow({
   item,
   formatDate,
+  showTodayLabel,
 }: {
   item: DashboardMatchListItem;
   formatDate: (value: string | null) => string;
+  showTodayLabel: boolean;
 }) {
   const { game, prediction, headline, metaInline, metaRight } = item;
   const today = isToday(game.match_date);
@@ -95,7 +104,7 @@ function MatchRow({
             {formatDate(game.match_date)}
           </span>
           {metaInline}
-          {today && (
+          {today && showTodayLabel && (
             <span className="text-[11px] font-black uppercase tracking-widest text-amber-400">
               Hoje
             </span>
