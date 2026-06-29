@@ -45,29 +45,41 @@ function TeamRow({
   team,
   score,
   isWinner,
+  size = "default",
 }: {
   team: string | null;
   score: number | null;
   isWinner: boolean;
+  size?: "default" | "large";
 }) {
+  const isLarge = size === "large";
+
   return (
     <div
-      className={`flex items-center gap-2 rounded-lg px-2 py-1 ${
-        isWinner ? "bg-yellow-400/15 text-yellow-300" : "text-white"
-      }`}
+      className={`flex items-center rounded-lg ${
+        isLarge ? "gap-3 px-3 py-2" : "gap-2 px-2 py-1"
+      } ${isWinner ? "bg-yellow-400/15 text-yellow-300" : "text-white"}`}
     >
       {team ? (
-        <Flag team={team} size="small" />
+        <Flag team={team} size={isLarge ? "medium" : "small"} />
       ) : (
-        <Shield size={18} className="text-slate-500" />
+        <Shield size={isLarge ? 24 : 18} className="text-slate-500" />
       )}
 
-      <span className="flex-1 truncate text-base font-bold">
+      <span
+        className={`flex-1 truncate font-bold ${
+          isLarge ? "text-xl" : "text-base"
+        }`}
+      >
         {team ?? "A definir"}
       </span>
 
       {score !== null && (
-        <span className="shrink-0 text-base font-black tabular-nums">
+        <span
+          className={`shrink-0 font-black tabular-nums ${
+            isLarge ? "text-2xl" : "text-base"
+          }`}
+        >
           {score}
         </span>
       )}
@@ -91,14 +103,50 @@ function MatchCard({
   const homeWinner = match.winner_team !== null && match.winner_team === homeTeam;
   const awayWinner = match.winner_team !== null && match.winner_team === awayTeam;
 
+  if (emphasis) {
+    return (
+      <div className="relative">
+        {/* Golden fog — a soft, animated radial cloud that bleeds OUTSIDE
+            the card to give the Final a halo. Lives in a sibling layer
+            (not inside the card) because the card has overflow-hidden
+            for the inner glow orbit. The fog uses a long ease-in-out
+            opacity pulse so the halo breathes slowly. Keyframes live in
+            globals.css as `bracket-fog`. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -inset-12 animate-[bracket-fog_5s_ease-in-out_infinite] bg-[radial-gradient(50%_50%_at_50%_50%,rgba(253,224,71,0.45),rgba(253,224,71,0.12)_45%,transparent_75%)] blur-2xl"
+        />
+
+        <div className="relative w-full overflow-hidden rounded-2xl border-2 border-yellow-400/70 bg-gradient-to-br from-amber-500/20 via-slate-950 to-slate-900 p-5 shadow-2xl shadow-amber-500/25 ring-1 ring-yellow-400/30">
+          <div className="relative">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="truncate text-base font-semibold text-yellow-300/90">
+                {formatDate(match.match_date)}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <TeamRow
+                team={homeTeam}
+                score={hasScore ? match.official_score_home : null}
+                isWinner={homeWinner}
+                size="large"
+              />
+              <TeamRow
+                team={awayTeam}
+                score={hasScore ? match.official_score_away : null}
+                isWinner={awayWinner}
+                size="large"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={`w-full rounded-xl p-2 shadow-xl shadow-black/20 ${
-        emphasis
-          ? "border border-yellow-400/40 bg-gradient-to-br from-slate-950 to-slate-900"
-          : "border border-slate-700/80 bg-slate-950/95"
-      }`}
-    >
+    <div className="w-full rounded-xl border border-slate-700/80 bg-slate-950/95 p-2 shadow-xl shadow-black/20">
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <p className="truncate text-sm font-semibold text-slate-400">
           {formatDate(match.match_date)}
@@ -159,8 +207,10 @@ function BracketColumn({
   return (
     <div className="flex shrink-0 flex-col" data-round={round}>
       <h3
-        className={`mb-3 text-center text-sm font-black uppercase tracking-wide ${
-          isFinal ? "text-yellow-300" : "text-yellow-400/90"
+        className={`mb-3 text-center font-black uppercase tracking-wide ${
+          isFinal
+            ? "text-xl text-yellow-300"
+            : "text-sm text-yellow-400/90"
         }`}
       >
         {ROUND_TITLE[round]}
@@ -169,7 +219,9 @@ function BracketColumn({
       <div
         className="grid"
         style={{
-          width: "var(--bracket-col-w)",
+          width: isFinal
+            ? "calc(var(--bracket-col-w) * 2)"
+            : "var(--bracket-col-w)",
           gridTemplateRows: "repeat(16, var(--bracket-row))",
         }}
       >
@@ -180,11 +232,16 @@ function BracketColumn({
           return (
             <div
               key={index}
-              className="relative flex items-center overflow-hidden"
+              // The Final card paints a fog halo that bleeds outside its
+              // own bounds, so we can't clip its cell. R32 (rowSpan 1)
+              // still needs overflow-hidden so cards don't overlap.
+              className={`relative flex items-center ${
+                isFinal ? "" : "overflow-hidden"
+              }`}
               style={{ gridRow: `span ${slot.rowSpan} / span ${slot.rowSpan}` }}
             >
               <div
-                className="w-full"
+                className="relative w-full"
                 style={{ paddingRight: "var(--bracket-gap)" }}
               >
                 {slot.match ? (
