@@ -78,11 +78,17 @@ export function useDashboardData(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchFast = useCallback(async () => {
+    const userParam = currentUserId
+      ? `?userId=${encodeURIComponent(currentUserId)}`
+      : "";
+
     const [rankingTop, myStatus] = await Promise.all([
-      fetchJson<DashboardRankingTopPayload>("/api/dashboard/ranking-top"),
+      fetchJson<DashboardRankingTopPayload>(
+        `/api/dashboard/ranking-top${userParam}`
+      ),
       currentUserId
         ? fetchJson<DashboardMyStatusPayload>(
-            `/api/dashboard/my-status?userId=${encodeURIComponent(currentUserId)}`
+            `/api/dashboard/my-status${userParam}`
           )
         : Promise.resolve(null),
     ]);

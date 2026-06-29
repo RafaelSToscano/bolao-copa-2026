@@ -32,40 +32,40 @@ export function MyStatusCard({ myStatus, onSeeAll }: MyStatusCardProps) {
       </StickySectionHeader>
 
       <Card className="bg-gradient-to-br from-yellow-500/10 via-slate-900 to-slate-950 border-yellow-500/20 text-white rounded-3xl">
-        <CardContent className="p-5">
+        <CardContent className="p-3 md:p-4">
           {myStatus === null ? (
-            <div className="text-center text-slate-400 text-base">
+            <div className="text-center text-slate-400 text-sm">
               Carregando...
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-4 gap-2 md:gap-3">
               <div className="text-center">
-                <div className="text-base uppercase tracking-wide text-slate-400 font-bold">
+                <div className="text-xs md:text-sm uppercase tracking-wide text-slate-400 font-bold">
                   Posição
                 </div>
-                <div className="text-3xl font-black text-yellow-400">
+                <div className="text-xl md:text-2xl font-black text-yellow-400">
                   {myStatus.position !== null ? `${myStatus.position}º` : "—"}
                 </div>
               </div>
               <div className="text-center">
-                <div className="text-base uppercase tracking-wide text-slate-400 font-bold">
+                <div className="text-xs md:text-sm uppercase tracking-wide text-slate-400 font-bold">
                   Pontos
                 </div>
-                <div className="text-3xl font-black">{myStatus.total}</div>
+                <div className="text-xl md:text-2xl font-black">{myStatus.total}</div>
               </div>
               <div className="text-center">
-                <div className="text-base uppercase tracking-wide text-slate-400 font-bold">
+                <div className="text-xs md:text-sm uppercase tracking-wide text-slate-400 font-bold">
                   Exatos
                 </div>
-                <div className="text-3xl font-black text-emerald-400">
+                <div className="text-xl md:text-2xl font-black text-emerald-400">
                   {myStatus.exacts}
                 </div>
               </div>
               <div className="text-center">
-                <div className="text-base uppercase tracking-wide text-slate-400 font-bold">
+                <div className="text-xs md:text-sm uppercase tracking-wide text-slate-400 font-bold">
                   Completo
                 </div>
-                <div className="text-3xl font-black">{myStatus.completion}%</div>
+                <div className="text-xl md:text-2xl font-black">{myStatus.completion}%</div>
               </div>
             </div>
           )}

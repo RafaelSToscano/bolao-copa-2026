@@ -447,6 +447,51 @@ describe("projectRankingTop", () => {
     expect(result.provisional).toBe(false);
     expect(result.top[0].total).toBe(15);
   });
+
+  it("currentUser is null when no userId is supplied", () => {
+    const players = [player("a", "A"), player("b", "B")];
+    const result = projectRankingTop(players, [], [], 5);
+    expect(result.currentUser).toBeNull();
+  });
+
+  it("currentUser is null when the userId does not match any player", () => {
+    const players = [player("a", "A"), player("b", "B")];
+    const result = projectRankingTop(
+      players,
+      [],
+      [],
+      5,
+      [],
+      [],
+      [],
+      "ghost"
+    );
+    expect(result.currentUser).toBeNull();
+  });
+
+  it("currentUser is the decorated row for the given userId", () => {
+    const players = Array.from({ length: 15 }, (_, i) =>
+      player(`p${i}`, `P${i}`)
+    );
+    const result = projectRankingTop(
+      players,
+      [],
+      [],
+      10,
+      [],
+      [],
+      [],
+      "p12"
+    );
+    expect(result.currentUser).not.toBeNull();
+    expect(result.currentUser?.id).toBe("p12");
+    // The decorate() call attaches officialPosition / officialTotal /
+    // lastRoundDelta — assert the shape so future regressions show up
+    // here, not as a runtime undefined on the client.
+    expect(typeof result.currentUser?.officialPosition).toBe("number");
+    expect(typeof result.currentUser?.officialTotal).toBe("number");
+    expect(typeof result.currentUser?.lastRoundDelta).toBe("number");
+  });
 });
 
 describe("projectUpcoming", () => {

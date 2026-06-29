@@ -112,4 +112,56 @@ describe("RankingTopTen", () => {
     render(<RankingTopTen top={top} lanterna={top[1]} />);
     expect(screen.queryByText(/^[+-]\d+$/)).toBeNull();
   });
+
+  it("renders a 'Você' self-row when the user is outside top 10 and relegation", () => {
+    const top = Array.from({ length: 10 }, (_, i) =>
+      row(`p${i}`, 100 - i * 10, i + 1)
+    );
+    const relegation = Array.from({ length: 5 }, (_, i) =>
+      row(`r${i}`, 10 - i, 20 - i)
+    );
+    const me = row("me", 30, 15);
+    render(
+      <RankingTopTen
+        top={top}
+        lanterna={relegation[4]}
+        relegationZone={relegation}
+        currentUser={me}
+      />
+    );
+    expect(screen.getByText("Você")).toBeInTheDocument();
+    expect(screen.getByText("Player me")).toBeInTheDocument();
+    expect(screen.getByText("15º")).toBeInTheDocument();
+  });
+
+  it("does not render the self-row when the user is already inside the top 10", () => {
+    const top = Array.from({ length: 10 }, (_, i) =>
+      row(`p${i}`, 100 - i * 10, i + 1)
+    );
+    const me = top[4]; // 5th place — already visible
+    render(
+      <RankingTopTen
+        top={top}
+        lanterna={top[9]}
+        currentUser={me}
+      />
+    );
+    expect(screen.queryByText("Você")).toBeNull();
+  });
+
+  it("does not render the self-row when the user is in the relegation zone", () => {
+    const top = Array.from({ length: 10 }, (_, i) =>
+      row(`p${i}`, 100 - i * 10, i + 1)
+    );
+    const relegation = [row("me", 5, 16), row("rb", 4, 17)];
+    render(
+      <RankingTopTen
+        top={top}
+        lanterna={relegation[1]}
+        relegationZone={relegation}
+        currentUser={relegation[0]}
+      />
+    );
+    expect(screen.queryByText("Você")).toBeNull();
+  });
 });

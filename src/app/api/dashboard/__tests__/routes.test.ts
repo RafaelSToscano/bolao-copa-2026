@@ -40,11 +40,25 @@ describe("dashboard route handlers", () => {
 
   it("/api/dashboard/ranking-top returns shaped payload", async () => {
     const { GET } = await import("@/app/api/dashboard/ranking-top/route");
-    const res = await GET();
+    const req = new Request("http://localhost/api/dashboard/ranking-top");
+    const { NextRequest } = await import("next/server");
+    const res = await GET(new NextRequest(req));
     const body = await res.json();
     expect(body).toHaveProperty("top");
     expect(body).toHaveProperty("lanterna");
+    expect(body).toHaveProperty("currentUser");
+    expect(body.currentUser).toBeNull();
     expect(res.headers.get("Cache-Control")).toMatch(/public/);
+  });
+
+  it("/api/dashboard/ranking-top sets private Cache-Control when userId is supplied", async () => {
+    const { GET } = await import("@/app/api/dashboard/ranking-top/route");
+    const req = new Request(
+      "http://localhost/api/dashboard/ranking-top?userId=user-123"
+    );
+    const { NextRequest } = await import("next/server");
+    const res = await GET(new NextRequest(req));
+    expect(res.headers.get("Cache-Control")).toMatch(/private/);
   });
 
   it("/api/dashboard/upcoming returns games array", async () => {

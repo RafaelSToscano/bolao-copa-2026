@@ -104,7 +104,8 @@ export function projectRankingTop(
   topN = 5,
   liveScores: LiveScoreMatch[] = [],
   knockoutMatches: KnockoutMatchRecord[] = [],
-  knockoutPredictions: KnockoutPrediction[] = []
+  knockoutPredictions: KnockoutPrediction[] = [],
+  userId: string | null = null
 ): DashboardRankingTopPayload {
   // Compute the OFFICIAL ranking (source of truth — finished games
   // only) AND the live ranking (with in-progress scores folded in).
@@ -166,7 +167,12 @@ export function projectRankingTop(
     liveRanking.length > 0 ? liveRanking[liveRanking.length - 1] : null;
   const lanterna = lanternaRow ? decorate(lanternaRow) : null;
 
-  return { top, lanterna, relegationZone, provisional };
+  const currentUserRow = userId
+    ? liveRanking.find((row) => row.id === userId) ?? null
+    : null;
+  const currentUser = currentUserRow ? decorate(currentUserRow) : null;
+
+  return { top, lanterna, relegationZone, currentUser, provisional };
 }
 
 /**
