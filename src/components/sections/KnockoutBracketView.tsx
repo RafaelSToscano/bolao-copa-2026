@@ -126,14 +126,22 @@ function HeaderCell({
   );
 }
 
-function ColumnHeaderRow({ size = "default" }: { size?: "default" | "large" }) {
+function ColumnHeaderRow({
+  size = "default",
+  mirrored = false,
+}: {
+  size?: "default" | "large";
+  mirrored?: boolean;
+}) {
   const isLarge = size === "large";
   const cellWidth = isLarge ? "w-7" : "w-5";
   const padding = isLarge ? "px-3" : "px-2";
 
   return (
     <div
-      className={`flex items-center gap-2 ${padding} mb-0.5 text-[10px] font-black uppercase tracking-widest text-slate-500`}
+      className={`flex items-center gap-2 ${padding} mb-0.5 text-[10px] font-black uppercase tracking-widest text-slate-500 ${
+        mirrored ? "flex-row-reverse" : ""
+      }`}
     >
       <span className="flex-1" />
       <HeaderCell
@@ -155,6 +163,7 @@ function TeamRow({
   size = "default",
   provisional = false,
   showPredictionColumn = false,
+  mirrored = false,
 }: {
   team: string | null;
   score: number | null;
@@ -171,6 +180,10 @@ function TeamRow({
   /** Reserve space and render the prediction cell. Hidden on `/mata-mata`
    * and other surfaces that don't pass a user prediction. */
   showPredictionColumn?: boolean;
+  /** Flips the row contents so flag/score sit on opposite sides — used
+   * by the right-half desktop mirror so the layout reads outward from
+   * the center: score + guess + name + flag. */
+  mirrored?: boolean;
 }) {
   const isLarge = size === "large";
   const teamClass = provisional
@@ -183,7 +196,9 @@ function TeamRow({
     <div
       className={`flex items-center rounded-lg ${
         isLarge ? "gap-3 px-3 py-2" : "gap-2 px-2 py-1"
-      } ${isWinner ? "bg-yellow-400/15 text-yellow-300" : "text-white"}`}
+      } ${isWinner ? "bg-yellow-400/15 text-yellow-300" : "text-white"} ${
+        mirrored ? "flex-row-reverse" : ""
+      }`}
     >
       {team ? (
         <Flag team={team} size={isLarge ? "medium" : "small"} />
@@ -237,12 +252,17 @@ export function MatchCard({
   match,
   emphasis = false,
   compact = false,
+  mirrored = false,
 }: {
   match: DisplayKnockoutMatch;
   emphasis?: boolean;
   /** Flag-only layout. Used by the dashboard's next-round preview so the
    * two-column bracket fragment fits on mobile without horizontal scroll. */
   compact?: boolean;
+  /** Flips internal row layout so the score sits on the inside of the
+   * mirror bracket (closer to center). Used by the desktop mirror's
+   * right half. */
+  mirrored?: boolean;
 }) {
   const homeTeam = match.display_home_team;
   const awayTeam = match.display_away_team;
@@ -294,7 +314,11 @@ export function MatchCard({
             ? `Hoje · ${formatDate(match.match_date)}`
             : formatDate(match.match_date)}
         </p>
-        <div className="flex items-center justify-center gap-2">
+        <div
+          className={`flex items-center justify-center gap-2 ${
+            mirrored ? "flex-row-reverse" : ""
+          }`}
+        >
           {homeTeam ? (
             <Flag team={homeTeam} size="medium" />
           ) : (
@@ -347,7 +371,7 @@ export function MatchCard({
             </div>
 
             {showPredictionColumn && (
-              <ColumnHeaderRow size="large" />
+              <ColumnHeaderRow size="large" mirrored={mirrored} />
             )}
             <div className="space-y-2">
               <TeamRow
@@ -358,6 +382,7 @@ export function MatchCard({
                 size="large"
                 provisional={softenTeamNames}
                 showPredictionColumn={showPredictionColumn}
+                mirrored={mirrored}
               />
               <TeamRow
                 team={awayTeam}
@@ -367,6 +392,7 @@ export function MatchCard({
                 size="large"
                 provisional={softenTeamNames}
                 showPredictionColumn={showPredictionColumn}
+                mirrored={mirrored}
               />
             </div>
           </div>
@@ -396,7 +422,7 @@ export function MatchCard({
         </p>
       </div>
 
-      {showPredictionColumn && <ColumnHeaderRow />}
+      {showPredictionColumn && <ColumnHeaderRow mirrored={mirrored} />}
       <div className="space-y-0.5">
         <TeamRow
           team={homeTeam}
@@ -405,6 +431,7 @@ export function MatchCard({
           isWinner={homeWinner}
           provisional={softenTeamNames}
           showPredictionColumn={showPredictionColumn}
+          mirrored={mirrored}
         />
         <TeamRow
           team={awayTeam}
@@ -413,6 +440,7 @@ export function MatchCard({
           isWinner={awayWinner}
           provisional={softenTeamNames}
           showPredictionColumn={showPredictionColumn}
+          mirrored={mirrored}
         />
       </div>
     </div>
@@ -443,11 +471,33 @@ export function buildRoundSlots(
   }));
 }
 
+// Splits a round's bracket slots at the midpoint so the desktop mirror
+// layout can render the top half on the left and the bottom half on the
+// right. `BRACKET_ROUND_ORDER_BY_MATCH_NUMBER` already pairs siblings in
+// bracket order, so the first N/2 entries feed the top semifinal and the
+// remaining N/2 feed the bottom. The Final has only one slot, so it
+// returns it under `top` and an empty `bottom`.
+export function splitRoundSlots(
+  round: BracketRound,
+  matches: DisplayKnockoutMatch[]
+): { top: BracketSlot[]; bottom: BracketSlot[] } {
+  const full = buildRoundSlots(round, matches);
+  const midpoint = Math.floor(full.length / 2);
+  return {
+    top: full.slice(0, full.length - midpoint),
+    bottom: full.slice(full.length - midpoint),
+  };
+}
+
 export function BracketColumn({
   round,
   slots,
   isLastRound,
   compact = false,
+  mirrored = false,
+  stickyHeader = false,
+  hideHeader = false,
+  footer = null,
 }: {
   round: BracketRound;
   slots: BracketSlot[];
@@ -456,6 +506,25 @@ export function BracketColumn({
    * preview to keep two rounds visible on mobile without horizontal
    * scroll. */
   compact?: boolean;
+  /** Flips card padding side and connector geometry so the column
+   * points inward from the right. Used by the desktop mirror layout
+   * for the right half of the bracket. */
+  mirrored?: boolean;
+  /** Pin the round title to the top of the nearest scrolling ancestor
+   * so it stays in view while the user scrolls vertically. Used by the
+   * /mata-mata page; the dashboard preview leaves it off because it
+   * lives inside a section with its own sticky header. */
+  stickyHeader?: boolean;
+  /** Skip rendering the column header entirely — used when the parent
+   * lifts headers into a separate sticky row above the scroller so
+   * vertical page scroll keeps them pinned (CSS `position: sticky`
+   * inside a scrollable ancestor would otherwise stay trapped there). */
+  hideHeader?: boolean;
+  /** Extra content stacked vertically beneath each match card inside
+   * the same grid cell. The Final column uses this to render the 3rd
+   * place card right under the Final without falling off the bottom
+   * of the bracket. */
+  footer?: React.ReactNode;
 }) {
   const isFinal = round === "final";
   const columnWidth = compact
@@ -466,26 +535,43 @@ export function BracketColumn({
 
   return (
     <div className="flex shrink-0 flex-col" data-round={round}>
-      <h3
-        className={`mb-3 text-center font-black uppercase tracking-wide ${
-          isFinal && !compact
-            ? "text-xl text-yellow-300"
-            : "text-sm text-yellow-400/90"
-        }`}
-      >
-        {BRACKET_ROUND_TITLE[round]}
-      </h3>
+      {!hideHeader && (
+        <h3
+          className={`mb-3 text-center font-black uppercase tracking-wide ${
+            stickyHeader
+              ? "sticky top-[56px] z-10 bg-slate-950/95 py-2 backdrop-blur supports-[backdrop-filter]:bg-slate-950/80 lg:top-0"
+              : ""
+          } ${
+            isFinal && !compact
+              ? "text-xl text-yellow-300"
+              : "text-sm text-yellow-400/90"
+          }`}
+        >
+          {BRACKET_ROUND_TITLE[round]}
+        </h3>
+      )}
 
       <div
         className="grid"
         style={{
           width: columnWidth,
-          gridTemplateRows: "repeat(16, var(--bracket-row))",
+          // --bracket-rows defaults to 16 (full bracket height). The
+          // desktop mirror layout overrides it to 8 so each half-column
+          // collapses to the height of 8 r32 slots.
+          gridTemplateRows:
+            "repeat(var(--bracket-rows, 16), var(--bracket-row))",
         }}
       >
         {slots.map((slot, index) => {
           const isTopSibling = index % 2 === 0;
           const hasParent = !isLastRound;
+          // In the desktop mirror, the sf round renders just one card
+          // per side — no sibling to pair with — so the L-shaped vertical
+          // bar would dangle. Collapse it to a straight horizontal line
+          // pointing at the Final card.
+          const isLoneSibling = slots.length === 1;
+
+          const showFooter = footer !== null && index === slots.length - 1;
 
           return (
             <div
@@ -500,16 +586,51 @@ export function BracketColumn({
             >
               <div
                 className="relative w-full"
-                style={{ paddingRight: "var(--bracket-gap)" }}
+                // The trailing/leading gap exists to give the NEXT
+                // column's connector room to reach this card. The last
+                // round (Final) has no neighbor pointing into it from
+                // that side, so it skips the padding — otherwise it
+                // would leave dead space between the Final card and the
+                // mirror's right-side SF column, breaking the SF→Final
+                // connector.
+                style={
+                  isLastRound
+                    ? undefined
+                    : mirrored
+                      ? { paddingLeft: "var(--bracket-gap)" }
+                      : { paddingRight: "var(--bracket-gap)" }
+                }
               >
                 {slot.match ? (
                   <MatchCard
                     match={slot.match}
                     emphasis={isFinal && !compact}
                     compact={compact}
+                    mirrored={mirrored}
                   />
                 ) : (
                   <EmptyMatchCard />
+                )}
+
+                {/* Footer is absolutely positioned below the card so it
+                    doesn't shift the card's vertical centering in the
+                    cell — the sibling-column connectors target the
+                    cell's vertical midpoint, so the card must stay
+                    centered. The footer's own padding mirrors the
+                    wrapper's so it aligns under the card horizontally. */}
+                {showFooter && (
+                  <div
+                    className="absolute inset-x-0 top-full mt-6 flex justify-center"
+                    style={
+                      isLastRound
+                        ? undefined
+                        : mirrored
+                          ? { paddingLeft: "var(--bracket-gap)" }
+                          : { paddingRight: "var(--bracket-gap)" }
+                    }
+                  >
+                    {footer}
+                  </div>
                 )}
               </div>
 
@@ -517,6 +638,8 @@ export function BracketColumn({
                 <Connector
                   isTopSibling={isTopSibling}
                   siblingSpan={slot.rowSpan}
+                  mirrored={mirrored}
+                  straight={isLoneSibling}
                 />
               )}
             </div>
@@ -530,36 +653,50 @@ export function BracketColumn({
 // Each card draws half of the bracket: a short horizontal stub at its own
 // vertical center, then a vertical bar from that center to the midpoint with
 // its sibling. The sibling draws the mirror half — together they form the L
-// that meets at the parent card's center in the next column.
+// that meets at the parent card's center in the next column. When mirrored,
+// all three spans pin to the card's left edge instead of the right so the
+// L points toward the center of a mirror layout.
 function Connector({
   isTopSibling,
   siblingSpan,
+  mirrored = false,
+  straight = false,
 }: {
   isTopSibling: boolean;
   siblingSpan: number;
+  mirrored?: boolean;
+  /** Skip the L-shape and just draw a straight horizontal line at the
+   * card's mid-height. Used by the desktop mirror's sf → final bridge,
+   * where each side has only one sf card so there's no sibling to pair
+   * with and no vertical bar to draw. */
+  straight?: boolean;
 }) {
-  // Vertical bar height: distance from this card's center to the pair's
-  // midpoint. Two siblings each span `siblingSpan` rows; the midpoint sits
-  // exactly `siblingSpan / 2` rows away from each card's center.
-  const verticalHeight = `calc(var(--bracket-row) * ${siblingSpan / 2})`;
-  // The connector's elbow (vertical bar) sits at the midpoint of the
-  // inter-column gap so the half-L from each sibling meets the next
-  // column's card cleanly. `--bracket-gap` is the entire gap width;
-  // `--bracket-elbow` is half of it (the elbow's distance from this card's
-  // right edge).
   const elbowOffset = "var(--bracket-elbow)";
+  const edgeKey = mirrored ? "left" : "right";
+
+  if (straight) {
+    return (
+      <span
+        className="pointer-events-none absolute top-1/2 h-px bg-slate-600"
+        style={{ [edgeKey]: 0, width: `calc(${elbowOffset} * 2)` }}
+        aria-hidden
+      />
+    );
+  }
+
+  const verticalHeight = `calc(var(--bracket-row) * ${siblingSpan / 2})`;
 
   return (
     <>
       <span
         className="pointer-events-none absolute top-1/2 h-px bg-slate-600"
-        style={{ right: elbowOffset, width: elbowOffset }}
+        style={{ [edgeKey]: elbowOffset, width: elbowOffset }}
         aria-hidden
       />
       <span
         className="pointer-events-none absolute w-px bg-slate-600"
         style={{
-          right: elbowOffset,
+          [edgeKey]: elbowOffset,
           height: verticalHeight,
           top: isTopSibling ? "50%" : "auto",
           bottom: isTopSibling ? "auto" : "50%",
@@ -567,8 +704,9 @@ function Connector({
         aria-hidden
       />
       <span
-        className="pointer-events-none absolute right-0 h-px bg-slate-600"
+        className="pointer-events-none absolute h-px bg-slate-600"
         style={{
+          [edgeKey]: 0,
           width: elbowOffset,
           top: isTopSibling ? "auto" : "0",
           bottom: isTopSibling ? "0" : "auto",
@@ -582,7 +720,9 @@ function Connector({
 function ThirdPlaceCard({ match }: { match: DisplayKnockoutMatch | null }) {
   return (
     <div className="w-full max-w-xs">
-      <h3 className="mb-3 text-center text-sm font-black uppercase tracking-wide text-yellow-400/90">
+      {/* Blue label so it doesn't read as part of the Final card now
+          that they share the same column. */}
+      <h3 className="mb-3 text-center text-sm font-black uppercase tracking-wide text-sky-400/90">
         3º lugar
       </h3>
       {match ? <MatchCard match={match} /> : <EmptyMatchCard />}
@@ -590,23 +730,164 @@ function ThirdPlaceCard({ match }: { match: DisplayKnockoutMatch | null }) {
   );
 }
 
-// Picks the round the user most likely wants to see first: the earliest
-// round in tournament order that still has any match without a confirmed
-// winner. `winner_team` is the only reliable "this match is done" signal —
-// `match_date` is unreliable because a scheduled date in the past does NOT
-// mean the match has been played (admin may not have entered the result
-// yet), and using it would push the anchor all the way to the final on
-// match day. Falls back to the final once every round is decided.
-function pickAnchorRound(matches: DisplayKnockoutMatch[]): BracketRound {
-  for (const round of BRACKET_ROUNDS) {
-    const roundMatches = matches.filter((m) => m.round === round);
-    if (roundMatches.length === 0) continue;
+// Headers row that mirrors the bracket scroller's column layout and
+// syncs its horizontal position to the scroller's scrollLeft via a
+// `transform: translateX(-scrollLeft)`. Rendered as a sibling above the
+// scroller so it can be `position: sticky` against the page viewport
+// (the bracket scroller would otherwise trap sticky inside itself).
+function BracketHeaderStrip({
+  rounds,
+  scrollerRef,
+}: {
+  rounds: BracketRound[];
+  scrollerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
 
-    const hasPendingMatch = roundMatches.some((m) => m.winner_team === null);
-    if (hasPendingMatch) return round;
-  }
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    const track = trackRef.current;
+    if (!scroller || !track) return;
 
-  return "final";
+    let pending = false;
+    const sync = () => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => {
+        pending = false;
+        track.style.transform = `translateX(${-scroller.scrollLeft}px)`;
+      });
+    };
+
+    sync();
+    scroller.addEventListener("scroll", sync, { passive: true });
+    return () => scroller.removeEventListener("scroll", sync);
+  }, [scrollerRef]);
+
+  return (
+    <div className="pointer-events-none sticky top-[56px] z-20 -mx-4 overflow-hidden border-b border-slate-800/60 bg-slate-950/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-slate-950/80 md:-mx-0 lg:top-0">
+      <div ref={trackRef} className="flex min-w-max will-change-transform">
+        {rounds.map((round, index) => {
+          const isFinal = round === "final";
+          const width = isFinal
+            ? "calc(var(--bracket-col-w) * 2)"
+            : "var(--bracket-col-w)";
+          return (
+            <div
+              key={`${round}-${index}`}
+              className="shrink-0 px-1 text-center"
+              style={{ width }}
+            >
+              <span
+                className={`font-black uppercase tracking-wide ${
+                  isFinal
+                    ? "text-xl text-yellow-300"
+                    : "text-sm text-yellow-400/90"
+                }`}
+              >
+                {BRACKET_ROUND_TITLE[round]}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Mouse drag-to-pan on a scrollable element. Pans both axes — horizontal
+// inside the element when scrollable, vertical bubbles up to the window
+// when the element has no vertical scroll. Mobile already gets native
+// touch pan; this adds the same gesture for desktop pointers so users
+// can grab the bracket and drag it in any direction. We bail out of the
+// trailing click only if the pointer actually moved, so card clicks
+// still work.
+function useDragScroll(ref: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    let isDown = false;
+    let startX = 0;
+    let startY = 0;
+    let startScrollLeft = 0;
+    let startScrollTop = 0;
+    let startWindowScrollY = 0;
+    let moved = false;
+
+    const onMouseDown = (e: MouseEvent) => {
+      // Only react to primary button. Let right-click and middle-click
+      // through so users can still open links / paste / etc.
+      if (e.button !== 0) return;
+      // Skip when the press lands on an interactive element so clicks
+      // and text inputs still work normally.
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("a, button, input, textarea, select, [role='button']")) {
+        return;
+      }
+      isDown = true;
+      moved = false;
+      startX = e.pageX;
+      startY = e.pageY;
+      startScrollLeft = el.scrollLeft;
+      startScrollTop = el.scrollTop;
+      startWindowScrollY = window.scrollY;
+      el.style.cursor = "grabbing";
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDown) return;
+      const dx = e.pageX - startX;
+      const dy = e.pageY - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+
+      // Horizontal pan inside the scrollable element.
+      el.scrollLeft = startScrollLeft - dx;
+
+      // Vertical pan — element first if it scrolls vertically, otherwise
+      // bubble to the page so the whole bracket page pans.
+      const hasInternalVScroll = el.scrollHeight > el.clientHeight + 1;
+      if (hasInternalVScroll) {
+        el.scrollTop = startScrollTop - dy;
+      } else {
+        window.scrollTo({
+          left: window.scrollX,
+          top: startWindowScrollY - dy,
+          behavior: "auto",
+        });
+      }
+    };
+
+    const endDrag = () => {
+      if (!isDown) return;
+      isDown = false;
+      el.style.cursor = "";
+    };
+
+    // If the pointer was dragged, swallow the trailing click so links /
+    // buttons inside the scroller don't fire after a pan gesture.
+    const onClickCapture = (e: MouseEvent) => {
+      if (moved) {
+        e.preventDefault();
+        e.stopPropagation();
+        moved = false;
+      }
+    };
+
+    el.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", endDrag);
+    el.addEventListener("mouseleave", endDrag);
+    el.addEventListener("click", onClickCapture, true);
+
+    return () => {
+      el.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", endDrag);
+      el.removeEventListener("mouseleave", endDrag);
+      el.removeEventListener("click", onClickCapture, true);
+    };
+  }, [ref]);
 }
 
 export function KnockoutBracketView({ matches }: Props) {
@@ -618,32 +899,40 @@ export function KnockoutBracketView({ matches }: Props) {
     ),
   }));
 
+  const splitColumns = BRACKET_ROUNDS.map((round) => ({
+    round,
+    ...splitRoundSlots(
+      round,
+      matches.filter((match) => match.round === round)
+    ),
+  }));
+
   const thirdPlaceMatch =
     matches.find((match) => match.round === "third_place") ?? null;
 
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const anchorRound = pickAnchorRound(matches);
+  const desktopScrollerRef = useRef<HTMLDivElement>(null);
 
+  // Center the desktop mirror on mount so the Final is in view and the
+  // user can drag either way to inspect the halves. (The mobile anchor
+  // logic doesn't apply here — desktop mirror has no notion of an
+  // "active round" because both halves are visually equal weight.)
   useEffect(() => {
-    const scroller = scrollerRef.current;
+    const scroller = desktopScrollerRef.current;
     if (!scroller) return;
+    const left = (scroller.scrollWidth - scroller.clientWidth) / 2;
+    if (typeof scroller.scrollTo === "function") {
+      scroller.scrollTo({ left, behavior: "auto" });
+    } else {
+      scroller.scrollLeft = left;
+    }
+  }, []);
 
-    const column = scroller.querySelector<HTMLElement>(
-      `[data-round="${anchorRound}"]`
-    );
-    if (!column) return;
-
-    // Position the anchor round flush with the container's left edge so
-    // the active round is the first thing the user sees on open. We
-    // always run this — even when the anchor is r32 (which technically
-    // sits at scrollLeft 0) — because browsers restore the previous
-    // horizontal scroll position on reload, which would otherwise leave
-    // the user staring at whatever round they last visited.
-    const containerRect = scroller.getBoundingClientRect();
-    const columnRect = column.getBoundingClientRect();
-    const left = columnRect.left - containerRect.left + scroller.scrollLeft;
-    scroller.scrollTo({ left, behavior: "auto" });
-  }, [anchorRound]);
+  // Wire mouse drag-to-pan on both scrollers. Mobile already gets touch
+  // pan natively via overflow-x-auto; this adds the same gesture for
+  // desktop pointers so users can grab and drag the bracket horizontally.
+  useDragScroll(scrollerRef);
+  useDragScroll(desktopScrollerRef);
 
   // If any card will render the Palpite/Resultado columns we need a
   // taller row, otherwise siblings overlap (same fix the dashboard
@@ -659,36 +948,152 @@ export function KnockoutBracketView({ matches }: Props) {
       }
     : BRACKET_GEOMETRY;
 
+  // Mirror layout halves the row count per side (top/bottom each carry
+  // 8 r32 slots instead of 16), so the grid only needs 8 rows. Without
+  // this override the column would still allocate 16 rows and double its
+  // vertical footprint, leaving a huge empty space below each side.
+  const mirrorGeometry: React.CSSProperties = {
+    ...geometry,
+    ["--bracket-rows" as string]: "8",
+  };
+  const standardGeometry: React.CSSProperties = {
+    ...geometry,
+    ["--bracket-rows" as string]: "16",
+  };
+
+  const finalColumn = splitColumns.find((c) => c.round === "final");
+  const leftHalfRounds = BRACKET_ROUNDS.filter((r) => r !== "final");
+  const rightHalfRounds = [...leftHalfRounds].reverse();
+
+  const mobileHeaderRounds = BRACKET_ROUNDS;
+  const desktopHeaderRounds: BracketRound[] = [
+    ...leftHalfRounds,
+    "final",
+    ...rightHalfRounds,
+  ];
+
   return (
-    <div
-      ref={scrollerRef}
-      // touch-action: manipulation lets the browser handle all gestures
-      // (horizontal pan on this scroll container, vertical page scroll
-      // bubbling out, and pinch-zoom on the page). pan-x alone blocks the
-      // vertical scroll bubble; pinch-zoom alone blocks horizontal pan.
-      className="-mx-4 overflow-x-auto pb-6 md:mx-0 [touch-action:manipulation]"
-      style={geometry}
-    >
-      <div className="min-w-max px-4 md:px-1">
-        <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm font-bold text-slate-300 md:hidden">
-          Use dois dedos para dar zoom ou arraste para o lado.
-        </div>
+    <>
+      {/* Mobile — a single horizontally-scrolling row of all five rounds,
+          with the active round scrolled into view on mount. Round titles
+          live in a sticky header strip ABOVE the scroller so they stay
+          pinned to the page top while the user scrolls vertically; their
+          horizontal position syncs to the bracket scroller via transform.
+          `select-none` keeps mouse-drag panning (mostly used on tablets
+          with a mouse, since touch panning never selects text) from
+          highlighting card contents. */}
+      <div className="md:hidden" style={standardGeometry}>
+        <BracketHeaderStrip
+          rounds={mobileHeaderRounds}
+          scrollerRef={scrollerRef}
+        />
+        <div
+          ref={scrollerRef}
+          // touch-action: manipulation lets the browser handle all gestures
+          // (horizontal pan on this scroll container, vertical page scroll
+          // bubbling out, and pinch-zoom on the page). pan-x alone blocks the
+          // vertical scroll bubble; pinch-zoom alone blocks horizontal pan.
+          className="-mx-4 select-none overflow-x-auto pb-6 [touch-action:manipulation]"
+          data-bracket-variant="mobile"
+        >
+          <div className="min-w-max px-4">
+            <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm font-bold text-slate-300">
+              Use dois dedos para dar zoom ou arraste para o lado.
+            </div>
 
-        <div className="flex items-start">
-          {columns.map(({ round, slots }, index) => (
-            <BracketColumn
-              key={round}
-              round={round}
-              slots={slots}
-              isLastRound={index === columns.length - 1}
-            />
-          ))}
-        </div>
-
-        <div className="mt-6 flex justify-center">
-          <ThirdPlaceCard match={thirdPlaceMatch} />
+            <div className="flex items-start">
+              {columns.map(({ round, slots }, index) => (
+                <BracketColumn
+                  key={round}
+                  round={round}
+                  slots={slots}
+                  isLastRound={index === columns.length - 1}
+                  hideHeader
+                  footer={
+                    round === "final" ? (
+                      <ThirdPlaceCard match={thirdPlaceMatch} />
+                    ) : null
+                  }
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Desktop mirror — left half grows inward, right half mirrors
+          inward, Final centered. The row's intrinsic width (~160rem)
+          exceeds the content area, so the wrapper pans horizontally via
+          `overflow-x-auto` plus mouse drag (useDragScroll). `min-w-0`
+          lets the flex/grid parent shrink below its intrinsic content
+          size so the wrapper can actually scroll instead of pushing
+          siblings. The grab cursor signals the drag affordance. */}
+      <div
+        className="hidden min-w-0 md:block"
+        style={mirrorGeometry}
+        data-bracket-variant="desktop"
+      >
+        <BracketHeaderStrip
+          rounds={desktopHeaderRounds}
+          scrollerRef={desktopScrollerRef}
+        />
+        <div
+          ref={desktopScrollerRef}
+          className="min-w-0 cursor-grab select-none overflow-x-auto pb-6 [touch-action:manipulation]"
+        >
+          <div className="flex min-w-max items-start justify-center px-4">
+              {leftHalfRounds.map((round) => {
+              const column = splitColumns.find((c) => c.round === round)!;
+              return (
+                <BracketColumn
+                  key={`left-${round}`}
+                  round={round}
+                  slots={column.top}
+                  isLastRound={false}
+                  hideHeader
+                />
+              );
+            })}
+
+            {/* Center column — Final card with 3rd place directly under
+                it (rendered as the column's footer slot so it sits right
+                below the Final, not detached at the bottom of the page). */}
+            {finalColumn && (
+              <BracketColumn
+                round="final"
+                // Override the Final slot's rowSpan from 16 → 8 so the
+                // center column's vertical footprint matches each half's
+                // 8-row layout. The card itself stays vertically centered
+                // within the 8 rows because the cell uses flex-center.
+                slots={finalColumn.top.map((slot) => ({
+                  ...slot,
+                  rowSpan: 8,
+                }))}
+                isLastRound
+                hideHeader
+                footer={<ThirdPlaceCard match={thirdPlaceMatch} />}
+              />
+            )}
+
+            {rightHalfRounds.map((round) => {
+              const column = splitColumns.find((c) => c.round === round)!;
+              return (
+                <BracketColumn
+                  key={`right-${round}`}
+                  round={round}
+                  slots={column.bottom}
+                  // Every right-side round has a parent (the SF feeds
+                  // the Final). Only the Final itself is the last round,
+                  // and it's rendered as the center column separately.
+                  isLastRound={false}
+                  mirrored
+                  hideHeader
+                />
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
