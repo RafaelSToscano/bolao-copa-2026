@@ -743,20 +743,20 @@ export function AdminSection({
         </Card>
       )}
 
+            <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
+        <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide rounded-2xl">
+          RESULTADOS OFICIAIS - 16 AVOS DE FINAL
+        </div>
+
+        {round32Matches.map(renderKnockoutResultRow)}
+      </div>
+
       <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
         <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide rounded-2xl">
           RESULTADOS OFICIAIS - FASE DE GRUPOS
         </div>
 
         {sortedGames.map(renderGroupResultRow)}
-      </div>
-
-      <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
-        <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide rounded-2xl">
-          RESULTADOS OFICIAIS - 16 AVOS DE FINAL
-        </div>
-
-        {round32Matches.map(renderKnockoutResultRow)}
       </div>
     </div>
   );
