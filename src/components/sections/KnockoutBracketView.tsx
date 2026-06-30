@@ -894,19 +894,35 @@ export function KnockoutBracketView({ matches }: Props) {
           </div>
 
           <div className="flex items-start">
-            {columns.map(({ round, slots }, index) => (
-              <BracketColumn
-                key={round}
-                round={round}
-                slots={slots}
-                isLastRound={index === columns.length - 1}
-                stickyHeader
-              />
-            ))}
-          </div>
+            {columns.map(({ round, slots }, index) => {
+              const isFinal = round === "final";
+              const column = (
+                <BracketColumn
+                  key={round}
+                  round={round}
+                  slots={slots}
+                  isLastRound={index === columns.length - 1}
+                  stickyHeader
+                />
+              );
 
-          <div className="mt-6 flex justify-center">
-            <ThirdPlaceCard match={thirdPlaceMatch} />
+              // Third place rides under the Final column so both finals-
+              // stage cards share the same horizontal slot — matches the
+              // desktop mirror's center column.
+              if (isFinal) {
+                return (
+                  <div
+                    key={round}
+                    className="flex flex-col items-center gap-6"
+                  >
+                    {column}
+                    <ThirdPlaceCard match={thirdPlaceMatch} />
+                  </div>
+                );
+              }
+
+              return column;
+            })}
           </div>
         </div>
       </div>
