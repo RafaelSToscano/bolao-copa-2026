@@ -586,10 +586,19 @@ export function BracketColumn({
             >
               <div
                 className="relative w-full"
+                // The trailing/leading gap exists to give the NEXT
+                // column's connector room to reach this card. The last
+                // round (Final) has no neighbor pointing into it from
+                // that side, so it skips the padding — otherwise it
+                // would leave dead space between the Final card and the
+                // mirror's right-side SF column, breaking the SF→Final
+                // connector.
                 style={
-                  mirrored
-                    ? { paddingLeft: "var(--bracket-gap)" }
-                    : { paddingRight: "var(--bracket-gap)" }
+                  isLastRound
+                    ? undefined
+                    : mirrored
+                      ? { paddingLeft: "var(--bracket-gap)" }
+                      : { paddingRight: "var(--bracket-gap)" }
                 }
               >
                 {slot.match ? (
@@ -613,9 +622,11 @@ export function BracketColumn({
                   <div
                     className="absolute inset-x-0 top-full mt-6 flex justify-center"
                     style={
-                      mirrored
-                        ? { paddingLeft: "var(--bracket-gap)" }
-                        : { paddingRight: "var(--bracket-gap)" }
+                      isLastRound
+                        ? undefined
+                        : mirrored
+                          ? { paddingLeft: "var(--bracket-gap)" }
+                          : { paddingRight: "var(--bracket-gap)" }
                     }
                   >
                     {footer}
@@ -879,25 +890,6 @@ function useDragScroll(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref]);
 }
 
-// Picks the round the user most likely wants to see first: the earliest
-// round in tournament order that still has any match without a confirmed
-// winner. `winner_team` is the only reliable "this match is done" signal —
-// `match_date` is unreliable because a scheduled date in the past does NOT
-// mean the match has been played (admin may not have entered the result
-// yet), and using it would push the anchor all the way to the final on
-// match day. Falls back to the final once every round is decided.
-function pickAnchorRound(matches: DisplayKnockoutMatch[]): BracketRound {
-  for (const round of BRACKET_ROUNDS) {
-    const roundMatches = matches.filter((m) => m.round === round);
-    if (roundMatches.length === 0) continue;
-
-    const hasPendingMatch = roundMatches.some((m) => m.winner_team === null);
-    if (hasPendingMatch) return round;
-  }
-
-  return "final";
-}
-
 export function KnockoutBracketView({ matches }: Props) {
   const columns = BRACKET_ROUNDS.map((round) => ({
     round,
@@ -920,34 +912,6 @@ export function KnockoutBracketView({ matches }: Props) {
 
   const scrollerRef = useRef<HTMLDivElement>(null);
   const desktopScrollerRef = useRef<HTMLDivElement>(null);
-  const anchorRound = pickAnchorRound(matches);
-
-  useEffect(() => {
-    const scroller = scrollerRef.current;
-    if (!scroller) return;
-
-    const column = scroller.querySelector<HTMLElement>(
-      `[data-round="${anchorRound}"]`
-    );
-    if (!column) return;
-
-    // Position the anchor round flush with the container's left edge so
-    // the active round is the first thing the user sees on open. We
-    // always run this — even when the anchor is r32 (which technically
-    // sits at scrollLeft 0) — because browsers restore the previous
-    // horizontal scroll position on reload, which would otherwise leave
-    // the user staring at whatever round they last visited.
-    const containerRect = scroller.getBoundingClientRect();
-    const columnRect = column.getBoundingClientRect();
-    const left = columnRect.left - containerRect.left + scroller.scrollLeft;
-    // jsdom (test env) doesn't implement Element.scrollTo — guard so the
-    // component still mounts cleanly under @testing-library.
-    if (typeof scroller.scrollTo === "function") {
-      scroller.scrollTo({ left, behavior: "auto" });
-    } else {
-      scroller.scrollLeft = left;
-    }
-  }, [anchorRound]);
 
   // Center the desktop mirror on mount so the Final is in view and the
   // user can drag either way to inspect the halves. (The mobile anchor
