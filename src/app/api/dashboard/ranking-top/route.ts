@@ -38,8 +38,12 @@ export async function GET(req: NextRequest) {
       knockoutPredictionsService.getKnockoutMatches(),
       knockoutPredictionsService.getAllKnockoutPredictions(),
     ]);
-    return projectRankingTop(
-      players,
+   const rankingPlayers = players.filter(
+  (player) => player.ranking_visible !== false
+);
+
+return projectRankingTop(
+  rankingPlayers,
       games,
       predictions,
       10,
