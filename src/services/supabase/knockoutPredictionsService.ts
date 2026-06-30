@@ -53,27 +53,49 @@ async function cascadeMatchOutcome(
 
   const { data: dependents, error } = await supabase
     .from("knockout_matches")
-    .select("id, home_slot, away_slot")
+    .select("id, home_slot, away_slot, home_team, away_team")
     .or(
       `home_slot.eq.${winnerSlot},away_slot.eq.${winnerSlot},home_slot.eq.${loserSlot},away_slot.eq.${loserSlot}`
     );
 
   if (error) {
-    throw new Error(`Failed to look up dependent knockout matches: ${error.message}`);
+    throw new Error(
+      `Failed to look up dependent knockout matches: ${error.message}`
+    );
   }
 
   for (const dependent of dependents || []) {
-    const update: { home_team?: string; away_team?: string } = {};
+    const update: { home_team?: string; away_team?: string; locked?: boolean } =
+      {};
 
-    if (dependent.home_slot === winnerSlot) update.home_team = winnerTeam;
-    if (dependent.away_slot === winnerSlot) update.away_team = winnerTeam;
+    let nextHomeTeam = dependent.home_team;
+    let nextAwayTeam = dependent.away_team;
+
+    if (dependent.home_slot === winnerSlot) {
+      update.home_team = winnerTeam;
+      nextHomeTeam = winnerTeam;
+    }
+
+    if (dependent.away_slot === winnerSlot) {
+      update.away_team = winnerTeam;
+      nextAwayTeam = winnerTeam;
+    }
 
     if (loserTeam) {
-      if (dependent.home_slot === loserSlot) update.home_team = loserTeam;
-      if (dependent.away_slot === loserSlot) update.away_team = loserTeam;
+      if (dependent.home_slot === loserSlot) {
+        update.home_team = loserTeam;
+        nextHomeTeam = loserTeam;
+      }
+
+      if (dependent.away_slot === loserSlot) {
+        update.away_team = loserTeam;
+        nextAwayTeam = loserTeam;
+      }
     }
 
     if (Object.keys(update).length === 0) continue;
+
+    update.locked = !(nextHomeTeam && nextAwayTeam);
 
     const { error: updateError } = await supabase
       .from("knockout_matches")
@@ -108,16 +130,18 @@ async function clearDependentBracket(
   }
 
   for (const dependent of dependents || []) {
-    const update: {
+        const update: {
       home_team?: null;
       away_team?: null;
       official_score_home: null;
       official_score_away: null;
       winner_team: null;
+      locked: true;
     } = {
       official_score_home: null,
       official_score_away: null,
       winner_team: null,
+      locked: true,
     };
 
     if (dependentSlots.includes(dependent.home_slot)) update.home_team = null;

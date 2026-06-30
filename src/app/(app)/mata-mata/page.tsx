@@ -1,22 +1,16 @@
 "use client";
 
+import { useMemo } from "react";
 import { KnockoutBracketView } from "@/components/sections/KnockoutBracketView";
 import { useAppShell } from "@/components/layouts/AppShell";
-import {
-  attachMyKnockoutPredictions,
-  buildDisplayKnockoutMatches,
-} from "@/lib/knockoutDisplayMatches";
+import { buildDisplayKnockoutMatches } from "@/lib/knockoutDisplayMatches";
 
 export default function MataMataPage() {
-  const { games, knockoutMatches, knockoutPredictions, currentUser } =
-    useAppShell();
+  const { games, knockoutMatches } = useAppShell();
 
-  const myPredictions = knockoutPredictions.filter(
-    (p) => p.player_id === currentUser.id
-  );
-  const displayMatches = attachMyKnockoutPredictions(
-    buildDisplayKnockoutMatches(knockoutMatches, games),
-    myPredictions
+  const displayMatches = useMemo(
+    () => buildDisplayKnockoutMatches(knockoutMatches, games),
+    [knockoutMatches, games]
   );
 
   return (

@@ -12,7 +12,16 @@ import { Flag } from "@/components/ui/Flag";
 import { formatDate, exportAuditCsv } from "@/lib/formatting";
 import { calculatePredictionPoints } from "@/services/predictions/predictionCalculations";
 import { RankingShareModal } from "@/components/ui/RankingShareModal";
-import { buildDisplayKnockoutMatches } from "@/lib/knockoutDisplayMatches";
+import {
+  buildDisplayKnockoutMatches,
+  type DisplayKnockoutMatch,
+} from "@/lib/knockoutDisplayMatches";
+import {
+  formatKnockoutStageSectionTitle,
+  getCurrentKnockoutStage,
+  getVisibleAdminKnockoutRounds,
+  sortKnockoutMatchesByDateAndNumber,
+} from "@/lib/knockoutVisibility";
 import { Share2, List } from "lucide-react";
 
 interface AdminSectionProps {
@@ -81,42 +90,34 @@ export function AdminSection({
     [games]
   );
 
-  const round32Matches = useMemo(
-    () =>
-      buildDisplayKnockoutMatches(knockoutMatches, games)
-        .filter((match) => match.round === "r32")
-        .sort((a, b) => {
-          const dateA = a.match_date
-            ? new Date(a.match_date).getTime()
-            : Number.MAX_SAFE_INTEGER;
-          const dateB = b.match_date
-            ? new Date(b.match_date).getTime()
-            : Number.MAX_SAFE_INTEGER;
-
-          if (dateA !== dateB) return dateA - dateB;
-
-          return a.match_number - b.match_number;
-        }),
+   const displayKnockoutMatches = useMemo(
+    () => buildDisplayKnockoutMatches(knockoutMatches, games),
     [knockoutMatches, games]
   );
 
+  const adminKnockoutStage = useMemo(
+    () => getCurrentKnockoutStage(displayKnockoutMatches),
+    [displayKnockoutMatches]
+  );
+
+  const adminKnockoutMatches = useMemo(() => {
+    const visibleRounds = new Set(
+      getVisibleAdminKnockoutRounds(displayKnockoutMatches)
+    );
+
+    return sortKnockoutMatchesByDateAndNumber(
+      displayKnockoutMatches.filter((match) => visibleRounds.has(match.round))
+    );
+  }, [displayKnockoutMatches]);
+
   const knockoutAuditMatches = useMemo(
     () =>
-      buildDisplayKnockoutMatches(knockoutMatches, games)
-        .filter((match) => match.display_home_team && match.display_away_team)
-        .sort((a, b) => {
-          const dateA = a.match_date
-            ? new Date(a.match_date).getTime()
-            : Number.MAX_SAFE_INTEGER;
-          const dateB = b.match_date
-            ? new Date(b.match_date).getTime()
-            : Number.MAX_SAFE_INTEGER;
-
-          if (dateA !== dateB) return dateA - dateB;
-
-          return a.match_number - b.match_number;
-        }),
-    [knockoutMatches, games]
+      sortKnockoutMatchesByDateAndNumber(
+        displayKnockoutMatches.filter(
+          (match) => match.display_home_team && match.display_away_team
+        )
+      ),
+    [displayKnockoutMatches]
   );
 
   const knockoutPredictionAudit = useMemo(() => {
@@ -155,7 +156,7 @@ export function AdminSection({
       });
   }, [players, knockoutAuditMatches, knockoutPredictions]);
 
-  const getKnockoutDraft = (match: (typeof round32Matches)[number]) =>
+    const getKnockoutDraft = (match: DisplayKnockoutMatch) =>
     knockoutDrafts[match.id] ?? {
       home: match.official_score_home?.toString() ?? "",
       away: match.official_score_away?.toString() ?? "",
@@ -182,7 +183,7 @@ export function AdminSection({
   };
 
   const handleKnockoutScoreChange = async (
-    match: (typeof round32Matches)[number],
+        match: DisplayKnockoutMatch,
     field: "home" | "away",
     value: string
   ) => {
@@ -263,7 +264,7 @@ export function AdminSection({
   };
 
   const handleKnockoutWinnerChange = async (
-    match: (typeof round32Matches)[number],
+   match: DisplayKnockoutMatch,
     winnerTeam: string
   ) => {
     const currentDraft = getKnockoutDraft(match);
@@ -446,7 +447,7 @@ export function AdminSection({
     </div>
   );
 
-  const renderKnockoutResultRow = (match: (typeof round32Matches)[number]) => {
+   const renderKnockoutResultRow = (match: DisplayKnockoutMatch) => {
     const draft = getKnockoutDraft(match);
     const homeTeam = match.display_home_team ?? "Time a definir";
     const awayTeam = match.display_away_team ?? "Time a definir";
@@ -743,12 +744,12 @@ export function AdminSection({
         </Card>
       )}
 
-            <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
+         <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
         <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide rounded-2xl">
-          RESULTADOS OFICIAIS - 16 AVOS DE FINAL
+          RESULTADOS OFICIAIS - {formatKnockoutStageSectionTitle(adminKnockoutStage)}
         </div>
 
-        {round32Matches.map(renderKnockoutResultRow)}
+        {adminKnockoutMatches.map(renderKnockoutResultRow)}
       </div>
 
       <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">

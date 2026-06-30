@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Flag } from "@/components/ui/Flag";
-import { DraftKnockoutPrediction } from "@/types/knockout";
+import { DraftKnockoutPrediction, KnockoutRound } from "@/types/knockout";
 import { Game } from "@/types/game";
 import { formatDate, isPast, isToday } from "@/lib/formatting";
 import { useKnockoutPredictions } from "@/hooks/useKnockoutPredictions";
@@ -11,6 +11,20 @@ import {
   buildDisplayKnockoutMatches,
   DisplayKnockoutMatch,
 } from "@/lib/knockoutDisplayMatches";
+import {
+  formatKnockoutRoundSectionTitle,
+  getVisiblePredictionKnockoutRounds,
+  sortKnockoutMatchesByDateAndNumber,
+} from "@/lib/knockoutVisibility";
+
+const ROUND_RENDER_ORDER: KnockoutRound[] = [
+  "final",
+  "third_place",
+  "sf",
+  "qf",
+  "r16",
+  "r32",
+];
 
 function MatchRow({
   match,
@@ -208,59 +222,68 @@ export function KnockoutPredictionsCard({
     [matches, games]
   );
 
-  const round32 = displayMatches
-    .filter((match) => match.round === "r32")
-    .sort((a, b) => {
-      const dateA = a.match_date
-        ? new Date(a.match_date).getTime()
-        : Number.MAX_SAFE_INTEGER;
-      const dateB = b.match_date
-        ? new Date(b.match_date).getTime()
-        : Number.MAX_SAFE_INTEGER;
+  const groupedRounds = useMemo(() => {
+    const visibleRounds = new Set(
+      getVisiblePredictionKnockoutRounds(displayMatches)
+    );
 
-      if (dateA !== dateB) return dateA - dateB;
+    return ROUND_RENDER_ORDER.map((round) => {
+      const roundMatches = sortKnockoutMatchesByDateAndNumber(
+        displayMatches.filter((match) => match.round === round)
+      );
 
-      return a.match_number - b.match_number;
-    });
+      return {
+        round,
+        matches: visibleRounds.has(round) ? roundMatches : [],
+      };
+    }).filter((group) => group.matches.length > 0);
+  }, [displayMatches]);
 
   if (isLoading) {
     return (
       <div className="text-slate-500 text-sm">
-        Carregando jogos dos 16 avos...
+        Carregando jogos do mata-mata...
       </div>
     );
   }
 
-  if (round32.length === 0) {
+  if (groupedRounds.length === 0) {
     return null;
   }
 
   return (
-    <div className="space-y-0 bg-slate-950/80 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
-      <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide">
-        JOGOS - 16 AVOS DE FINAL
-      </div>
+    <div className="space-y-4">
+      {groupedRounds.map(({ round, matches }) => (
+        <div
+          key={round}
+          className="space-y-0 bg-slate-950/80 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl"
+        >
+          <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide">
+            JOGOS - {formatKnockoutRoundSectionTitle(round)}
+          </div>
 
-      {round32.map((match) => (
-        <MatchRow
-          key={match.id}
-          match={match}
-          draft={getDraft(match.id)}
-          locked={isLocked(match.id)}
-          onChange={(next) => {
-            if (!match.display_home_team || !match.display_away_team) return;
-            savePrediction(match.id, next);
-          }}
-          onRandom={(prediction) => {
-            if (!match.display_home_team || !match.display_away_team) return;
+          {matches.map((match) => (
+            <MatchRow
+              key={match.id}
+              match={match}
+              draft={getDraft(match.id)}
+              locked={isLocked(match.id)}
+              onChange={(next) => {
+                if (!match.display_home_team || !match.display_away_team) return;
+                savePrediction(match.id, next);
+              }}
+              onRandom={(prediction) => {
+                if (!match.display_home_team || !match.display_away_team) return;
 
-            savePrediction(match.id, {
-              predicted_score_home: String(prediction.predicted_score_a),
-              predicted_score_away: String(prediction.predicted_score_b),
-              predicted_winner: "",
-            });
-          }}
-        />
+                savePrediction(match.id, {
+                  predicted_score_home: String(prediction.predicted_score_a),
+                  predicted_score_away: String(prediction.predicted_score_b),
+                  predicted_winner: "",
+                });
+              }}
+            />
+          ))}
+        </div>
       ))}
     </div>
   );
