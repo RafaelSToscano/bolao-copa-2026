@@ -645,6 +645,20 @@ export function KnockoutBracketView({ matches }: Props) {
     scroller.scrollTo({ left, behavior: "auto" });
   }, [anchorRound]);
 
+  // If any card will render the Palpite/Resultado columns we need a
+  // taller row, otherwise siblings overlap (same fix the dashboard
+  // preview already applies). `my_prediction === undefined` means the
+  // caller didn't plumb predictions and the column will be hidden.
+  const hasPredictionColumn = matches.some(
+    (match) => match.my_prediction !== undefined
+  );
+  const geometry: React.CSSProperties = hasPredictionColumn
+    ? {
+        ...BRACKET_GEOMETRY,
+        ["--bracket-row" as string]: "8.5rem",
+      }
+    : BRACKET_GEOMETRY;
+
   return (
     <div
       ref={scrollerRef}
@@ -653,7 +667,7 @@ export function KnockoutBracketView({ matches }: Props) {
       // bubbling out, and pinch-zoom on the page). pan-x alone blocks the
       // vertical scroll bubble; pinch-zoom alone blocks horizontal pan.
       className="-mx-4 overflow-x-auto pb-6 md:mx-0 [touch-action:manipulation]"
-      style={BRACKET_GEOMETRY}
+      style={geometry}
     >
       <div className="min-w-max px-4 md:px-1">
         <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm font-bold text-slate-300 md:hidden">
