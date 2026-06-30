@@ -126,14 +126,22 @@ function HeaderCell({
   );
 }
 
-function ColumnHeaderRow({ size = "default" }: { size?: "default" | "large" }) {
+function ColumnHeaderRow({
+  size = "default",
+  mirrored = false,
+}: {
+  size?: "default" | "large";
+  mirrored?: boolean;
+}) {
   const isLarge = size === "large";
   const cellWidth = isLarge ? "w-7" : "w-5";
   const padding = isLarge ? "px-3" : "px-2";
 
   return (
     <div
-      className={`flex items-center gap-2 ${padding} mb-0.5 text-[10px] font-black uppercase tracking-widest text-slate-500`}
+      className={`flex items-center gap-2 ${padding} mb-0.5 text-[10px] font-black uppercase tracking-widest text-slate-500 ${
+        mirrored ? "flex-row-reverse" : ""
+      }`}
     >
       <span className="flex-1" />
       <HeaderCell
@@ -155,6 +163,7 @@ function TeamRow({
   size = "default",
   provisional = false,
   showPredictionColumn = false,
+  mirrored = false,
 }: {
   team: string | null;
   score: number | null;
@@ -171,6 +180,10 @@ function TeamRow({
   /** Reserve space and render the prediction cell. Hidden on `/mata-mata`
    * and other surfaces that don't pass a user prediction. */
   showPredictionColumn?: boolean;
+  /** Flips the row contents so flag/score sit on opposite sides — used
+   * by the right-half desktop mirror so the layout reads outward from
+   * the center: score + guess + name + flag. */
+  mirrored?: boolean;
 }) {
   const isLarge = size === "large";
   const teamClass = provisional
@@ -183,7 +196,9 @@ function TeamRow({
     <div
       className={`flex items-center rounded-lg ${
         isLarge ? "gap-3 px-3 py-2" : "gap-2 px-2 py-1"
-      } ${isWinner ? "bg-yellow-400/15 text-yellow-300" : "text-white"}`}
+      } ${isWinner ? "bg-yellow-400/15 text-yellow-300" : "text-white"} ${
+        mirrored ? "flex-row-reverse" : ""
+      }`}
     >
       {team ? (
         <Flag team={team} size={isLarge ? "medium" : "small"} />
@@ -237,12 +252,17 @@ export function MatchCard({
   match,
   emphasis = false,
   compact = false,
+  mirrored = false,
 }: {
   match: DisplayKnockoutMatch;
   emphasis?: boolean;
   /** Flag-only layout. Used by the dashboard's next-round preview so the
    * two-column bracket fragment fits on mobile without horizontal scroll. */
   compact?: boolean;
+  /** Flips internal row layout so the score sits on the inside of the
+   * mirror bracket (closer to center). Used by the desktop mirror's
+   * right half. */
+  mirrored?: boolean;
 }) {
   const homeTeam = match.display_home_team;
   const awayTeam = match.display_away_team;
@@ -294,7 +314,11 @@ export function MatchCard({
             ? `Hoje · ${formatDate(match.match_date)}`
             : formatDate(match.match_date)}
         </p>
-        <div className="flex items-center justify-center gap-2">
+        <div
+          className={`flex items-center justify-center gap-2 ${
+            mirrored ? "flex-row-reverse" : ""
+          }`}
+        >
           {homeTeam ? (
             <Flag team={homeTeam} size="medium" />
           ) : (
@@ -347,7 +371,7 @@ export function MatchCard({
             </div>
 
             {showPredictionColumn && (
-              <ColumnHeaderRow size="large" />
+              <ColumnHeaderRow size="large" mirrored={mirrored} />
             )}
             <div className="space-y-2">
               <TeamRow
@@ -358,6 +382,7 @@ export function MatchCard({
                 size="large"
                 provisional={softenTeamNames}
                 showPredictionColumn={showPredictionColumn}
+                mirrored={mirrored}
               />
               <TeamRow
                 team={awayTeam}
@@ -367,6 +392,7 @@ export function MatchCard({
                 size="large"
                 provisional={softenTeamNames}
                 showPredictionColumn={showPredictionColumn}
+                mirrored={mirrored}
               />
             </div>
           </div>
@@ -396,7 +422,7 @@ export function MatchCard({
         </p>
       </div>
 
-      {showPredictionColumn && <ColumnHeaderRow />}
+      {showPredictionColumn && <ColumnHeaderRow mirrored={mirrored} />}
       <div className="space-y-0.5">
         <TeamRow
           team={homeTeam}
@@ -405,6 +431,7 @@ export function MatchCard({
           isWinner={homeWinner}
           provisional={softenTeamNames}
           showPredictionColumn={showPredictionColumn}
+          mirrored={mirrored}
         />
         <TeamRow
           team={awayTeam}
@@ -413,6 +440,7 @@ export function MatchCard({
           isWinner={awayWinner}
           provisional={softenTeamNames}
           showPredictionColumn={showPredictionColumn}
+          mirrored={mirrored}
         />
       </div>
     </div>
@@ -538,6 +566,7 @@ export function BracketColumn({
                     match={slot.match}
                     emphasis={isFinal && !compact}
                     compact={compact}
+                    mirrored={mirrored}
                   />
                 ) : (
                   <EmptyMatchCard />
@@ -709,9 +738,18 @@ export function KnockoutBracketView({ matches }: Props) {
   // 8 r32 slots instead of 16), so the grid only needs 8 rows. Without
   // this override the column would still allocate 16 rows and double its
   // vertical footprint, leaving a huge empty space below each side.
+  //
+  // Mirror also shrinks card width and gap because it renders 9 columns
+  // side-by-side (4 + Final + 4) against a `max-w-[1600px]` content area
+  // that's further narrowed by the 18rem sidebar. With the default
+  // 14rem card / 2rem gap the row reaches ~160rem and pushes under the
+  // sidebar. The tighter sizes here keep the row inside ~88rem.
   const mirrorGeometry: React.CSSProperties = {
     ...geometry,
     ["--bracket-rows" as string]: "8",
+    ["--bracket-col-w" as string]: "9rem",
+    ["--bracket-gap" as string]: "1rem",
+    ["--bracket-elbow" as string]: "0.5rem",
   };
   const standardGeometry: React.CSSProperties = {
     ...geometry,
@@ -761,9 +799,13 @@ export function KnockoutBracketView({ matches }: Props) {
       {/* Desktop mirror — left half grows inward, right half mirrors
           inward, Final centered. Each side renders its rounds with half
           the slots and the row count overridden so the column heights
-          match the half-bracket. */}
+          match the half-bracket. `overflow-x-auto` is a safety net: at
+          very narrow desktop widths the 9-column row may still overflow
+          its container, and we'd rather show a horizontal scrollbar than
+          have the bracket bleed under the sidebar. `min-w-0` lets the
+          flex/grid parent shrink below its intrinsic content size. */}
       <div
-        className="hidden pb-6 md:block"
+        className="hidden min-w-0 overflow-x-auto pb-6 md:block"
         style={mirrorGeometry}
         data-bracket-variant="desktop"
       >
