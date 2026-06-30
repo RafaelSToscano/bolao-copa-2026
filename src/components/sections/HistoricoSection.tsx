@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { CheckCircle2, XCircle, MinusCircle, Star, X, Trophy } from "lucide-react";
+import { CheckCircle2, XCircle, MinusCircle, Star, X, Trophy, Loader2 } from "lucide-react";
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
 import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
@@ -305,6 +305,14 @@ export function HistoricoSection({
     return byPlayerId;
   }, [ranking, lastGames, predictions, games, knockoutMatches, knockoutPredictions]);
 
+  if (ranking.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-500">
+        <Loader2 size={32} className="animate-spin opacity-50" />
+      </div>
+    );
+  }
+
   if (lastGames.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4 text-slate-500">
@@ -322,12 +330,12 @@ export function HistoricoSection({
       </div>
 
       {/* Table wrapper — horizontal scroll on mobile, sticky player column */}
-      <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/60">
+      <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900">
         <table className="w-full min-w-[480px] text-sm border-collapse">
           <thead>
             <tr className="border-b border-slate-800">
               {/* Sticky player column header */}
-              <th className="text-left px-3 py-3 text-slate-400 font-semibold text-xs sticky left-0 bg-slate-900 z-10 border-r border-slate-800">
+              <th className="text-left px-3 py-3 text-slate-400 font-semibold text-xs sticky left-0 bg-slate-900 z-20 border-r border-slate-800">
                 Jogador
               </th>
               <th className="text-right px-3 py-3 text-slate-400 font-semibold text-xs">Pts</th>
@@ -361,8 +369,8 @@ export function HistoricoSection({
                     isMe ? "bg-yellow-500/5" : "hover:bg-slate-800/30"
                   }`}
                 >
-                  {/* Sticky player cell */}
-                  <td className={`px-3 py-3 sticky left-0 z-10 border-r border-slate-800 ${isMe ? "bg-yellow-950/40" : "bg-slate-950"}`}>
+                  {/* Sticky player cell — solid bg required to occlude scrolling content */}
+                  <td className={`px-3 py-3 sticky left-0 z-10 border-r border-slate-800 bg-slate-900 ${isMe ? "border-l-2 border-l-yellow-500/60" : ""}`}>
                     <div className="flex items-center gap-2">
                       <span className="text-slate-500 text-[11px] font-bold tabular-nums w-4 shrink-0">
                         {player.position}
