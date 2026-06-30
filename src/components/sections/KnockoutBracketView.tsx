@@ -603,8 +603,23 @@ export function BracketColumn({
                   <EmptyMatchCard />
                 )}
 
+                {/* Footer is absolutely positioned below the card so it
+                    doesn't shift the card's vertical centering in the
+                    cell — the sibling-column connectors target the
+                    cell's vertical midpoint, so the card must stay
+                    centered. The footer's own padding mirrors the
+                    wrapper's so it aligns under the card horizontally. */}
                 {showFooter && (
-                  <div className="mt-6 flex justify-center">{footer}</div>
+                  <div
+                    className="absolute inset-x-0 top-full mt-6 flex justify-center"
+                    style={
+                      mirrored
+                        ? { paddingLeft: "var(--bracket-gap)" }
+                        : { paddingRight: "var(--bracket-gap)" }
+                    }
+                  >
+                    {footer}
+                  </div>
                 )}
               </div>
 
@@ -1096,14 +1111,17 @@ export function KnockoutBracketView({ matches }: Props) {
               />
             )}
 
-            {rightHalfRounds.map((round, index) => {
+            {rightHalfRounds.map((round) => {
               const column = splitColumns.find((c) => c.round === round)!;
               return (
                 <BracketColumn
                   key={`right-${round}`}
                   round={round}
                   slots={column.bottom}
-                  isLastRound={index === 0}
+                  // Every right-side round has a parent (the SF feeds
+                  // the Final). Only the Final itself is the last round,
+                  // and it's rendered as the center column separately.
+                  isLastRound={false}
                   mirrored
                   hideHeader
                 />
