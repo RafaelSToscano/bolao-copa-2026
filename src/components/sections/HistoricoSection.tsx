@@ -225,35 +225,33 @@ export function HistoricoSection({
   const lastGames = useMemo<HistGame[]>(() => {
     const completed: HistGame[] = [];
 
-    // Group games with official result and a known date (needed for ordering)
+    // Group games with official result
     for (const g of games) {
       if (g.official_score_a === null || g.official_score_b === null) continue;
-      if (!g.match_date) continue;
       completed.push({
         key: `g-${g.id}`,
         teamA: g.team_a,
         teamB: g.team_b,
         scoreA: g.official_score_a,
         scoreB: g.official_score_b,
-        date: g.match_date,
+        date: g.match_date ?? "",
         phase: g.group_name ? "group" : g.phase,
         isKnockout: false,
         gameId: g.id,
       });
     }
 
-    // Knockout matches with official result and a known date
+    // Knockout matches with official result
     for (const m of knockoutMatches) {
       if (m.official_score_home === null || m.official_score_away === null) continue;
       if (!m.home_team || !m.away_team) continue;
-      if (!m.match_date) continue;
       completed.push({
         key: `k-${m.id}`,
         teamA: m.home_team,
         teamB: m.away_team,
         scoreA: m.official_score_home,
         scoreB: m.official_score_away,
-        date: m.match_date,
+        date: m.match_date ?? "",
         phase: m.round,
         isKnockout: true,
         matchId: m.id,
