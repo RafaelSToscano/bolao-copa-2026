@@ -19,6 +19,7 @@ import { usePhaseState } from "@/hooks/usePhaseState";
 import { useStandings } from "@/hooks/useStandings";
 import { useRanking } from "@/hooks/useRanking";
 import { useAppStats } from "@/hooks/useAppStats";
+import { Loader2 } from "lucide-react";
 import { AuthForm } from "@/components/forms/AuthForm";
 import { AppLayout } from "@/components/layouts/AppLayout";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
@@ -411,7 +412,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {dataError || message}
           </div>
         )}
-        {children}
+        {dataLoading && players.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-3 text-slate-500">
+            <Loader2 size={28} className="animate-spin" />
+            <span className="text-sm font-semibold">Carregando...</span>
+          </div>
+        ) : (
+          children
+        )}
       </AppLayout>
 
       {showClearConfirm && (
