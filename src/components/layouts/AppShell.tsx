@@ -57,12 +57,13 @@ type AppShellContextValue = {
     value: string
   ) => Promise<void>;
   handleUpdateKnockoutOfficialResult: (
-    matchId: number,
-    scoreHome: number | null,
-    scoreAway: number | null,
-    homeTeam?: string | null,
-    awayTeam?: string | null
-  ) => Promise<void>;
+  matchId: number,
+  scoreHome: number | null,
+  scoreAway: number | null,
+  winnerTeam?: string | null,
+  homeTeam?: string | null,
+  awayTeam?: string | null
+) => Promise<void>;
   handleApprovePlayer: (playerId: string) => Promise<void>;
   handleRejectPlayer: (playerId: string) => Promise<void>;
   handleApplySingleRandomPrediction: (
@@ -238,12 +239,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const handleUpdateKnockoutOfficialResult = async (
-    matchId: number,
-    scoreHome: number | null,
-    scoreAway: number | null,
-    homeTeam?: string | null,
-    awayTeam?: string | null
-  ) => {
+  matchId: number,
+  scoreHome: number | null,
+  scoreAway: number | null,
+  winnerTeam?: string | null,
+  homeTeam?: string | null,
+  awayTeam?: string | null
+) => {
     try {
       if (homeTeam && awayTeam) {
         await knockoutPredictionsService.updateKnockoutMatchTeams(
@@ -254,10 +256,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }
 
       await knockoutPredictionsService.updateKnockoutMatchResult(
-        matchId,
-        scoreHome,
-        scoreAway
-      );
+  matchId,
+  scoreHome,
+  scoreAway,
+  winnerTeam ?? null
+);
 
       invalidateCache();
 

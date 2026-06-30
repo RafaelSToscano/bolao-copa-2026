@@ -28,12 +28,13 @@ interface AdminSectionProps {
     value: string
   ) => void;
   onUpdateKnockoutResult: (
-  matchId: number,
-  scoreHome: number | null,
-  scoreAway: number | null,
-  homeTeam?: string | null,
-  awayTeam?: string | null
-) => Promise<void>;
+    matchId: number,
+    scoreHome: number | null,
+    scoreAway: number | null,
+    winnerTeam?: string | null,
+    homeTeam?: string | null,
+    awayTeam?: string | null
+  ) => Promise<void>;
   onApprovePlayer: (playerId: string) => void;
   onRejectPlayer: (playerId: string) => void;
   stats: {
@@ -62,7 +63,7 @@ export function AdminSection({
   const [shareMode, setShareMode] = useState<"highlight" | "full" | null>(null);
 
   const [knockoutDrafts, setKnockoutDrafts] = useState<
-    Record<number, { home: string; away: string }>
+    Record<number, { home: string; away: string; winner: string }>
   >({});
 
   const sortedGames = useMemo(
@@ -100,67 +101,85 @@ export function AdminSection({
   );
 
   const knockoutAuditMatches = useMemo(
-  () =>
-    buildDisplayKnockoutMatches(knockoutMatches, games)
-      .filter((match) => match.display_home_team && match.display_away_team)
-      .sort((a, b) => {
-        const dateA = a.match_date
-          ? new Date(a.match_date).getTime()
-          : Number.MAX_SAFE_INTEGER;
-        const dateB = b.match_date
-          ? new Date(b.match_date).getTime()
-          : Number.MAX_SAFE_INTEGER;
+    () =>
+      buildDisplayKnockoutMatches(knockoutMatches, games)
+        .filter((match) => match.display_home_team && match.display_away_team)
+        .sort((a, b) => {
+          const dateA = a.match_date
+            ? new Date(a.match_date).getTime()
+            : Number.MAX_SAFE_INTEGER;
+          const dateB = b.match_date
+            ? new Date(b.match_date).getTime()
+            : Number.MAX_SAFE_INTEGER;
 
-        if (dateA !== dateB) return dateA - dateB;
+          if (dateA !== dateB) return dateA - dateB;
 
-        return a.match_number - b.match_number;
-      }),
-  [knockoutMatches, games]
-);
-
-const knockoutPredictionAudit = useMemo(() => {
-  const approvedPlayers = players.filter(
-    (player) => player.approved && !player.is_admin
+          return a.match_number - b.match_number;
+        }),
+    [knockoutMatches, games]
   );
 
-  return approvedPlayers
-    .map((player) => {
-      const missingMatches = knockoutAuditMatches.filter((match) => {
-        const prediction = knockoutPredictions.find(
-          (item) => item.player_id === player.id && item.match_id === match.id
-        );
+  const knockoutPredictionAudit = useMemo(() => {
+    const approvedPlayers = players.filter(
+      (player) => player.approved && !player.is_admin
+    );
 
-        return (
-          !prediction ||
-          prediction.predicted_score_home === null ||
-          prediction.predicted_score_away === null
-        );
+    return approvedPlayers
+      .map((player) => {
+        const missingMatches = knockoutAuditMatches.filter((match) => {
+          const prediction = knockoutPredictions.find(
+            (item) => item.player_id === player.id && item.match_id === match.id
+          );
+
+          return (
+            !prediction ||
+            prediction.predicted_score_home === null ||
+            prediction.predicted_score_away === null
+          );
+        });
+
+        return {
+          player,
+          total: knockoutAuditMatches.length,
+          completed: knockoutAuditMatches.length - missingMatches.length,
+          missingMatches,
+        };
+      })
+      .sort((a, b) => {
+        const missingA = a.total - a.completed;
+        const missingB = b.total - b.completed;
+
+        if (missingA !== missingB) return missingB - missingA;
+
+        return a.player.name.localeCompare(b.player.name);
       });
-
-      return {
-        player,
-        total: knockoutAuditMatches.length,
-        completed: knockoutAuditMatches.length - missingMatches.length,
-        missingMatches,
-      };
-    })
-    .sort((a, b) => {
-      const missingA = a.total - a.completed;
-      const missingB = b.total - b.completed;
-
-      if (missingA !== missingB) return missingB - missingA;
-
-      return a.player.name.localeCompare(b.player.name);
-    });
-}, [players, knockoutAuditMatches, knockoutPredictions]);
-
-
+  }, [players, knockoutAuditMatches, knockoutPredictions]);
 
   const getKnockoutDraft = (match: (typeof round32Matches)[number]) =>
     knockoutDrafts[match.id] ?? {
       home: match.official_score_home?.toString() ?? "",
       away: match.official_score_away?.toString() ?? "",
+      winner: match.winner_team ?? "",
     };
+
+  const parseScore = (value: string): number | null => {
+    if (value === "") return null;
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  };
+
+  const getAutomaticWinner = (
+    scoreHome: number | null,
+    scoreAway: number | null,
+    homeTeam?: string | null,
+    awayTeam?: string | null
+  ): string | null => {
+    if (scoreHome === null || scoreAway === null) return null;
+    if (!homeTeam || !awayTeam) return null;
+    if (scoreHome > scoreAway) return homeTeam;
+    if (scoreAway > scoreHome) return awayTeam;
+    return null;
+  };
 
   const handleKnockoutScoreChange = async (
     match: (typeof round32Matches)[number],
@@ -169,23 +188,24 @@ const knockoutPredictionAudit = useMemo(() => {
   ) => {
     const currentDraft = getKnockoutDraft(match);
 
-    const nextDraft = {
+    const rawDraft = {
       ...currentDraft,
       [field]: value,
     };
 
-    setKnockoutDrafts((prev) => ({
-      ...prev,
-      [match.id]: nextDraft,
-    }));
+    const bothEmpty = rawDraft.home === "" && rawDraft.away === "";
+    const bothFilled = rawDraft.home !== "" && rawDraft.away !== "";
 
-    const bothEmpty = nextDraft.home === "" && nextDraft.away === "";
-    const bothFilled = nextDraft.home !== "" && nextDraft.away !== "";
+    const scoreHome = bothEmpty ? null : parseScore(rawDraft.home);
+    const scoreAway = bothEmpty ? null : parseScore(rawDraft.away);
 
-    if (!bothEmpty && !bothFilled) return;
-
-    const scoreHome = bothEmpty ? null : Number(nextDraft.home);
-    const scoreAway = bothEmpty ? null : Number(nextDraft.away);
+    if (!bothEmpty && !bothFilled) {
+      setKnockoutDrafts((prev) => ({
+        ...prev,
+        [match.id]: rawDraft,
+      }));
+      return;
+    }
 
     if (
       scoreHome !== null &&
@@ -195,13 +215,81 @@ const knockoutPredictionAudit = useMemo(() => {
       return;
     }
 
+    const automaticWinner = getAutomaticWinner(
+      scoreHome,
+      scoreAway,
+      match.display_home_team,
+      match.display_away_team
+    );
+
+    const nextDraft = {
+      ...rawDraft,
+      winner: bothEmpty ? "" : automaticWinner ?? rawDraft.winner ?? "",
+    };
+
+    setKnockoutDrafts((prev) => ({
+      ...prev,
+      [match.id]: nextDraft,
+    }));
+
+    if (bothEmpty) {
+      await onUpdateKnockoutResult(
+        match.id,
+        null,
+        null,
+        null,
+        match.display_home_team,
+        match.display_away_team
+      );
+      return;
+    }
+
+    if (scoreHome === null || scoreAway === null) return;
+
+    const isDraw = scoreHome === scoreAway;
+
+    if (isDraw && !nextDraft.winner) {
+      return;
+    }
+
     await onUpdateKnockoutResult(
-  match.id,
-  scoreHome,
-  scoreAway,
-  match.display_home_team,
-  match.display_away_team
-);
+      match.id,
+      scoreHome,
+      scoreAway,
+      isDraw ? nextDraft.winner : automaticWinner,
+      match.display_home_team,
+      match.display_away_team
+    );
+  };
+
+  const handleKnockoutWinnerChange = async (
+    match: (typeof round32Matches)[number],
+    winnerTeam: string
+  ) => {
+    const currentDraft = getKnockoutDraft(match);
+
+    const scoreHome = parseScore(currentDraft.home);
+    const scoreAway = parseScore(currentDraft.away);
+
+    setKnockoutDrafts((prev) => ({
+      ...prev,
+      [match.id]: {
+        ...currentDraft,
+        winner: winnerTeam,
+      },
+    }));
+
+    if (scoreHome === null || scoreAway === null) return;
+    if (scoreHome !== scoreAway) return;
+
+    await onUpdateKnockoutResult(
+      match.id,
+      scoreHome,
+      scoreAway,
+      winnerTeam,
+      match.display_home_team,
+      match.display_away_team
+    );
   };
 
   const handleExportCsv = async () => {
@@ -212,7 +300,6 @@ const knockoutPredictionAudit = useMemo(() => {
       alert("Erro ao exportar auditoria CSV.");
     }
   };
-
 
   const handleExportKnockoutAuditCsv = () => {
     const header = [
@@ -365,6 +452,42 @@ const knockoutPredictionAudit = useMemo(() => {
     const awayTeam = match.display_away_team ?? "Time a definir";
     const disabled = !match.display_home_team || !match.display_away_team;
 
+    const isDraw =
+      draft.home !== "" &&
+      draft.away !== "" &&
+      Number(draft.home) === Number(draft.away);
+
+    const canSelectWinner =
+      isDraw && !!match.display_home_team && !!match.display_away_team;
+
+    const winnerSelector = canSelectWinner ? (
+      <div className="px-3 md:px-4 pb-3">
+        <div className="flex flex-col md:flex-row md:items-center gap-2 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-3">
+          <div className="text-xs font-black uppercase tracking-widest text-yellow-300 whitespace-nowrap">
+            🏆 Classificado:
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {[match.display_home_team!, match.display_away_team!].map((team) => (
+              <button
+                key={team}
+                type="button"
+                onClick={() => handleKnockoutWinnerChange(match, team)}
+                className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-black border transition ${
+                  draft.winner === team
+                    ? "bg-yellow-400 text-slate-950 border-yellow-300"
+                    : "bg-slate-900 text-white border-slate-700 hover:bg-slate-800"
+                }`}
+              >
+                <Flag team={team} />
+                {team}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    ) : null;
+
     return (
       <div
         key={match.id}
@@ -463,6 +586,8 @@ const knockoutPredictionAudit = useMemo(() => {
 
           <div className="font-bold truncate pl-5 text-lg">{awayTeam}</div>
         </div>
+
+        {winnerSelector}
       </div>
     );
   };
@@ -617,6 +742,7 @@ const knockoutPredictionAudit = useMemo(() => {
           </CardContent>
         </Card>
       )}
+
       <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
         <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide rounded-2xl">
           RESULTADOS OFICIAIS - FASE DE GRUPOS

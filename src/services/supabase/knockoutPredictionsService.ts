@@ -412,10 +412,11 @@ export const knockoutPredictionsService = {
   },
 
   async updateKnockoutMatchResult(
-    matchId: number,
-    scoreHome: number | null,
-    scoreAway: number | null
-  ): Promise<void> {
+  matchId: number,
+  scoreHome: number | null,
+  scoreAway: number | null,
+  winnerTeam: string | null = null
+): Promise<void> {
     if (USE_MOCK_DATA) return;
 
     const supabase = getSupabaseClient();
@@ -446,16 +447,21 @@ export const knockoutPredictionsService = {
 
     let officialWinner: string | null = null;
 
-    if (!isClearing && scoreHome !== null && scoreAway !== null) {
-      if (scoreHome > scoreAway) officialWinner = current.home_team;
-      if (scoreAway > scoreHome) officialWinner = current.away_team;
-
-      if (scoreHome === scoreAway) {
-        throw new Error(
-          "Jogo de mata-mata não pode ser salvo empatado. Informe o placar final após desempate."
-        );
-      }
+if (!isClearing && scoreHome !== null && scoreAway !== null) {
+  if (scoreHome > scoreAway) {
+    officialWinner = current.home_team;
+  } else if (scoreAway > scoreHome) {
+    officialWinner = current.away_team;
+  } else {
+    if (!winnerTeam) {
+      throw new Error(
+        "Selecione quem avançou nos pênaltis."
+      );
     }
+
+    officialWinner = winnerTeam;
+  }
+}
 
     const { error } = await supabase
       .from("knockout_matches")
