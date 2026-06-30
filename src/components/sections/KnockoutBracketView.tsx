@@ -443,11 +443,30 @@ export function buildRoundSlots(
   }));
 }
 
+// Splits a round's bracket slots at the midpoint so the desktop mirror
+// layout can render the top half on the left and the bottom half on the
+// right. `BRACKET_ROUND_ORDER_BY_MATCH_NUMBER` already pairs siblings in
+// bracket order, so the first N/2 entries feed the top semifinal and the
+// remaining N/2 feed the bottom. The Final has only one slot, so it
+// returns it under `top` and an empty `bottom`.
+export function splitRoundSlots(
+  round: BracketRound,
+  matches: DisplayKnockoutMatch[]
+): { top: BracketSlot[]; bottom: BracketSlot[] } {
+  const full = buildRoundSlots(round, matches);
+  const midpoint = Math.floor(full.length / 2);
+  return {
+    top: full.slice(0, full.length - midpoint),
+    bottom: full.slice(full.length - midpoint),
+  };
+}
+
 export function BracketColumn({
   round,
   slots,
   isLastRound,
   compact = false,
+  mirrored = false,
 }: {
   round: BracketRound;
   slots: BracketSlot[];
@@ -456,6 +475,10 @@ export function BracketColumn({
    * preview to keep two rounds visible on mobile without horizontal
    * scroll. */
   compact?: boolean;
+  /** Flips card padding side and connector geometry so the column
+   * points inward from the right. Used by the desktop mirror layout
+   * for the right half of the bracket. */
+  mirrored?: boolean;
 }) {
   const isFinal = round === "final";
   const columnWidth = compact
@@ -480,7 +503,11 @@ export function BracketColumn({
         className="grid"
         style={{
           width: columnWidth,
-          gridTemplateRows: "repeat(16, var(--bracket-row))",
+          // --bracket-rows defaults to 16 (full bracket height). The
+          // desktop mirror layout overrides it to 8 so each half-column
+          // collapses to the height of 8 r32 slots.
+          gridTemplateRows:
+            "repeat(var(--bracket-rows, 16), var(--bracket-row))",
         }}
       >
         {slots.map((slot, index) => {
@@ -500,7 +527,11 @@ export function BracketColumn({
             >
               <div
                 className="relative w-full"
-                style={{ paddingRight: "var(--bracket-gap)" }}
+                style={
+                  mirrored
+                    ? { paddingLeft: "var(--bracket-gap)" }
+                    : { paddingRight: "var(--bracket-gap)" }
+                }
               >
                 {slot.match ? (
                   <MatchCard
@@ -517,6 +548,7 @@ export function BracketColumn({
                 <Connector
                   isTopSibling={isTopSibling}
                   siblingSpan={slot.rowSpan}
+                  mirrored={mirrored}
                 />
               )}
             </div>
@@ -530,36 +562,33 @@ export function BracketColumn({
 // Each card draws half of the bracket: a short horizontal stub at its own
 // vertical center, then a vertical bar from that center to the midpoint with
 // its sibling. The sibling draws the mirror half — together they form the L
-// that meets at the parent card's center in the next column.
+// that meets at the parent card's center in the next column. When mirrored,
+// all three spans pin to the card's left edge instead of the right so the
+// L points toward the center of a mirror layout.
 function Connector({
   isTopSibling,
   siblingSpan,
+  mirrored = false,
 }: {
   isTopSibling: boolean;
   siblingSpan: number;
+  mirrored?: boolean;
 }) {
-  // Vertical bar height: distance from this card's center to the pair's
-  // midpoint. Two siblings each span `siblingSpan` rows; the midpoint sits
-  // exactly `siblingSpan / 2` rows away from each card's center.
   const verticalHeight = `calc(var(--bracket-row) * ${siblingSpan / 2})`;
-  // The connector's elbow (vertical bar) sits at the midpoint of the
-  // inter-column gap so the half-L from each sibling meets the next
-  // column's card cleanly. `--bracket-gap` is the entire gap width;
-  // `--bracket-elbow` is half of it (the elbow's distance from this card's
-  // right edge).
   const elbowOffset = "var(--bracket-elbow)";
+  const edgeKey = mirrored ? "left" : "right";
 
   return (
     <>
       <span
         className="pointer-events-none absolute top-1/2 h-px bg-slate-600"
-        style={{ right: elbowOffset, width: elbowOffset }}
+        style={{ [edgeKey]: elbowOffset, width: elbowOffset }}
         aria-hidden
       />
       <span
         className="pointer-events-none absolute w-px bg-slate-600"
         style={{
-          right: elbowOffset,
+          [edgeKey]: elbowOffset,
           height: verticalHeight,
           top: isTopSibling ? "50%" : "auto",
           bottom: isTopSibling ? "auto" : "50%",
@@ -567,8 +596,9 @@ function Connector({
         aria-hidden
       />
       <span
-        className="pointer-events-none absolute right-0 h-px bg-slate-600"
+        className="pointer-events-none absolute h-px bg-slate-600"
         style={{
+          [edgeKey]: 0,
           width: elbowOffset,
           top: isTopSibling ? "auto" : "0",
           bottom: isTopSibling ? "0" : "auto",
@@ -618,6 +648,14 @@ export function KnockoutBracketView({ matches }: Props) {
     ),
   }));
 
+  const splitColumns = BRACKET_ROUNDS.map((round) => ({
+    round,
+    ...splitRoundSlots(
+      round,
+      matches.filter((match) => match.round === round)
+    ),
+  }));
+
   const thirdPlaceMatch =
     matches.find((match) => match.round === "third_place") ?? null;
 
@@ -638,11 +676,19 @@ export function KnockoutBracketView({ matches }: Props) {
     // always run this — even when the anchor is r32 (which technically
     // sits at scrollLeft 0) — because browsers restore the previous
     // horizontal scroll position on reload, which would otherwise leave
-    // the user staring at whatever round they last visited.
+    // the user staring at whatever round they last visited. The desktop
+    // mirror layout doesn't scroll horizontally, so the query is scoped
+    // to the mobile scroller via the ref.
     const containerRect = scroller.getBoundingClientRect();
     const columnRect = column.getBoundingClientRect();
     const left = columnRect.left - containerRect.left + scroller.scrollLeft;
-    scroller.scrollTo({ left, behavior: "auto" });
+    // jsdom (test env) doesn't implement Element.scrollTo — guard so the
+    // component still mounts cleanly under @testing-library.
+    if (typeof scroller.scrollTo === "function") {
+      scroller.scrollTo({ left, behavior: "auto" });
+    } else {
+      scroller.scrollLeft = left;
+    }
   }, [anchorRound]);
 
   // If any card will render the Palpite/Resultado columns we need a
@@ -659,36 +705,114 @@ export function KnockoutBracketView({ matches }: Props) {
       }
     : BRACKET_GEOMETRY;
 
-  return (
-    <div
-      ref={scrollerRef}
-      // touch-action: manipulation lets the browser handle all gestures
-      // (horizontal pan on this scroll container, vertical page scroll
-      // bubbling out, and pinch-zoom on the page). pan-x alone blocks the
-      // vertical scroll bubble; pinch-zoom alone blocks horizontal pan.
-      className="-mx-4 overflow-x-auto pb-6 md:mx-0 [touch-action:manipulation]"
-      style={geometry}
-    >
-      <div className="min-w-max px-4 md:px-1">
-        <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm font-bold text-slate-300 md:hidden">
-          Use dois dedos para dar zoom ou arraste para o lado.
-        </div>
+  // Mirror layout halves the row count per side (top/bottom each carry
+  // 8 r32 slots instead of 16), so the grid only needs 8 rows. Without
+  // this override the column would still allocate 16 rows and double its
+  // vertical footprint, leaving a huge empty space below each side.
+  const mirrorGeometry: React.CSSProperties = {
+    ...geometry,
+    ["--bracket-rows" as string]: "8",
+  };
+  const standardGeometry: React.CSSProperties = {
+    ...geometry,
+    ["--bracket-rows" as string]: "16",
+  };
 
-        <div className="flex items-start">
-          {columns.map(({ round, slots }, index) => (
+  const finalColumn = splitColumns.find((c) => c.round === "final");
+  const leftHalfRounds = BRACKET_ROUNDS.filter((r) => r !== "final");
+  const rightHalfRounds = [...leftHalfRounds].reverse();
+
+  return (
+    <>
+      {/* Mobile — unchanged: a single horizontally-scrolling row of all
+          five rounds, with the active round scrolled into view on mount. */}
+      <div
+        ref={scrollerRef}
+        // touch-action: manipulation lets the browser handle all gestures
+        // (horizontal pan on this scroll container, vertical page scroll
+        // bubbling out, and pinch-zoom on the page). pan-x alone blocks the
+        // vertical scroll bubble; pinch-zoom alone blocks horizontal pan.
+        className="-mx-4 overflow-x-auto pb-6 md:hidden [touch-action:manipulation]"
+        style={standardGeometry}
+        data-bracket-variant="mobile"
+      >
+        <div className="min-w-max px-4">
+          <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm font-bold text-slate-300">
+            Use dois dedos para dar zoom ou arraste para o lado.
+          </div>
+
+          <div className="flex items-start">
+            {columns.map(({ round, slots }, index) => (
+              <BracketColumn
+                key={round}
+                round={round}
+                slots={slots}
+                isLastRound={index === columns.length - 1}
+              />
+            ))}
+          </div>
+
+          <div className="mt-6 flex justify-center">
+            <ThirdPlaceCard match={thirdPlaceMatch} />
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop mirror — left half grows inward, right half mirrors
+          inward, Final centered. Each side renders its rounds with half
+          the slots and the row count overridden so the column heights
+          match the half-bracket. */}
+      <div
+        className="hidden pb-6 md:block"
+        style={mirrorGeometry}
+        data-bracket-variant="desktop"
+      >
+        <div className="flex items-start justify-center">
+          {leftHalfRounds.map((round) => {
+            const column = splitColumns.find((c) => c.round === round)!;
+            return (
+              <BracketColumn
+                key={`left-${round}`}
+                round={round}
+                slots={column.top}
+                isLastRound={false}
+              />
+            );
+          })}
+
+          {finalColumn && (
             <BracketColumn
-              key={round}
-              round={round}
-              slots={slots}
-              isLastRound={index === columns.length - 1}
+              round="final"
+              // Override the Final slot's rowSpan from 16 → 8 so the
+              // center column's vertical footprint matches each half's
+              // 8-row layout. The card itself stays vertically centered
+              // within the 8 rows because the cell uses flex-center.
+              slots={finalColumn.top.map((slot) => ({
+                ...slot,
+                rowSpan: 8,
+              }))}
+              isLastRound
             />
-          ))}
+          )}
+
+          {rightHalfRounds.map((round, index) => {
+            const column = splitColumns.find((c) => c.round === round)!;
+            return (
+              <BracketColumn
+                key={`right-${round}`}
+                round={round}
+                slots={column.bottom}
+                isLastRound={index === 0}
+                mirrored
+              />
+            );
+          })}
         </div>
 
         <div className="mt-6 flex justify-center">
           <ThirdPlaceCard match={thirdPlaceMatch} />
         </div>
       </div>
-    </div>
+    </>
   );
 }
