@@ -346,9 +346,11 @@ export function HistoricoSection({
                     <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-wide leading-tight">
                       {phaseLabel(g.phase, true)}
                     </span>
-                    <Flag team={g.teamA} size="small" />
-                    <span className="text-[8px] text-slate-600 leading-none">×</span>
-                    <Flag team={g.teamB} size="small" />
+                    <div className="flex flex-col sm:flex-row items-center gap-0.5">
+                      <Flag team={g.teamA} size="small" />
+                      <span className="text-[8px] text-slate-600 leading-none">×</span>
+                      <Flag team={g.teamB} size="small" />
+                    </div>
                     <span className="text-[9px] text-slate-600 tabular-nums font-semibold">
                       {g.scoreA}–{g.scoreB}
                     </span>
