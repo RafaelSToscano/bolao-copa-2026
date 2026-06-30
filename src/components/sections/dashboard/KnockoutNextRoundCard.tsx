@@ -55,6 +55,15 @@ export function KnockoutBracketPreview({
           // current-round card sits cleanly with the small header on top
           // and the L-connectors meet the compact next-round card.
           ["--bracket-row" as string]: "8.5rem",
+          // The next-round column is compact (flag-only), so the
+          // current-round column can claim more width than the
+          // /mata-mata default (14rem). clamp() lets it grow on wider
+          // viewports up to 18rem, but shrinks to fit on phones so the
+          // two columns + gap never force horizontal scroll. The
+          // preferred value subtracts the compact column (8.5rem),
+          // the gap (1.5rem), and ~2rem of side padding from 100vw.
+          ["--bracket-col-w" as string]:
+            "clamp(10rem, calc(100vw - 10rem), 18rem)",
         }}
       >
         <div>

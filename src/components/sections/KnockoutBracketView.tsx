@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Flag } from "@/components/ui/Flag";
 import { formatDate, isToday } from "@/lib/formatting";
 import { DisplayKnockoutMatch } from "@/lib/knockoutDisplayMatches";
@@ -67,6 +67,65 @@ function LiveDot({ size = 8 }: { size?: number }) {
   );
 }
 
+function HeaderCell({
+  letter,
+  label,
+  className = "",
+  cellWidth,
+}: {
+  letter: string;
+  label: string;
+  className?: string;
+  cellWidth: string;
+}) {
+  // Hover shows the tooltip on desktop. On touch devices (no hover),
+  // tap toggles it open and any outside tap closes it. The
+  // peer-focus class also keeps the tooltip visible while the button
+  // is focused via keyboard, for accessibility.
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e: MouseEvent | TouchEvent) => {
+      if (!ref.current) return;
+      if (e.target instanceof Node && ref.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", handle);
+    document.addEventListener("touchstart", handle);
+    return () => {
+      document.removeEventListener("mousedown", handle);
+      document.removeEventListener("touchstart", handle);
+    };
+  }, [open]);
+
+  return (
+    <span
+      ref={ref}
+      className={`group relative shrink-0 ${cellWidth} text-center ${className}`}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-describedby={`hdr-${letter}-tooltip`}
+        className="inline-block w-full bg-transparent p-0 text-center font-black uppercase tracking-widest"
+      >
+        {letter}
+      </button>
+      <span
+        id={`hdr-${letter}-tooltip`}
+        role="tooltip"
+        className={`pointer-events-none absolute left-1/2 top-full z-50 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-200 shadow-lg transition-opacity duration-150 group-hover:opacity-100 ${
+          open ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        {label}
+      </span>
+    </span>
+  );
+}
+
 function ColumnHeaderRow({ size = "default" }: { size?: "default" | "large" }) {
   const isLarge = size === "large";
   const cellWidth = isLarge ? "w-7" : "w-5";
@@ -77,18 +136,13 @@ function ColumnHeaderRow({ size = "default" }: { size?: "default" | "large" }) {
       className={`flex items-center gap-2 ${padding} mb-0.5 text-[10px] font-black uppercase tracking-widest text-slate-500`}
     >
       <span className="flex-1" />
-      <span
-        className={`shrink-0 ${cellWidth} text-center text-blue-300/70`}
-        title="Palpite"
-      >
-        P
-      </span>
-      <span
-        className={`shrink-0 ${cellWidth} text-center`}
-        title="Resultado"
-      >
-        R
-      </span>
+      <HeaderCell
+        letter="P"
+        label="Palpite"
+        cellWidth={cellWidth}
+        className="text-blue-300/70"
+      />
+      <HeaderCell letter="R" label="Resultado" cellWidth={cellWidth} />
     </div>
   );
 }
