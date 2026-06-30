@@ -112,7 +112,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   currentUser?.is_admin === true ||
   pathname === "/ranking" ||
   pathname === "/simulador" ||
-  pathname === "/palpites-da-galera",
+  pathname === "/palpites-da-galera" ||
+  pathname === "/historico",
     includePrivatePlayers: currentUser?.is_admin === true,
   });
 

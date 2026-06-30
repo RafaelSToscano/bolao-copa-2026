@@ -15,6 +15,7 @@ import {
   Calculator,
   BookOpen,
   MessageSquare,
+  History,
   Menu,
   X,
 } from "lucide-react";
@@ -70,6 +71,7 @@ export function AppLayout({
     { href: "/palpites", label: "Palpites", icon: Shield },
     { href: "/mata-mata", label: "Mata-mata", icon: Trophy },
     { href: "/ranking", label: "Ranking", icon: BarChart3 },
+    { href: "/historico", label: "Histórico", icon: History },
     { href: "/simulador", label: "Simulador", icon: Calculator },
     { href: "/palpites-da-galera", label: "Palpites da Galera", icon: MessageSquare },
     { href: "/classificacao", label: "Classificação", icon: Trophy },
