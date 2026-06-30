@@ -913,21 +913,6 @@ export function KnockoutBracketView({ matches }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const desktopScrollerRef = useRef<HTMLDivElement>(null);
 
-  // Center the desktop mirror on mount so the Final is in view and the
-  // user can drag either way to inspect the halves. (The mobile anchor
-  // logic doesn't apply here — desktop mirror has no notion of an
-  // "active round" because both halves are visually equal weight.)
-  useEffect(() => {
-    const scroller = desktopScrollerRef.current;
-    if (!scroller) return;
-    const left = (scroller.scrollWidth - scroller.clientWidth) / 2;
-    if (typeof scroller.scrollTo === "function") {
-      scroller.scrollTo({ left, behavior: "auto" });
-    } else {
-      scroller.scrollLeft = left;
-    }
-  }, []);
-
   // Wire mouse drag-to-pan on both scrollers. Mobile already gets touch
   // pan natively via overflow-x-auto; this adds the same gesture for
   // desktop pointers so users can grab and drag the bracket horizontally.
@@ -975,7 +960,8 @@ export function KnockoutBracketView({ matches }: Props) {
   return (
     <>
       {/* Mobile — a single horizontally-scrolling row of all five rounds,
-          with the active round scrolled into view on mount. Round titles
+          starting at the top-left (r32) so the bracket reads left-to-right
+          like the tournament progresses. Round titles
           live in a sticky header strip ABOVE the scroller so they stay
           pinned to the page top while the user scrolls vertically; their
           horizontal position syncs to the bracket scroller via transform.
