@@ -68,11 +68,11 @@ export function AppLayout({
   const menuItems: MenuItem[] = [
     { href: "/", label: "Dashboard", icon: Home },
     { href: "/palpites", label: "Palpites", icon: Shield },
-    { href: "/classificacao", label: "Classificação", icon: Trophy },
     { href: "/mata-mata", label: "Mata-mata", icon: Trophy },
     { href: "/ranking", label: "Ranking", icon: BarChart3 },
     { href: "/simulador", label: "Simulador", icon: Calculator },
     { href: "/palpites-da-galera", label: "Palpites da Galera", icon: MessageSquare },
+    { href: "/classificacao", label: "Classificação", icon: Trophy },
     { href: "/regras", label: "Regras", icon: BookOpen },
     ...(currentUser.is_admin
       ? [{ href: "/admin", label: "Admin", icon: Lock }]
