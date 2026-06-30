@@ -2,12 +2,22 @@
 
 import { KnockoutBracketView } from "@/components/sections/KnockoutBracketView";
 import { useAppShell } from "@/components/layouts/AppShell";
-import { buildDisplayKnockoutMatches } from "@/lib/knockoutDisplayMatches";
+import {
+  attachMyKnockoutPredictions,
+  buildDisplayKnockoutMatches,
+} from "@/lib/knockoutDisplayMatches";
 
 export default function MataMataPage() {
-  const { games, knockoutMatches } = useAppShell();
+  const { games, knockoutMatches, knockoutPredictions, currentUser } =
+    useAppShell();
 
-  const displayMatches = buildDisplayKnockoutMatches(knockoutMatches, games);
+  const myPredictions = knockoutPredictions.filter(
+    (p) => p.player_id === currentUser.id
+  );
+  const displayMatches = attachMyKnockoutPredictions(
+    buildDisplayKnockoutMatches(knockoutMatches, games),
+    myPredictions
+  );
 
   return (
     <div className="space-y-6">
