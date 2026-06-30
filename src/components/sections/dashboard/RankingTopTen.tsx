@@ -42,6 +42,7 @@ interface RankingTopTenProps {
    * dashboard.
    */
   currentUser?: LiveRankingRow | null;
+  currentUserId?: string | null;
   provisional?: boolean;
   onSeeAll?: () => void;
 }
@@ -63,15 +64,19 @@ function RankingRow({
   player,
   provisional,
   variant = "default",
+  currentUserId = null,
 }: {
   player: LiveRankingRow;
   provisional: boolean;
   variant?: "default" | "relegation" | "lanterna" | "self";
+  currentUserId?: string | null;
 }) {
   const delta = deltaOf(player, provisional);
   const isLanterna = variant === "lanterna";
   const isRelegation = variant === "relegation" || isLanterna;
   const isSelf = variant === "self";
+  const isCurrentUser =
+    !isSelf && currentUserId !== null && player.id === currentUserId;
 
   let positionColor = "text-yellow-400";
   if (isRelegation) positionColor = "text-red-300";
@@ -81,7 +86,9 @@ function RankingRow({
     <div
       className={`grid grid-cols-12 px-3 border-b border-slate-800 items-center min-h-14 ${
         isRelegation ? "bg-red-500/10" : ""
-      } ${isSelf ? "bg-blue-500/15" : ""}`}
+      } ${isCurrentUser ? "bg-yellow-500/10" : ""} ${
+        isSelf ? "bg-blue-500/15" : ""
+      }`}
     >
       <div
         className={`col-span-2 font-black flex items-center gap-1 ${positionColor}`}
@@ -92,18 +99,23 @@ function RankingRow({
 
       <div className="col-span-5 font-semibold truncate">
         {isLanterna && (
-       <span className="text-xs md:text-sm text-red-300 font-bold mr-1">
-       Lanterna
-       </span>
+          <span className="text-xs md:text-sm text-red-300 font-bold mr-1">
+            Lanterna
+          </span>
         )}
+
         {isSelf && (
           <span className="text-xs md:text-sm text-blue-300 font-bold mr-1">
             Você
           </span>
         )}
 
-  {player.name}
-</div>
+        {player.name}
+
+        {isCurrentUser && (
+          <span className="ml-1 text-yellow-400 font-black">(você)</span>
+        )}
+      </div>
 
       <div className="col-span-2 flex justify-center">
         <DeltaArrow delta={delta} />
@@ -129,17 +141,21 @@ export function RankingTopTen({
   lanterna,
   relegationZone = [],
   currentUser = null,
+  currentUserId: currentUserIdFromProps = null,
   provisional = false,
   onSeeAll,
 }: RankingTopTenProps) {
   const podium = top.slice(0, 3);
   const tail = top.slice(3, 10);
+  const highlightUserId = currentUserIdFromProps ?? currentUser?.id ?? null;
 
   const allRows = useMemo(() => [...podium, ...tail], [podium, tail]);
+
   const stable = useMemo(
     () => [...allRows].sort((a, b) => a.id.localeCompare(b.id)),
     [allRows]
   );
+
   const visualIndexById = useMemo(() => {
     const m = new Map<string, number>();
     allRows.forEach((row, idx) => m.set(row.id, idx));
@@ -150,10 +166,6 @@ export function RankingTopTen({
     (player) => player.id !== lanterna?.id
   );
 
-  // Render an extra "you are here" row only when the logged-in user
-  // doesn't already appear in the top 10 nor in the relegation zone.
-  // Mid-table players need a reference point on the dashboard; everyone
-  // else already sees themselves above.
   const showSelfRow = (() => {
     if (!currentUser) return false;
     if (top.some((p) => p.id === currentUser.id)) return false;
@@ -166,6 +178,7 @@ export function RankingTopTen({
       <StickySectionHeader>
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-black">Top do Ranking</h2>
+
           {onSeeAll && (
             <button
               type="button"
@@ -190,12 +203,18 @@ export function RankingTopTen({
             const card = podiumCards[i];
             const delta = deltaOf(player, provisional);
             const liveMove = provisional && delta !== 0;
+            const isCurrentUser =
+              highlightUserId !== null && player.id === highlightUserId;
 
             return (
               <Card
                 key={player.id}
                 data-moved={liveMove ? (delta > 0 ? "up" : "down") : undefined}
-                className="bg-slate-900 border-slate-800 text-white rounded-2xl md:rounded-3xl transition-all duration-500 data-[moved=up]:ring-2 data-[moved=up]:ring-emerald-400/60 data-[moved=down]:ring-2 data-[moved=down]:ring-red-400/60"
+                className={`text-white rounded-2xl md:rounded-3xl transition-all duration-500 data-[moved=up]:ring-2 data-[moved=up]:ring-emerald-400/60 data-[moved=down]:ring-2 data-[moved=down]:ring-red-400/60 ${
+                  isCurrentUser
+                    ? "bg-yellow-500/10 border-yellow-500/30"
+                    : "bg-slate-900 border-slate-800"
+                }`}
               >
                 <CardContent className="p-2 md:p-4 text-center space-y-1 md:space-y-2">
                   <div className="text-2xl md:text-5xl leading-none">
@@ -215,6 +234,12 @@ export function RankingTopTen({
 
                   <div className="text-base font-bold truncate">
                     {player.name}
+
+                    {isCurrentUser && (
+                      <span className="ml-1 text-yellow-400 font-black">
+                        (você)
+                      </span>
+                    )}
                   </div>
 
                   <div className="text-yellow-400 font-black text-base md:text-lg">
@@ -253,7 +278,9 @@ export function RankingTopTen({
                   return (
                     <div
                       key={player.id}
-                      data-moved={liveMove ? (delta > 0 ? "up" : "down") : undefined}
+                      data-moved={
+                        liveMove ? (delta > 0 ? "up" : "down") : undefined
+                      }
                       className="absolute left-0 right-0 transition-all duration-500 data-[moved=up]:bg-emerald-500/10 data-[moved=down]:bg-red-500/10"
                       style={{
                         top: `${tailIdx * ROW_HEIGHT_PX}px`,
@@ -263,6 +290,7 @@ export function RankingTopTen({
                       <RankingRow
                         player={player}
                         provisional={provisional}
+                        currentUserId={highlightUserId}
                       />
                     </div>
                   );
@@ -299,6 +327,7 @@ export function RankingTopTen({
                   player={player}
                   provisional={provisional}
                   variant="relegation"
+                  currentUserId={highlightUserId}
                 />
               ))}
 
@@ -307,6 +336,7 @@ export function RankingTopTen({
                   player={lanterna}
                   provisional={provisional}
                   variant="lanterna"
+                  currentUserId={highlightUserId}
                 />
               )}
             </CardContent>

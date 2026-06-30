@@ -261,11 +261,12 @@ const liveSignals = useMemo(
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="space-y-6">
-          <RankingTopTen
+            <RankingTopTen
             top={data.rankingTop?.top ?? []}
             lanterna={data.rankingTop?.lanterna ?? null}
             relegationZone={data.rankingTop?.relegationZone ?? []}
             currentUser={data.rankingTop?.currentUser ?? null}
+            currentUserId={currentUserId}
             provisional={data.rankingTop?.provisional ?? false}
             onSeeAll={() => onNavigate("/ranking")}
           />
