@@ -5,7 +5,10 @@ import { useDashboardData } from "@/hooks/useDashboardData";
 import { Prediction } from "@/types/prediction";
 import { Game } from "@/types/game";
 import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
-import { buildDisplayKnockoutMatches } from "@/lib/knockoutDisplayMatches";
+import {
+  applyLiveScoresToKnockoutMatches,
+  buildDisplayKnockoutMatches,
+} from "@/lib/knockoutDisplayMatches";
 import {
   pickCurrentKnockoutRound,
   pickNextKnockoutRound,
@@ -169,11 +172,12 @@ const liveSignals = useMemo(
   );
 
   const displayKnockoutMatches = useMemo(
-    () =>
-      knockoutsStarted
-        ? buildDisplayKnockoutMatches(knockoutMatches, allGames)
-        : [],
-    [knockoutsStarted, knockoutMatches, allGames]
+    () => {
+      if (!knockoutsStarted) return [];
+      const base = buildDisplayKnockoutMatches(knockoutMatches, allGames);
+      return applyLiveScoresToKnockoutMatches(base, liveScores);
+    },
+    [knockoutsStarted, knockoutMatches, allGames, liveScores]
   );
 
   const currentRoundMatches = useMemo(

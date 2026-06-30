@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Flag } from "@/components/ui/Flag";
-import { formatDate } from "@/lib/formatting";
+import { formatDate, isToday } from "@/lib/formatting";
 import { DisplayKnockoutMatch } from "@/lib/knockoutDisplayMatches";
 import { KnockoutRound } from "@/types/knockout";
 import { Shield } from "lucide-react";
@@ -51,18 +51,44 @@ export const BRACKET_GEOMETRY: React.CSSProperties = {
   ["--bracket-elbow" as string]: "1rem",
 };
 
+function LiveDot({ size = 8 }: { size?: number }) {
+  return (
+    <span
+      className="relative inline-flex shrink-0"
+      style={{ width: size, height: size }}
+      aria-label="Ao vivo"
+      title="Ao vivo"
+    >
+      <span
+        className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"
+      />
+      <span className="relative inline-flex h-full w-full rounded-full bg-red-500" />
+    </span>
+  );
+}
+
 function TeamRow({
   team,
   score,
   isWinner,
   size = "default",
+  provisional = false,
 }: {
   team: string | null;
   score: number | null;
   isWinner: boolean;
   size?: "default" | "large";
+  /** Renders the team name as tentative (italic + dimmer) — used when
+   * the team here is a live-score-derived provisional cascade, not a
+   * DB-confirmed result. */
+  provisional?: boolean;
 }) {
   const isLarge = size === "large";
+  const teamClass = provisional
+    ? "italic text-slate-300/80"
+    : isWinner
+      ? ""
+      : "";
 
   return (
     <div
@@ -79,7 +105,7 @@ function TeamRow({
       <span
         className={`flex-1 truncate font-bold ${
           isLarge ? "text-xl" : "text-base"
-        }`}
+        } ${teamClass}`}
       >
         {team ?? "A definir"}
       </span>
@@ -116,20 +142,55 @@ export function MatchCard({
 
   const homeWinner = match.winner_team !== null && match.winner_team === homeTeam;
   const awayWinner = match.winner_team !== null && match.winner_team === awayTeam;
+  const isLive = match.live === true;
+  const isTentativeTeams = match.tentative_teams === true;
+  const softenTeamNames = isLive || isTentativeTeams;
+  // Highlight today's matches in amber so users can spot them at a glance,
+  // same convention as PredictionsSection / Upcoming dashboard rows.
+  // Applies regardless of whether the match has finished yet — a final
+  // result from earlier today is still "today" and worth surfacing.
+  // Skipped for compact cards (the next-round preview) since the next
+  // round usually isn't today, and a stray same-day next-round match
+  // shouldn't visually compete with the current-round cards. Live
+  // matches keep their own amber tone instead of stacking.
+  const isToday_ = !compact && !isLive && isToday(match.match_date);
 
   if (compact) {
     return (
-      <div className="w-full rounded-xl border border-slate-700/80 bg-slate-950/95 px-3 py-3 shadow-xl shadow-black/20">
-        <p className="mb-2 truncate text-center text-[11px] font-semibold text-slate-400">
-          {formatDate(match.match_date)}
+      <div
+        className={`w-full rounded-xl border bg-slate-950/95 px-3 py-3 shadow-xl shadow-black/20 ${
+          isLive || isToday_
+            ? "border-amber-400/40 ring-1 ring-amber-400/20"
+            : "border-slate-700/80"
+        }`}
+      >
+        <p
+          className={`mb-2 flex items-center justify-center gap-1.5 truncate text-center text-[11px] font-semibold ${
+            isLive || isToday_ ? "text-amber-300/80" : "text-slate-400"
+          }`}
+        >
+          {isLive && <LiveDot size={7} />}
+          {isToday_
+            ? `Hoje · ${formatDate(match.match_date)}`
+            : formatDate(match.match_date)}
         </p>
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-2">
           {homeTeam ? (
             <Flag team={homeTeam} size="medium" />
           ) : (
             <Shield size={20} className="text-slate-500" />
           )}
+          {hasScore ? (
+            <span className="text-base font-black tabular-nums text-white">
+              {match.official_score_home}
+            </span>
+          ) : null}
           <span className="text-sm font-black text-slate-500">×</span>
+          {hasScore ? (
+            <span className="text-base font-black tabular-nums text-white">
+              {match.official_score_away}
+            </span>
+          ) : null}
           {awayTeam ? (
             <Flag team={awayTeam} size="medium" />
           ) : (
@@ -157,8 +218,11 @@ export function MatchCard({
         <div className="relative w-full overflow-hidden rounded-2xl border-2 border-yellow-400/70 bg-gradient-to-br from-amber-500/20 via-slate-950 to-slate-900 p-5 shadow-2xl shadow-amber-500/25 ring-1 ring-yellow-400/30">
           <div className="relative">
             <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="truncate text-base font-semibold text-yellow-300/90">
-                {formatDate(match.match_date)}
+              <p className="flex items-center gap-1.5 truncate text-base font-semibold text-yellow-300/90">
+                {isLive && <LiveDot />}
+                {isToday_
+                  ? `Hoje · ${formatDate(match.match_date)}`
+                  : formatDate(match.match_date)}
               </p>
             </div>
 
@@ -168,12 +232,14 @@ export function MatchCard({
                 score={hasScore ? match.official_score_home : null}
                 isWinner={homeWinner}
                 size="large"
+                provisional={softenTeamNames}
               />
               <TeamRow
                 team={awayTeam}
                 score={hasScore ? match.official_score_away : null}
                 isWinner={awayWinner}
                 size="large"
+                provisional={softenTeamNames}
               />
             </div>
           </div>
@@ -183,10 +249,23 @@ export function MatchCard({
   }
 
   return (
-    <div className="w-full rounded-xl border border-slate-700/80 bg-slate-950/95 p-2 shadow-xl shadow-black/20">
+    <div
+      className={`w-full rounded-xl border bg-slate-950/95 p-2 shadow-xl shadow-black/20 ${
+        isLive || isToday_
+          ? "border-amber-400/40 ring-1 ring-amber-400/20"
+          : "border-slate-700/80"
+      }`}
+    >
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <p className="truncate text-sm font-semibold text-slate-400">
-          {formatDate(match.match_date)}
+        <p
+          className={`flex items-center gap-1.5 truncate text-sm font-semibold ${
+            isLive || isToday_ ? "text-amber-300/80" : "text-slate-400"
+          }`}
+        >
+          {isLive && <LiveDot />}
+          {isToday_
+            ? `Hoje · ${formatDate(match.match_date)}`
+            : formatDate(match.match_date)}
         </p>
       </div>
 
@@ -195,11 +274,13 @@ export function MatchCard({
           team={homeTeam}
           score={hasScore ? match.official_score_home : null}
           isWinner={homeWinner}
+          provisional={softenTeamNames}
         />
         <TeamRow
           team={awayTeam}
           score={hasScore ? match.official_score_away : null}
           isWinner={awayWinner}
+          provisional={softenTeamNames}
         />
       </div>
     </div>
