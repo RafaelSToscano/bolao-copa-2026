@@ -21,13 +21,10 @@ export default function MataMataPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-[28px] border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-5 shadow-2xl md:p-6">
-        <h2 className="text-2xl font-black tracking-tight md:text-3xl">
-          Mata-mata
-        </h2>
-        <p className="mt-2 max-w-3xl text-sm text-slate-400">
-          Chaveamento da fase eliminatória. Os confrontos avançam conforme os
-          classificados e vencedores forem definidos.
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 px-4 py-3 shadow-xl">
+        <h2 className="text-xl font-black tracking-tight">Mata-mata</h2>
+        <p className="text-sm text-slate-400">
+          Chaveamento da fase eliminatória.
         </p>
       </div>
 
