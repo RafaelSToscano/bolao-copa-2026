@@ -97,7 +97,7 @@ function RankingRow({
         {player.position}º
       </div>
 
-      <div className="col-span-5 font-semibold truncate">
+      <div className="col-span-4 font-semibold truncate">
         {isLanterna && (
           <span className="text-xs md:text-sm text-red-300 font-bold mr-1">
             Lanterna
@@ -129,7 +129,7 @@ function RankingRow({
         {player.total}
       </div>
 
-      <div className="col-span-1 text-right text-base text-slate-500">
+      <div className="col-span-2 text-right text-base text-slate-500 pl-2">
         {player.exacts}✓
       </div>
     </div>

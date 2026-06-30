@@ -113,7 +113,7 @@ export function RankingSection({
               </span>
               </div>
 
-              <div className="col-span-5 font-semibold truncate">
+              <div className="col-span-4 font-semibold truncate">
                 <span className="text-sm uppercase tracking-wide text-red-300 font-black mr-2">
                Lanterna
               </span>
@@ -128,7 +128,7 @@ export function RankingSection({
               {lastPlayer.total}
               </div>
 
-              <div className="col-span-1 text-right text-xs text-slate-500">
+              <div className="col-span-2 text-right text-xs text-slate-500 pl-2">
                 {lastPlayer.exacts}✓
               </div>
             </div>
@@ -157,7 +157,7 @@ export function RankingSection({
                   {player.position}º
                 </div>
 
-                <div className="col-span-5 font-semibold truncate">
+                <div className="col-span-4 font-semibold truncate">
                   
                   {player.name}
                   {isCurrentUser && (
@@ -179,7 +179,7 @@ export function RankingSection({
                   {player.total}
                 </div>
 
-                <div className="col-span-1 text-right text-xs text-slate-500">
+                <div className="col-span-2 text-right text-xs text-slate-500 pl-2">
                   {player.exacts}✓
                 </div>
               </div>
