@@ -496,6 +496,8 @@ export function BracketColumn({
   compact = false,
   mirrored = false,
   stickyHeader = false,
+  hideHeader = false,
+  footer = null,
 }: {
   round: BracketRound;
   slots: BracketSlot[];
@@ -513,6 +515,16 @@ export function BracketColumn({
    * /mata-mata page; the dashboard preview leaves it off because it
    * lives inside a section with its own sticky header. */
   stickyHeader?: boolean;
+  /** Skip rendering the column header entirely — used when the parent
+   * lifts headers into a separate sticky row above the scroller so
+   * vertical page scroll keeps them pinned (CSS `position: sticky`
+   * inside a scrollable ancestor would otherwise stay trapped there). */
+  hideHeader?: boolean;
+  /** Extra content stacked vertically beneath each match card inside
+   * the same grid cell. The Final column uses this to render the 3rd
+   * place card right under the Final without falling off the bottom
+   * of the bracket. */
+  footer?: React.ReactNode;
 }) {
   const isFinal = round === "final";
   const columnWidth = compact
@@ -523,19 +535,21 @@ export function BracketColumn({
 
   return (
     <div className="flex shrink-0 flex-col" data-round={round}>
-      <h3
-        className={`mb-3 text-center font-black uppercase tracking-wide ${
-          stickyHeader
-            ? "sticky top-[56px] z-10 bg-slate-950/95 py-2 backdrop-blur supports-[backdrop-filter]:bg-slate-950/80 lg:top-0"
-            : ""
-        } ${
-          isFinal && !compact
-            ? "text-xl text-yellow-300"
-            : "text-sm text-yellow-400/90"
-        }`}
-      >
-        {BRACKET_ROUND_TITLE[round]}
-      </h3>
+      {!hideHeader && (
+        <h3
+          className={`mb-3 text-center font-black uppercase tracking-wide ${
+            stickyHeader
+              ? "sticky top-[56px] z-10 bg-slate-950/95 py-2 backdrop-blur supports-[backdrop-filter]:bg-slate-950/80 lg:top-0"
+              : ""
+          } ${
+            isFinal && !compact
+              ? "text-xl text-yellow-300"
+              : "text-sm text-yellow-400/90"
+          }`}
+        >
+          {BRACKET_ROUND_TITLE[round]}
+        </h3>
+      )}
 
       <div
         className="grid"
@@ -556,6 +570,8 @@ export function BracketColumn({
           // bar would dangle. Collapse it to a straight horizontal line
           // pointing at the Final card.
           const isLoneSibling = slots.length === 1;
+
+          const showFooter = footer !== null && index === slots.length - 1;
 
           return (
             <div
@@ -585,6 +601,10 @@ export function BracketColumn({
                   />
                 ) : (
                   <EmptyMatchCard />
+                )}
+
+                {showFooter && (
+                  <div className="mt-6 flex justify-center">{footer}</div>
                 )}
               </div>
 
@@ -674,7 +694,9 @@ function Connector({
 function ThirdPlaceCard({ match }: { match: DisplayKnockoutMatch | null }) {
   return (
     <div className="w-full max-w-xs">
-      <h3 className="mb-3 text-center text-sm font-black uppercase tracking-wide text-yellow-400/90">
+      {/* Blue label so it doesn't read as part of the Final card now
+          that they share the same column. */}
+      <h3 className="mb-3 text-center text-sm font-black uppercase tracking-wide text-sky-400/90">
         3º lugar
       </h3>
       {match ? <MatchCard match={match} /> : <EmptyMatchCard />}
@@ -682,11 +704,78 @@ function ThirdPlaceCard({ match }: { match: DisplayKnockoutMatch | null }) {
   );
 }
 
-// Mouse drag-to-pan on a horizontally-scrolling element. Mobile already
-// gets native touch pan from `overflow-x-auto`; this hook adds the same
-// gesture for desktop pointers so users can grab the bracket and drag it
-// horizontally. We bail out of the click on the same mousedown target
-// only if the pointer actually moved, so card clicks still work.
+// Headers row that mirrors the bracket scroller's column layout and
+// syncs its horizontal position to the scroller's scrollLeft via a
+// `transform: translateX(-scrollLeft)`. Rendered as a sibling above the
+// scroller so it can be `position: sticky` against the page viewport
+// (the bracket scroller would otherwise trap sticky inside itself).
+function BracketHeaderStrip({
+  rounds,
+  scrollerRef,
+}: {
+  rounds: BracketRound[];
+  scrollerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    const track = trackRef.current;
+    if (!scroller || !track) return;
+
+    let pending = false;
+    const sync = () => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => {
+        pending = false;
+        track.style.transform = `translateX(${-scroller.scrollLeft}px)`;
+      });
+    };
+
+    sync();
+    scroller.addEventListener("scroll", sync, { passive: true });
+    return () => scroller.removeEventListener("scroll", sync);
+  }, [scrollerRef]);
+
+  return (
+    <div className="pointer-events-none sticky top-[56px] z-20 -mx-4 overflow-hidden border-b border-slate-800/60 bg-slate-950/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-slate-950/80 md:-mx-0 lg:top-0">
+      <div ref={trackRef} className="flex min-w-max will-change-transform">
+        {rounds.map((round, index) => {
+          const isFinal = round === "final";
+          const width = isFinal
+            ? "calc(var(--bracket-col-w) * 2)"
+            : "var(--bracket-col-w)";
+          return (
+            <div
+              key={`${round}-${index}`}
+              className="shrink-0 px-1 text-center"
+              style={{ width }}
+            >
+              <span
+                className={`font-black uppercase tracking-wide ${
+                  isFinal
+                    ? "text-xl text-yellow-300"
+                    : "text-sm text-yellow-400/90"
+                }`}
+              >
+                {BRACKET_ROUND_TITLE[round]}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Mouse drag-to-pan on a scrollable element. Pans both axes — horizontal
+// inside the element when scrollable, vertical bubbles up to the window
+// when the element has no vertical scroll. Mobile already gets native
+// touch pan; this adds the same gesture for desktop pointers so users
+// can grab the bracket and drag it in any direction. We bail out of the
+// trailing click only if the pointer actually moved, so card clicks
+// still work.
 function useDragScroll(ref: React.RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     const el = ref.current;
@@ -694,33 +783,59 @@ function useDragScroll(ref: React.RefObject<HTMLDivElement | null>) {
 
     let isDown = false;
     let startX = 0;
+    let startY = 0;
     let startScrollLeft = 0;
+    let startScrollTop = 0;
+    let startWindowScrollY = 0;
     let moved = false;
 
     const onMouseDown = (e: MouseEvent) => {
       // Only react to primary button. Let right-click and middle-click
       // through so users can still open links / paste / etc.
       if (e.button !== 0) return;
+      // Skip when the press lands on an interactive element so clicks
+      // and text inputs still work normally.
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("a, button, input, textarea, select, [role='button']")) {
+        return;
+      }
       isDown = true;
       moved = false;
       startX = e.pageX;
+      startY = e.pageY;
       startScrollLeft = el.scrollLeft;
+      startScrollTop = el.scrollTop;
+      startWindowScrollY = window.scrollY;
       el.style.cursor = "grabbing";
-      el.style.userSelect = "none";
     };
 
     const onMouseMove = (e: MouseEvent) => {
       if (!isDown) return;
-      const delta = e.pageX - startX;
-      if (Math.abs(delta) > 3) moved = true;
-      el.scrollLeft = startScrollLeft - delta;
+      const dx = e.pageX - startX;
+      const dy = e.pageY - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+
+      // Horizontal pan inside the scrollable element.
+      el.scrollLeft = startScrollLeft - dx;
+
+      // Vertical pan — element first if it scrolls vertically, otherwise
+      // bubble to the page so the whole bracket page pans.
+      const hasInternalVScroll = el.scrollHeight > el.clientHeight + 1;
+      if (hasInternalVScroll) {
+        el.scrollTop = startScrollTop - dy;
+      } else {
+        window.scrollTo({
+          left: window.scrollX,
+          top: startWindowScrollY - dy,
+          behavior: "auto",
+        });
+      }
     };
 
     const endDrag = () => {
       if (!isDown) return;
       isDown = false;
       el.style.cursor = "";
-      el.style.userSelect = "";
     };
 
     // If the pointer was dragged, swallow the trailing click so links /
@@ -871,58 +986,58 @@ export function KnockoutBracketView({ matches }: Props) {
   const leftHalfRounds = BRACKET_ROUNDS.filter((r) => r !== "final");
   const rightHalfRounds = [...leftHalfRounds].reverse();
 
+  const mobileHeaderRounds = BRACKET_ROUNDS;
+  const desktopHeaderRounds: BracketRound[] = [
+    ...leftHalfRounds,
+    "final",
+    ...rightHalfRounds,
+  ];
+
   return (
     <>
-      {/* Mobile — unchanged: a single horizontally-scrolling row of all
-          five rounds, with the active round scrolled into view on mount.
+      {/* Mobile — a single horizontally-scrolling row of all five rounds,
+          with the active round scrolled into view on mount. Round titles
+          live in a sticky header strip ABOVE the scroller so they stay
+          pinned to the page top while the user scrolls vertically; their
+          horizontal position syncs to the bracket scroller via transform.
           `select-none` keeps mouse-drag panning (mostly used on tablets
           with a mouse, since touch panning never selects text) from
           highlighting card contents. */}
-      <div
-        ref={scrollerRef}
-        // touch-action: manipulation lets the browser handle all gestures
-        // (horizontal pan on this scroll container, vertical page scroll
-        // bubbling out, and pinch-zoom on the page). pan-x alone blocks the
-        // vertical scroll bubble; pinch-zoom alone blocks horizontal pan.
-        className="-mx-4 select-none overflow-x-auto pb-6 md:hidden [touch-action:manipulation]"
-        style={standardGeometry}
-        data-bracket-variant="mobile"
-      >
-        <div className="min-w-max px-4">
-          <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm font-bold text-slate-300">
-            Use dois dedos para dar zoom ou arraste para o lado.
-          </div>
+      <div className="md:hidden" style={standardGeometry}>
+        <BracketHeaderStrip
+          rounds={mobileHeaderRounds}
+          scrollerRef={scrollerRef}
+        />
+        <div
+          ref={scrollerRef}
+          // touch-action: manipulation lets the browser handle all gestures
+          // (horizontal pan on this scroll container, vertical page scroll
+          // bubbling out, and pinch-zoom on the page). pan-x alone blocks the
+          // vertical scroll bubble; pinch-zoom alone blocks horizontal pan.
+          className="-mx-4 select-none overflow-x-auto pb-6 [touch-action:manipulation]"
+          data-bracket-variant="mobile"
+        >
+          <div className="min-w-max px-4">
+            <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm font-bold text-slate-300">
+              Use dois dedos para dar zoom ou arraste para o lado.
+            </div>
 
-          <div className="flex items-start">
-            {columns.map(({ round, slots }, index) => {
-              const isFinal = round === "final";
-              const column = (
+            <div className="flex items-start">
+              {columns.map(({ round, slots }, index) => (
                 <BracketColumn
                   key={round}
                   round={round}
                   slots={slots}
                   isLastRound={index === columns.length - 1}
-                  stickyHeader
+                  hideHeader
+                  footer={
+                    round === "final" ? (
+                      <ThirdPlaceCard match={thirdPlaceMatch} />
+                    ) : null
+                  }
                 />
-              );
-
-              // Third place rides under the Final column so both finals-
-              // stage cards share the same horizontal slot — matches the
-              // desktop mirror's center column.
-              if (isFinal) {
-                return (
-                  <div
-                    key={round}
-                    className="flex flex-col items-center gap-6"
-                  >
-                    {column}
-                    <ThirdPlaceCard match={thirdPlaceMatch} />
-                  </div>
-                );
-              }
-
-              return column;
-            })}
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -935,31 +1050,36 @@ export function KnockoutBracketView({ matches }: Props) {
           size so the wrapper can actually scroll instead of pushing
           siblings. The grab cursor signals the drag affordance. */}
       <div
-        ref={desktopScrollerRef}
-        className="hidden min-w-0 cursor-grab select-none overflow-x-auto pb-6 md:block [touch-action:manipulation]"
+        className="hidden min-w-0 md:block"
         style={mirrorGeometry}
         data-bracket-variant="desktop"
       >
-        <div className="flex min-w-max items-start justify-center px-4">
-          {leftHalfRounds.map((round) => {
-            const column = splitColumns.find((c) => c.round === round)!;
-            return (
-              <BracketColumn
-                key={`left-${round}`}
-                round={round}
-                slots={column.top}
-                isLastRound={false}
-                stickyHeader
-              />
-            );
-          })}
+        <BracketHeaderStrip
+          rounds={desktopHeaderRounds}
+          scrollerRef={desktopScrollerRef}
+        />
+        <div
+          ref={desktopScrollerRef}
+          className="min-w-0 cursor-grab select-none overflow-x-auto pb-6 [touch-action:manipulation]"
+        >
+          <div className="flex min-w-max items-start justify-center px-4">
+              {leftHalfRounds.map((round) => {
+              const column = splitColumns.find((c) => c.round === round)!;
+              return (
+                <BracketColumn
+                  key={`left-${round}`}
+                  round={round}
+                  slots={column.top}
+                  isLastRound={false}
+                  hideHeader
+                />
+              );
+            })}
 
-          {/* Center column holds the Final on top and the Third place
-              card directly beneath it, so both finals-stage matches
-              share the bracket's centerpiece column instead of the
-              third place being detached at the bottom of the page. */}
-          {finalColumn && (
-            <div className="flex flex-col items-center gap-6">
+            {/* Center column — Final card with 3rd place directly under
+                it (rendered as the column's footer slot so it sits right
+                below the Final, not detached at the bottom of the page). */}
+            {finalColumn && (
               <BracketColumn
                 round="final"
                 // Override the Final slot's rowSpan from 16 → 8 so the
@@ -971,25 +1091,25 @@ export function KnockoutBracketView({ matches }: Props) {
                   rowSpan: 8,
                 }))}
                 isLastRound
-                stickyHeader
+                hideHeader
+                footer={<ThirdPlaceCard match={thirdPlaceMatch} />}
               />
-              <ThirdPlaceCard match={thirdPlaceMatch} />
-            </div>
-          )}
+            )}
 
-          {rightHalfRounds.map((round, index) => {
-            const column = splitColumns.find((c) => c.round === round)!;
-            return (
-              <BracketColumn
-                key={`right-${round}`}
-                round={round}
-                slots={column.bottom}
-                isLastRound={index === 0}
-                mirrored
-                stickyHeader
-              />
-            );
-          })}
+            {rightHalfRounds.map((round, index) => {
+              const column = splitColumns.find((c) => c.round === round)!;
+              return (
+                <BracketColumn
+                  key={`right-${round}`}
+                  round={round}
+                  slots={column.bottom}
+                  isLastRound={index === 0}
+                  mirrored
+                  hideHeader
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
     </>
