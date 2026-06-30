@@ -49,6 +49,12 @@ export function KnockoutBracketPreview({
           ...BRACKET_GEOMETRY,
           ["--bracket-gap" as string]: "1.5rem",
           ["--bracket-elbow" as string]: "0.75rem",
+          // The Palpite/Resultado header row makes each card taller than
+          // the /mata-mata default, so the grid row height needs to grow
+          // in lockstep — otherwise siblings overlap. Tuned so the
+          // current-round card sits cleanly with the small header on top
+          // and the L-connectors meet the compact next-round card.
+          ["--bracket-row" as string]: "8.5rem",
         }}
       >
         <div>

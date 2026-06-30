@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   applyLiveScoresToKnockoutMatches,
+  attachMyKnockoutPredictions,
   DisplayKnockoutMatch,
 } from "@/lib/knockoutDisplayMatches";
 import { LiveScoreMatch } from "@/hooks/useLiveScores";
+import { KnockoutPrediction } from "@/types/knockout";
 
 function buildMatch(
   overrides: Partial<DisplayKnockoutMatch> = {}
@@ -226,5 +228,36 @@ describe("applyLiveScoresToKnockoutMatches", () => {
 
     const r16 = result.find((m) => m.id === 10)!;
     expect(r16.display_home_team).toBe("Some Confirmed Team");
+  });
+});
+
+function buildPrediction(
+  matchId: number,
+  home: number | null,
+  away: number | null
+): KnockoutPrediction {
+  return {
+    player_id: "user-1",
+    match_id: matchId,
+    predicted_score_home: home,
+    predicted_score_away: away,
+    predicted_winner: null,
+  };
+}
+
+describe("attachMyKnockoutPredictions", () => {
+  it("attaches a null my_prediction to every match when no predictions are passed", () => {
+    const matches = [buildMatch({ id: 1 }), buildMatch({ id: 2 })];
+    const result = attachMyKnockoutPredictions(matches, []);
+    expect(result.map((m) => m.my_prediction)).toEqual([null, null]);
+  });
+
+  it("attaches a matching prediction by match_id and null for the rest", () => {
+    const matches = [buildMatch({ id: 1 }), buildMatch({ id: 2 })];
+    const predictions = [buildPrediction(2, 1, 0)];
+    const result = attachMyKnockoutPredictions(matches, predictions);
+
+    expect(result[0].my_prediction).toBeNull();
+    expect(result[1].my_prediction).toEqual(predictions[0]);
   });
 });
