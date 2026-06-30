@@ -7,6 +7,7 @@ import { Game } from "@/types/game";
 import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 import {
   applyLiveScoresToKnockoutMatches,
+  attachMyKnockoutPredictions,
   buildDisplayKnockoutMatches,
 } from "@/lib/knockoutDisplayMatches";
 import {
@@ -175,9 +176,10 @@ const liveSignals = useMemo(
     () => {
       if (!knockoutsStarted) return [];
       const base = buildDisplayKnockoutMatches(knockoutMatches, allGames);
-      return applyLiveScoresToKnockoutMatches(base, liveScores);
+      const withLive = applyLiveScoresToKnockoutMatches(base, liveScores);
+      return attachMyKnockoutPredictions(withLive, knockoutPredictions);
     },
-    [knockoutsStarted, knockoutMatches, allGames, liveScores]
+    [knockoutsStarted, knockoutMatches, allGames, liveScores, knockoutPredictions]
   );
 
   const currentRoundMatches = useMemo(

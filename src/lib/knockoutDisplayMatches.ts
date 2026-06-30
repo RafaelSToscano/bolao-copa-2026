@@ -1,5 +1,5 @@
 import { Game } from "@/types/game";
-import { KnockoutMatchRecord } from "@/types/knockout";
+import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 import { generateRound32 } from "@/services/standings/knockoutQualification";
 import {
   findLiveScoreForGame,
@@ -20,7 +20,35 @@ export type DisplayKnockoutMatch = KnockoutMatchRecord & {
    * should only soften the team names to read as tentative, without
    * the live badge or border. */
   tentative_teams?: boolean;
+  /** The currently signed-in user's prediction for this match, when
+   * the caller has plumbed it in. Lets the bracket card render a
+   * "Palpite" column next to the official result. Absent → no
+   * prediction column rendered. */
+  my_prediction?: KnockoutPrediction | null;
 };
+
+/**
+ * Attaches each match's `my_prediction` (when present in `predictions`)
+ * onto the display matches. Predictions are keyed by `match_id` in the
+ * DB, so we just index once and look up. Leaves matches without a
+ * prediction untouched — the UI treats `undefined` and `null` the same
+ * way (renders the muted dash).
+ */
+export function attachMyKnockoutPredictions(
+  matches: DisplayKnockoutMatch[],
+  predictions: KnockoutPrediction[]
+): DisplayKnockoutMatch[] {
+  if (predictions.length === 0) {
+    return matches.map((match) => ({ ...match, my_prediction: null }));
+  }
+
+  const byMatchId = new Map(predictions.map((p) => [p.match_id, p]));
+
+  return matches.map((match) => ({
+    ...match,
+    my_prediction: byMatchId.get(match.id) ?? null,
+  }));
+}
 
 export function buildDisplayKnockoutMatches(
   matches: KnockoutMatchRecord[],

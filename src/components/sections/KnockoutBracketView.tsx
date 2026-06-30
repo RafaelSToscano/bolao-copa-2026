@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Flag } from "@/components/ui/Flag";
 import { formatDate, isToday } from "@/lib/formatting";
 import { DisplayKnockoutMatch } from "@/lib/knockoutDisplayMatches";
@@ -67,21 +67,110 @@ function LiveDot({ size = 8 }: { size?: number }) {
   );
 }
 
+function HeaderCell({
+  letter,
+  label,
+  className = "",
+  cellWidth,
+}: {
+  letter: string;
+  label: string;
+  className?: string;
+  cellWidth: string;
+}) {
+  // Hover shows the tooltip on desktop. On touch devices (no hover),
+  // tap toggles it open and any outside tap closes it. The
+  // peer-focus class also keeps the tooltip visible while the button
+  // is focused via keyboard, for accessibility.
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e: MouseEvent | TouchEvent) => {
+      if (!ref.current) return;
+      if (e.target instanceof Node && ref.current.contains(e.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", handle);
+    document.addEventListener("touchstart", handle);
+    return () => {
+      document.removeEventListener("mousedown", handle);
+      document.removeEventListener("touchstart", handle);
+    };
+  }, [open]);
+
+  return (
+    <span
+      ref={ref}
+      className={`group relative shrink-0 ${cellWidth} text-center ${className}`}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-describedby={`hdr-${letter}-tooltip`}
+        className="inline-block w-full bg-transparent p-0 text-center font-black uppercase tracking-widest"
+      >
+        {letter}
+      </button>
+      <span
+        id={`hdr-${letter}-tooltip`}
+        role="tooltip"
+        className={`pointer-events-none absolute left-1/2 bottom-full z-50 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-200 shadow-lg transition-opacity duration-150 group-hover:opacity-100 ${
+          open ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        {label}
+      </span>
+    </span>
+  );
+}
+
+function ColumnHeaderRow({ size = "default" }: { size?: "default" | "large" }) {
+  const isLarge = size === "large";
+  const cellWidth = isLarge ? "w-7" : "w-5";
+  const padding = isLarge ? "px-3" : "px-2";
+
+  return (
+    <div
+      className={`flex items-center gap-2 ${padding} mb-0.5 text-[10px] font-black uppercase tracking-widest text-slate-500`}
+    >
+      <span className="flex-1" />
+      <HeaderCell
+        letter="P"
+        label="Palpite"
+        cellWidth={cellWidth}
+        className="text-blue-300/70"
+      />
+      <HeaderCell letter="R" label="Resultado" cellWidth={cellWidth} />
+    </div>
+  );
+}
+
 function TeamRow({
   team,
   score,
+  prediction,
   isWinner,
   size = "default",
   provisional = false,
+  showPredictionColumn = false,
 }: {
   team: string | null;
   score: number | null;
+  /** This team's predicted score from the user's palpite. `null` when
+   * the user has no prediction (renders a muted dash) or when the
+   * prediction column is hidden entirely. */
+  prediction: number | null;
   isWinner: boolean;
   size?: "default" | "large";
   /** Renders the team name as tentative (italic + dimmer) — used when
    * the team here is a live-score-derived provisional cascade, not a
    * DB-confirmed result. */
   provisional?: boolean;
+  /** Reserve space and render the prediction cell. Hidden on `/mata-mata`
+   * and other surfaces that don't pass a user prediction. */
+  showPredictionColumn?: boolean;
 }) {
   const isLarge = size === "large";
   const teamClass = provisional
@@ -110,13 +199,34 @@ function TeamRow({
         {team ?? "A definir"}
       </span>
 
+      {showPredictionColumn && (
+        <span
+          className={`shrink-0 text-center font-black tabular-nums text-blue-300/70 ${
+            isLarge ? "w-7 text-2xl" : "w-5 text-base"
+          }`}
+        >
+          {prediction !== null ? prediction : (
+            <span className="text-slate-600">—</span>
+          )}
+        </span>
+      )}
+
       {score !== null && (
         <span
-          className={`shrink-0 font-black tabular-nums ${
-            isLarge ? "text-2xl" : "text-base"
+          className={`shrink-0 text-center font-black tabular-nums ${
+            isLarge ? "w-7 text-2xl" : "w-5 text-base"
           }`}
         >
           {score}
+        </span>
+      )}
+      {score === null && showPredictionColumn && (
+        <span
+          className={`shrink-0 text-center font-black tabular-nums text-slate-600 ${
+            isLarge ? "w-7 text-2xl" : "w-5 text-base"
+          }`}
+        >
+          —
         </span>
       )}
     </div>
@@ -145,6 +255,16 @@ export function MatchCard({
   const isLive = match.live === true;
   const isTentativeTeams = match.tentative_teams === true;
   const softenTeamNames = isLive || isTentativeTeams;
+
+  // `my_prediction === undefined` → caller didn't plumb predictions, so
+  // we skip the P column entirely (this is what /mata-mata does).
+  // `my_prediction === null` → caller plumbed predictions and confirmed
+  // there's no palpite for this match — render the column with dashes
+  // so the layout stays consistent across cards in the same view.
+  const showPredictionColumn =
+    !compact && match.my_prediction !== undefined;
+  const homePrediction = match.my_prediction?.predicted_score_home ?? null;
+  const awayPrediction = match.my_prediction?.predicted_score_away ?? null;
   // Highlight today's matches in amber so users can spot them at a glance,
   // same convention as PredictionsSection / Upcoming dashboard rows.
   // Applies regardless of whether the match has finished yet — a final
@@ -226,20 +346,27 @@ export function MatchCard({
               </p>
             </div>
 
+            {showPredictionColumn && (
+              <ColumnHeaderRow size="large" />
+            )}
             <div className="space-y-2">
               <TeamRow
                 team={homeTeam}
                 score={hasScore ? match.official_score_home : null}
+                prediction={homePrediction}
                 isWinner={homeWinner}
                 size="large"
                 provisional={softenTeamNames}
+                showPredictionColumn={showPredictionColumn}
               />
               <TeamRow
                 team={awayTeam}
                 score={hasScore ? match.official_score_away : null}
+                prediction={awayPrediction}
                 isWinner={awayWinner}
                 size="large"
                 provisional={softenTeamNames}
+                showPredictionColumn={showPredictionColumn}
               />
             </div>
           </div>
@@ -269,18 +396,23 @@ export function MatchCard({
         </p>
       </div>
 
+      {showPredictionColumn && <ColumnHeaderRow />}
       <div className="space-y-0.5">
         <TeamRow
           team={homeTeam}
           score={hasScore ? match.official_score_home : null}
+          prediction={homePrediction}
           isWinner={homeWinner}
           provisional={softenTeamNames}
+          showPredictionColumn={showPredictionColumn}
         />
         <TeamRow
           team={awayTeam}
           score={hasScore ? match.official_score_away : null}
+          prediction={awayPrediction}
           isWinner={awayWinner}
           provisional={softenTeamNames}
+          showPredictionColumn={showPredictionColumn}
         />
       </div>
     </div>
