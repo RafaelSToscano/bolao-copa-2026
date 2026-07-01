@@ -1,8 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { Game } from "@/types/game";
 import { Prediction, DraftPrediction } from "@/types/prediction";
-import { KnockoutPrediction } from "@/types/knockout";
+import { KnockoutPrediction, KnockoutRound } from "@/types/knockout";
 import { TeamStanding } from "@/types/standings";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,10 @@ import { calculateGroupStandingsFromPredictions } from "@/services/standings/pre
 import { FinalPredictionsCard } from "@/components/sections/FinalPredictionsCard";
 import { PalpitesHero } from "@/components/sections/predictions/PalpitesHero";
 import { KnockoutPredictionsCard } from "@/components/sections/predictions/KnockoutPredictionsCard";
+import {
+  KNOCKOUT_ROUND_LOCK_DEADLINES,
+  formatKnockoutRoundLockDeadline,
+} from "@/config/knockout";
 interface PredictionsSectionProps {
   games: Game[];
   predictions: Prediction[];
@@ -36,6 +41,63 @@ interface PredictionsSectionProps {
     userCompletion: number;
   };
 }
+const NOTICE_ROUNDS: KnockoutRound[] = [
+  "r32",
+  "r16",
+  "qf",
+  "sf",
+  "third_place",
+  "final",
+];
+
+const ACTIVE_ROUND_NOTICE: Record<KnockoutRound, string> = {
+  r32: "Palpites da fase 16 avos de final se encerrarão em",
+  r16: "Palpites das oitavas de final se encerrarão em",
+  qf: "Palpites das quartas de final se encerrarão em",
+  sf: "Palpites das semifinais se encerrarão em",
+  third_place: "Palpites da disputa de terceiro lugar se encerrarão em",
+  final: "Palpites da final se encerrarão em",
+};
+
+const CLOSED_ROUND_NOTICE: Record<KnockoutRound, string> = {
+  r32: "a fase 16 avos de final",
+  r16: "as oitavas de final",
+  qf: "as quartas de final",
+  sf: "as semifinais",
+  third_place: "a disputa de terceiro lugar",
+  final: "a final",
+};
+
+function formatNoticeList(items: string[]) {
+  if (items.length <= 1) return items[0] ?? "";
+  return `${items.slice(0, -1).join(", ")} e ${items[items.length - 1]}`;
+}
+
+function buildPredictionNotices(groupsLocked: boolean, now = new Date()) {
+  const activeRound = NOTICE_ROUNDS.find(
+    (round) => now.getTime() < KNOCKOUT_ROUND_LOCK_DEADLINES[round].getTime()
+  );
+
+  const closedPhases = [
+    ...(groupsLocked ? ["a fase de grupos"] : []),
+    ...NOTICE_ROUNDS.filter(
+      (round) => now.getTime() >= KNOCKOUT_ROUND_LOCK_DEADLINES[round].getTime()
+    ).map((round) => CLOSED_ROUND_NOTICE[round]),
+  ];
+
+  return {
+    active: activeRound
+      ? `${ACTIVE_ROUND_NOTICE[activeRound]} ${formatKnockoutRoundLockDeadline(
+          activeRound
+        )}.`
+      : null,
+    closed:
+      closedPhases.length > 0
+        ? `Palpites encerrados para ${formatNoticeList(closedPhases)}.`
+        : null,
+  };
+}
+
 function generateSimpleRandomPrediction(gameId: string): RandomPrediction {
   return {
     game_id: gameId,
@@ -66,6 +128,11 @@ export function PredictionsSection({
   Object.values(groupedGames).forEach((g) =>
     g.sort((a, b) => (a.match_date ?? "").localeCompare(b.match_date ?? ""))
   );
+  
+  const predictionNotices = useMemo(
+  () => buildPredictionNotices(groupsLocked),
+  [groupsLocked]
+);
 
   return (
     <div className="space-y-4">
@@ -124,15 +191,17 @@ export function PredictionsSection({
             <p className="text-slate-400 text-base mt-1">
               Preencha os placares. O salvamento é automático.
             </p>
-            <p className="text-yellow-400 text-sm font-semibold mt-1">
-            Palpites da fase 16 avos de final se encerrarão em 28/06 às 15:00h.
-</p>
+            {predictionNotices.active && (
+  <p className="text-yellow-400 text-sm font-semibold mt-1">
+    {predictionNotices.active}
+  </p>
+)}
 
-          {groupsLocked && (
-           <p className="text-red-400 text-sm font-semibold mt-1">
-           Palpites encerrados para a fase de grupos.
-           </p>
-          )}
+{predictionNotices.closed && (
+  <p className="text-red-400 text-sm font-semibold mt-1">
+    {predictionNotices.closed}
+  </p>
+)}
           </div>
         </div>
         </div>

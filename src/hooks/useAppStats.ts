@@ -4,6 +4,11 @@ import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
 import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 import { isPredictionComplete } from "@/services/predictions/predictionCalculations";
+import { buildDisplayKnockoutMatches } from "@/lib/knockoutDisplayMatches";
+import {
+  isKnockoutMatchPredictionLocked,
+  isPredictableKnockoutRound,
+} from "@/config/knockout";
 
 function isKnockoutPredictionComplete(prediction: KnockoutPrediction): boolean {
   return (
@@ -25,26 +30,51 @@ export function useAppStats(
     const approvedPlayersList = nonAdminPlayers.filter((p) => p.approved);
     const pendingPlayersList = nonAdminPlayers.filter((p) => !p.approved);
 
-    const predictableKnockoutMatches = knockoutMatches.filter(
-      (match) => match.round === "r32"
+    const availableGroupGames = games.filter((game) => !game.locked);
+
+    const displayKnockoutMatches = buildDisplayKnockoutMatches(
+      knockoutMatches,
+      games
     );
 
-    const totalGames = games.length + predictableKnockoutMatches.length;
+    const availableKnockoutMatches = displayKnockoutMatches.filter(
+      (match) =>
+        isPredictableKnockoutRound(match.round) &&
+        Boolean(match.display_home_team) &&
+        Boolean(match.display_away_team) &&
+        !isKnockoutMatchPredictionLocked(match)
+    );
+
+    const availableKnockoutMatchIds = new Set(
+      availableKnockoutMatches.map((match) => match.id)
+    );
+
+    const availableGroupGameIds = new Set(
+      availableGroupGames.map((game) => game.id)
+    );
+
+    const usingKnockoutScope = availableKnockoutMatches.length > 0;
+
+    const totalGames = usingKnockoutScope
+      ? availableKnockoutMatches.length
+      : availableGroupGames.length;
 
     const completedByPlayer = (playerId: string) => {
-      const groupCompleted = predictions.filter(
+      if (usingKnockoutScope) {
+        return knockoutPredictions.filter(
+          (prediction) =>
+            prediction.player_id === playerId &&
+            availableKnockoutMatchIds.has(prediction.match_id) &&
+            isKnockoutPredictionComplete(prediction)
+        ).length;
+      }
+
+      return predictions.filter(
         (prediction) =>
           prediction.player_id === playerId &&
+          availableGroupGameIds.has(prediction.game_id) &&
           isPredictionComplete(prediction)
       ).length;
-
-      const knockoutCompleted = knockoutPredictions.filter(
-        (prediction) =>
-          prediction.player_id === playerId &&
-          isKnockoutPredictionComplete(prediction)
-      ).length;
-
-      return groupCompleted + knockoutCompleted;
     };
 
     const currentUserCompleted = currentUserId
