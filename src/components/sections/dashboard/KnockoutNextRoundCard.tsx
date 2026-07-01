@@ -1,8 +1,10 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { Swords } from "lucide-react";
 import { DisplayKnockoutMatch } from "@/lib/knockoutDisplayMatches";
+import { KnockoutPrediction } from "@/types/knockout";
 import {
   BRACKET_GEOMETRY,
   BracketColumn,
@@ -16,6 +18,8 @@ interface KnockoutBracketPreviewProps {
   currentMatches: DisplayKnockoutMatch[];
   nextRound: BracketRound | null;
   nextMatches: DisplayKnockoutMatch[];
+  currentUserId?: string;
+  knockoutPredictions?: KnockoutPrediction[];
 }
 
 export function KnockoutBracketPreview({
@@ -23,7 +27,23 @@ export function KnockoutBracketPreview({
   currentMatches,
   nextRound,
   nextMatches,
+  currentUserId,
+  knockoutPredictions = [],
 }: KnockoutBracketPreviewProps) {
+  const predictionsByMatchId = useMemo(() => {
+    const byMatchId = new Map<number, KnockoutPrediction>();
+
+    if (!currentUserId) return byMatchId;
+
+    for (const prediction of knockoutPredictions) {
+      if (prediction.player_id === currentUserId) {
+        byMatchId.set(prediction.match_id, prediction);
+      }
+    }
+
+    return byMatchId;
+  }, [currentUserId, knockoutPredictions]);
+
   if (!currentRound && !nextRound) return null;
 
   return (
@@ -73,6 +93,8 @@ export function KnockoutBracketPreview({
                 round={currentRound}
                 slots={buildRoundSlots(currentRound, currentMatches)}
                 isLastRound={!nextRound}
+                predictionsByMatchId={predictionsByMatchId}
+                showPredictions={Boolean(currentUserId)}
               />
             )}
             {nextRound && (
@@ -81,6 +103,8 @@ export function KnockoutBracketPreview({
                 slots={buildRoundSlots(nextRound, nextMatches)}
                 isLastRound
                 compact
+                predictionsByMatchId={predictionsByMatchId}
+                showPredictions={Boolean(currentUserId)}
               />
             )}
           </div>

@@ -1,14 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, ReactNode, RefObject } from "react";
 import { Flag } from "@/components/ui/Flag";
 import { formatDate, isToday } from "@/lib/formatting";
 import { DisplayKnockoutMatch } from "@/lib/knockoutDisplayMatches";
-import { KnockoutRound } from "@/types/knockout";
+import { KnockoutPrediction, KnockoutRound } from "@/types/knockout";
 import { Shield } from "lucide-react";
 
 type Props = {
   matches: DisplayKnockoutMatch[];
+  knockoutPredictions?: KnockoutPrediction[];
+  currentUserId?: string;
+  showPredictions?: boolean;
+};
+
+type MatchMeta = DisplayKnockoutMatch & {
+  my_prediction?: KnockoutPrediction | null;
+  live?: boolean;
+  tentative_teams?: boolean;
 };
 
 export type BracketRound = Exclude<KnockoutRound, "third_place">;
@@ -31,9 +41,10 @@ export const BRACKET_ROUND_SPAN: Record<BracketRound, number> = {
   final: 16,
 };
 
-// Vertical ordering so siblings sit next to each other and connectors form
-// clean Ls all the way up to the final. Indexes follow knockout_matches.match_number.
-export const BRACKET_ROUND_ORDER_BY_MATCH_NUMBER: Record<BracketRound, number[]> = {
+export const BRACKET_ROUND_ORDER_BY_MATCH_NUMBER: Record<
+  BracketRound,
+  number[]
+> = {
   r32: [2, 5, 1, 3, 11, 12, 9, 10, 4, 6, 7, 8, 14, 16, 13, 15],
   r16: [1, 2, 5, 6, 3, 4, 7, 8],
   qf: [1, 2, 3, 4],
@@ -41,10 +52,7 @@ export const BRACKET_ROUND_ORDER_BY_MATCH_NUMBER: Record<BracketRound, number[]>
   final: [1],
 };
 
-// Bracket geometry knobs — all sizing flows from these so the
-// connectors stay aligned with the cards at any tuning. Exported so
-// dashboard previews can mount BracketColumn with the same scale.
-export const BRACKET_GEOMETRY: React.CSSProperties = {
+export const BRACKET_GEOMETRY: CSSProperties = {
   ["--bracket-row" as string]: "7.5rem",
   ["--bracket-col-w" as string]: "14rem",
   ["--bracket-gap" as string]: "2rem",
@@ -59,9 +67,7 @@ function LiveDot({ size = 8 }: { size?: number }) {
       aria-label="Ao vivo"
       title="Ao vivo"
     >
-      <span
-        className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75"
-      />
+      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-75" />
       <span className="relative inline-flex h-full w-full rounded-full bg-red-500" />
     </span>
   );
@@ -78,10 +84,6 @@ function HeaderCell({
   className?: string;
   cellWidth: string;
 }) {
-  // Hover shows the tooltip on desktop. On touch devices (no hover),
-  // tap toggles it open and any outside tap closes it. The
-  // peer-focus class also keeps the tooltip visible while the button
-  // is focused via keyboard, for accessibility.
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -167,22 +169,11 @@ function TeamRow({
 }: {
   team: string | null;
   score: number | null;
-  /** This team's predicted score from the user's palpite. `null` when
-   * the user has no prediction (renders a muted dash) or when the
-   * prediction column is hidden entirely. */
   prediction: number | null;
   isWinner: boolean;
   size?: "default" | "large";
-  /** Renders the team name as tentative (italic + dimmer) — used when
-   * the team here is a live-score-derived provisional cascade, not a
-   * DB-confirmed result. */
   provisional?: boolean;
-  /** Reserve space and render the prediction cell. Hidden on `/mata-mata`
-   * and other surfaces that don't pass a user prediction. */
   showPredictionColumn?: boolean;
-  /** Flips the row contents so flag/score sit on opposite sides — used
-   * by the right-half desktop mirror so the layout reads outward from
-   * the center: score + guess + name + flag. */
   mirrored?: boolean;
 }) {
   const isLarge = size === "large";
@@ -235,6 +226,7 @@ function TeamRow({
           {score}
         </span>
       )}
+
       {score === null && showPredictionColumn && (
         <span
           className={`shrink-0 text-center font-black tabular-nums text-slate-600 ${
@@ -250,49 +242,39 @@ function TeamRow({
 
 export function MatchCard({
   match,
+  prediction = null,
+  showPredictions = false,
   emphasis = false,
   compact = false,
   mirrored = false,
 }: {
   match: DisplayKnockoutMatch;
+  prediction?: KnockoutPrediction | null;
+  showPredictions?: boolean;
   emphasis?: boolean;
-  /** Flag-only layout. Used by the dashboard's next-round preview so the
-   * two-column bracket fragment fits on mobile without horizontal scroll. */
   compact?: boolean;
-  /** Flips internal row layout so the score sits on the inside of the
-   * mirror bracket (closer to center). Used by the desktop mirror's
-   * right half. */
   mirrored?: boolean;
 }) {
+  const matchMeta = match as MatchMeta;
   const homeTeam = match.display_home_team;
   const awayTeam = match.display_away_team;
 
   const hasScore =
     match.official_score_home !== null && match.official_score_away !== null;
 
+  const effectivePrediction = prediction ?? matchMeta.my_prediction ?? null;
+  const homePrediction = effectivePrediction?.predicted_score_home ?? null;
+  const awayPrediction = effectivePrediction?.predicted_score_away ?? null;
+
   const homeWinner = match.winner_team !== null && match.winner_team === homeTeam;
   const awayWinner = match.winner_team !== null && match.winner_team === awayTeam;
-  const isLive = match.live === true;
-  const isTentativeTeams = match.tentative_teams === true;
+  const isLive = matchMeta.live === true;
+  const isTentativeTeams = matchMeta.tentative_teams === true;
   const softenTeamNames = isLive || isTentativeTeams;
 
-  // `my_prediction === undefined` → caller didn't plumb predictions, so
-  // we skip the P column entirely (this is what /mata-mata does).
-  // `my_prediction === null` → caller plumbed predictions and confirmed
-  // there's no palpite for this match — render the column with dashes
-  // so the layout stays consistent across cards in the same view.
   const showPredictionColumn =
-    !compact && match.my_prediction !== undefined;
-  const homePrediction = match.my_prediction?.predicted_score_home ?? null;
-  const awayPrediction = match.my_prediction?.predicted_score_away ?? null;
-  // Highlight today's matches in amber so users can spot them at a glance,
-  // same convention as PredictionsSection / Upcoming dashboard rows.
-  // Applies regardless of whether the match has finished yet — a final
-  // result from earlier today is still "today" and worth surfacing.
-  // Skipped for compact cards (the next-round preview) since the next
-  // round usually isn't today, and a stray same-day next-round match
-  // shouldn't visually compete with the current-round cards. Live
-  // matches keep their own amber tone instead of stacking.
+    !compact && (showPredictions || matchMeta.my_prediction !== undefined);
+
   const isToday_ = !compact && !isLive && isToday(match.match_date);
 
   if (compact) {
@@ -348,12 +330,6 @@ export function MatchCard({
   if (emphasis) {
     return (
       <div className="relative">
-        {/* Golden fog — a soft, animated radial cloud that bleeds OUTSIDE
-            the card to give the Final a halo. Lives in a sibling layer
-            (not inside the card) because the card has overflow-hidden
-            for the inner glow orbit. The fog uses a long ease-in-out
-            opacity pulse so the halo breathes slowly. Keyframes live in
-            globals.css as `bracket-fog`. */}
         <span
           aria-hidden
           className="pointer-events-none absolute -inset-12 animate-[bracket-fog_5s_ease-in-out_infinite] bg-[radial-gradient(50%_50%_at_50%_50%,rgba(253,224,71,0.45),rgba(253,224,71,0.12)_45%,transparent_75%)] blur-2xl"
@@ -455,7 +431,10 @@ function EmptyMatchCard() {
   );
 }
 
-export type BracketSlot = { match: DisplayKnockoutMatch | null; rowSpan: number };
+export type BracketSlot = {
+  match: DisplayKnockoutMatch | null;
+  rowSpan: number;
+};
 
 export function buildRoundSlots(
   round: BracketRound,
@@ -471,12 +450,6 @@ export function buildRoundSlots(
   }));
 }
 
-// Splits a round's bracket slots at the midpoint so the desktop mirror
-// layout can render the top half on the left and the bottom half on the
-// right. `BRACKET_ROUND_ORDER_BY_MATCH_NUMBER` already pairs siblings in
-// bracket order, so the first N/2 entries feed the top semifinal and the
-// remaining N/2 feed the bottom. The Final has only one slot, so it
-// returns it under `top` and an empty `bottom`.
 export function splitRoundSlots(
   round: BracketRound,
   matches: DisplayKnockoutMatch[]
@@ -498,33 +471,19 @@ export function BracketColumn({
   stickyHeader = false,
   hideHeader = false,
   footer = null,
+  predictionsByMatchId,
+  showPredictions = false,
 }: {
   round: BracketRound;
   slots: BracketSlot[];
   isLastRound: boolean;
-  /** Flag-only cards, narrower column width. Used by the dashboard
-   * preview to keep two rounds visible on mobile without horizontal
-   * scroll. */
   compact?: boolean;
-  /** Flips card padding side and connector geometry so the column
-   * points inward from the right. Used by the desktop mirror layout
-   * for the right half of the bracket. */
   mirrored?: boolean;
-  /** Pin the round title to the top of the nearest scrolling ancestor
-   * so it stays in view while the user scrolls vertically. Used by the
-   * /mata-mata page; the dashboard preview leaves it off because it
-   * lives inside a section with its own sticky header. */
   stickyHeader?: boolean;
-  /** Skip rendering the column header entirely — used when the parent
-   * lifts headers into a separate sticky row above the scroller so
-   * vertical page scroll keeps them pinned (CSS `position: sticky`
-   * inside a scrollable ancestor would otherwise stay trapped there). */
   hideHeader?: boolean;
-  /** Extra content stacked vertically beneath each match card inside
-   * the same grid cell. The Final column uses this to render the 3rd
-   * place card right under the Final without falling off the bottom
-   * of the bracket. */
-  footer?: React.ReactNode;
+  footer?: ReactNode;
+  predictionsByMatchId?: Map<number, KnockoutPrediction>;
+  showPredictions?: boolean;
 }) {
   const isFinal = round === "final";
   const columnWidth = compact
@@ -555,9 +514,6 @@ export function BracketColumn({
         className="grid"
         style={{
           width: columnWidth,
-          // --bracket-rows defaults to 16 (full bracket height). The
-          // desktop mirror layout overrides it to 8 so each half-column
-          // collapses to the height of 8 r32 slots.
           gridTemplateRows:
             "repeat(var(--bracket-rows, 16), var(--bracket-row))",
         }}
@@ -565,20 +521,12 @@ export function BracketColumn({
         {slots.map((slot, index) => {
           const isTopSibling = index % 2 === 0;
           const hasParent = !isLastRound;
-          // In the desktop mirror, the sf round renders just one card
-          // per side — no sibling to pair with — so the L-shaped vertical
-          // bar would dangle. Collapse it to a straight horizontal line
-          // pointing at the Final card.
           const isLoneSibling = slots.length === 1;
-
           const showFooter = footer !== null && index === slots.length - 1;
 
           return (
             <div
               key={index}
-              // The Final card paints a fog halo that bleeds outside its
-              // own bounds, so we can't clip its cell. R32 (rowSpan 1)
-              // still needs overflow-hidden so cards don't overlap.
               className={`relative flex items-center ${
                 isFinal && !compact ? "" : "overflow-hidden"
               }`}
@@ -586,13 +534,6 @@ export function BracketColumn({
             >
               <div
                 className="relative w-full"
-                // The trailing/leading gap exists to give the NEXT
-                // column's connector room to reach this card. The last
-                // round (Final) has no neighbor pointing into it from
-                // that side, so it skips the padding — otherwise it
-                // would leave dead space between the Final card and the
-                // mirror's right-side SF column, breaking the SF→Final
-                // connector.
                 style={
                   isLastRound
                     ? undefined
@@ -604,6 +545,8 @@ export function BracketColumn({
                 {slot.match ? (
                   <MatchCard
                     match={slot.match}
+                    prediction={predictionsByMatchId?.get(slot.match.id) ?? null}
+                    showPredictions={showPredictions}
                     emphasis={isFinal && !compact}
                     compact={compact}
                     mirrored={mirrored}
@@ -612,12 +555,6 @@ export function BracketColumn({
                   <EmptyMatchCard />
                 )}
 
-                {/* Footer is absolutely positioned below the card so it
-                    doesn't shift the card's vertical centering in the
-                    cell — the sibling-column connectors target the
-                    cell's vertical midpoint, so the card must stay
-                    centered. The footer's own padding mirrors the
-                    wrapper's so it aligns under the card horizontally. */}
                 {showFooter && (
                   <div
                     className="absolute inset-x-0 top-full mt-6 flex justify-center"
@@ -650,12 +587,6 @@ export function BracketColumn({
   );
 }
 
-// Each card draws half of the bracket: a short horizontal stub at its own
-// vertical center, then a vertical bar from that center to the midpoint with
-// its sibling. The sibling draws the mirror half — together they form the L
-// that meets at the parent card's center in the next column. When mirrored,
-// all three spans pin to the card's left edge instead of the right so the
-// L points toward the center of a mirror layout.
 function Connector({
   isTopSibling,
   siblingSpan,
@@ -665,10 +596,6 @@ function Connector({
   isTopSibling: boolean;
   siblingSpan: number;
   mirrored?: boolean;
-  /** Skip the L-shape and just draw a straight horizontal line at the
-   * card's mid-height. Used by the desktop mirror's sf → final bridge,
-   * where each side has only one sf card so there's no sibling to pair
-   * with and no vertical bar to draw. */
   straight?: boolean;
 }) {
   const elbowOffset = "var(--bracket-elbow)";
@@ -717,30 +644,39 @@ function Connector({
   );
 }
 
-function ThirdPlaceCard({ match }: { match: DisplayKnockoutMatch | null }) {
+function ThirdPlaceCard({
+  match,
+  predictionsByMatchId,
+  showPredictions = false,
+}: {
+  match: DisplayKnockoutMatch | null;
+  predictionsByMatchId?: Map<number, KnockoutPrediction>;
+  showPredictions?: boolean;
+}) {
   return (
     <div className="w-full max-w-xs">
-      {/* Blue label so it doesn't read as part of the Final card now
-          that they share the same column. */}
       <h3 className="mb-3 text-center text-sm font-black uppercase tracking-wide text-sky-400/90">
         3º lugar
       </h3>
-      {match ? <MatchCard match={match} /> : <EmptyMatchCard />}
+      {match ? (
+        <MatchCard
+          match={match}
+          prediction={predictionsByMatchId?.get(match.id) ?? null}
+          showPredictions={showPredictions}
+        />
+      ) : (
+        <EmptyMatchCard />
+      )}
     </div>
   );
 }
 
-// Headers row that mirrors the bracket scroller's column layout and
-// syncs its horizontal position to the scroller's scrollLeft via a
-// `transform: translateX(-scrollLeft)`. Rendered as a sibling above the
-// scroller so it can be `position: sticky` against the page viewport
-// (the bracket scroller would otherwise trap sticky inside itself).
 function BracketHeaderStrip({
   rounds,
   scrollerRef,
 }: {
   rounds: BracketRound[];
-  scrollerRef: React.RefObject<HTMLDivElement | null>;
+  scrollerRef: RefObject<HTMLDivElement | null>;
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -795,14 +731,7 @@ function BracketHeaderStrip({
   );
 }
 
-// Mouse drag-to-pan on a scrollable element. Pans both axes — horizontal
-// inside the element when scrollable, vertical bubbles up to the window
-// when the element has no vertical scroll. Mobile already gets native
-// touch pan; this adds the same gesture for desktop pointers so users
-// can grab the bracket and drag it in any direction. We bail out of the
-// trailing click only if the pointer actually moved, so card clicks
-// still work.
-function useDragScroll(ref: React.RefObject<HTMLDivElement | null>) {
+function useDragScroll(ref: RefObject<HTMLDivElement | null>) {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -816,11 +745,7 @@ function useDragScroll(ref: React.RefObject<HTMLDivElement | null>) {
     let moved = false;
 
     const onMouseDown = (e: MouseEvent) => {
-      // Only react to primary button. Let right-click and middle-click
-      // through so users can still open links / paste / etc.
       if (e.button !== 0) return;
-      // Skip when the press lands on an interactive element so clicks
-      // and text inputs still work normally.
       const target = e.target as HTMLElement | null;
       if (target?.closest("a, button, input, textarea, select, [role='button']")) {
         return;
@@ -841,11 +766,8 @@ function useDragScroll(ref: React.RefObject<HTMLDivElement | null>) {
       const dy = e.pageY - startY;
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
 
-      // Horizontal pan inside the scrollable element.
       el.scrollLeft = startScrollLeft - dx;
 
-      // Vertical pan — element first if it scrolls vertically, otherwise
-      // bubble to the page so the whole bracket page pans.
       const hasInternalVScroll = el.scrollHeight > el.clientHeight + 1;
       if (hasInternalVScroll) {
         el.scrollTop = startScrollTop - dy;
@@ -864,8 +786,6 @@ function useDragScroll(ref: React.RefObject<HTMLDivElement | null>) {
       el.style.cursor = "";
     };
 
-    // If the pointer was dragged, swallow the trailing click so links /
-    // buttons inside the scroller don't fire after a pan gesture.
     const onClickCapture = (e: MouseEvent) => {
       if (moved) {
         e.preventDefault();
@@ -890,7 +810,28 @@ function useDragScroll(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref]);
 }
 
-export function KnockoutBracketView({ matches }: Props) {
+export function KnockoutBracketView({
+  matches,
+  knockoutPredictions = [],
+  currentUserId,
+  showPredictions = false,
+}: Props) {
+  const predictionsByMatchId = useMemo(() => {
+    const byMatchId = new Map<number, KnockoutPrediction>();
+
+    if (!currentUserId) return byMatchId;
+
+    for (const prediction of knockoutPredictions) {
+      if (prediction.player_id === currentUserId) {
+        byMatchId.set(prediction.match_id, prediction);
+      }
+    }
+
+    return byMatchId;
+  }, [currentUserId, knockoutPredictions]);
+
+  const shouldShowPredictions = showPredictions && Boolean(currentUserId);
+
   const columns = BRACKET_ROUNDS.map((round) => ({
     round,
     slots: buildRoundSlots(
@@ -913,35 +854,26 @@ export function KnockoutBracketView({ matches }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const desktopScrollerRef = useRef<HTMLDivElement>(null);
 
-  // Wire mouse drag-to-pan on both scrollers. Mobile already gets touch
-  // pan natively via overflow-x-auto; this adds the same gesture for
-  // desktop pointers so users can grab and drag the bracket horizontally.
   useDragScroll(scrollerRef);
   useDragScroll(desktopScrollerRef);
 
-  // If any card will render the Palpite/Resultado columns we need a
-  // taller row, otherwise siblings overlap (same fix the dashboard
-  // preview already applies). `my_prediction === undefined` means the
-  // caller didn't plumb predictions and the column will be hidden.
-  const hasPredictionColumn = matches.some(
-    (match) => match.my_prediction !== undefined
-  );
-  const geometry: React.CSSProperties = hasPredictionColumn
+  const hasPredictionColumn =
+    shouldShowPredictions ||
+    matches.some((match) => (match as MatchMeta).my_prediction !== undefined);
+
+  const geometry: CSSProperties = hasPredictionColumn
     ? {
         ...BRACKET_GEOMETRY,
         ["--bracket-row" as string]: "8.5rem",
       }
     : BRACKET_GEOMETRY;
 
-  // Mirror layout halves the row count per side (top/bottom each carry
-  // 8 r32 slots instead of 16), so the grid only needs 8 rows. Without
-  // this override the column would still allocate 16 rows and double its
-  // vertical footprint, leaving a huge empty space below each side.
-  const mirrorGeometry: React.CSSProperties = {
+  const mirrorGeometry: CSSProperties = {
     ...geometry,
     ["--bracket-rows" as string]: "8",
   };
-  const standardGeometry: React.CSSProperties = {
+
+  const standardGeometry: CSSProperties = {
     ...geometry,
     ["--bracket-rows" as string]: "16",
   };
@@ -959,15 +891,6 @@ export function KnockoutBracketView({ matches }: Props) {
 
   return (
     <>
-      {/* Mobile — a single horizontally-scrolling row of all five rounds,
-          starting at the top-left (r32) so the bracket reads left-to-right
-          like the tournament progresses. Round titles
-          live in a sticky header strip ABOVE the scroller so they stay
-          pinned to the page top while the user scrolls vertically; their
-          horizontal position syncs to the bracket scroller via transform.
-          `select-none` keeps mouse-drag panning (mostly used on tablets
-          with a mouse, since touch panning never selects text) from
-          highlighting card contents. */}
       <div className="md:hidden" style={standardGeometry}>
         <BracketHeaderStrip
           rounds={mobileHeaderRounds}
@@ -975,10 +898,6 @@ export function KnockoutBracketView({ matches }: Props) {
         />
         <div
           ref={scrollerRef}
-          // touch-action: manipulation lets the browser handle all gestures
-          // (horizontal pan on this scroll container, vertical page scroll
-          // bubbling out, and pinch-zoom on the page). pan-x alone blocks the
-          // vertical scroll bubble; pinch-zoom alone blocks horizontal pan.
           className="-mx-4 select-none overflow-x-auto pb-6 [touch-action:manipulation]"
           data-bracket-variant="mobile"
         >
@@ -995,9 +914,15 @@ export function KnockoutBracketView({ matches }: Props) {
                   slots={slots}
                   isLastRound={index === columns.length - 1}
                   hideHeader
+                  predictionsByMatchId={predictionsByMatchId}
+                  showPredictions={shouldShowPredictions}
                   footer={
                     round === "final" ? (
-                      <ThirdPlaceCard match={thirdPlaceMatch} />
+                      <ThirdPlaceCard
+                        match={thirdPlaceMatch}
+                        predictionsByMatchId={predictionsByMatchId}
+                        showPredictions={shouldShowPredictions}
+                      />
                     ) : null
                   }
                 />
@@ -1007,13 +932,6 @@ export function KnockoutBracketView({ matches }: Props) {
         </div>
       </div>
 
-      {/* Desktop mirror — left half grows inward, right half mirrors
-          inward, Final centered. The row's intrinsic width (~160rem)
-          exceeds the content area, so the wrapper pans horizontally via
-          `overflow-x-auto` plus mouse drag (useDragScroll). `min-w-0`
-          lets the flex/grid parent shrink below its intrinsic content
-          size so the wrapper can actually scroll instead of pushing
-          siblings. The grab cursor signals the drag affordance. */}
       <div
         className="hidden min-w-0 md:block"
         style={mirrorGeometry}
@@ -1028,7 +946,7 @@ export function KnockoutBracketView({ matches }: Props) {
           className="min-w-0 cursor-grab select-none overflow-x-auto pb-6 [touch-action:manipulation]"
         >
           <div className="flex min-w-max items-start justify-center px-4">
-              {leftHalfRounds.map((round) => {
+            {leftHalfRounds.map((round) => {
               const column = splitColumns.find((c) => c.round === round)!;
               return (
                 <BracketColumn
@@ -1037,27 +955,30 @@ export function KnockoutBracketView({ matches }: Props) {
                   slots={column.top}
                   isLastRound={false}
                   hideHeader
+                  predictionsByMatchId={predictionsByMatchId}
+                  showPredictions={shouldShowPredictions}
                 />
               );
             })}
 
-            {/* Center column — Final card with 3rd place directly under
-                it (rendered as the column's footer slot so it sits right
-                below the Final, not detached at the bottom of the page). */}
             {finalColumn && (
               <BracketColumn
                 round="final"
-                // Override the Final slot's rowSpan from 16 → 8 so the
-                // center column's vertical footprint matches each half's
-                // 8-row layout. The card itself stays vertically centered
-                // within the 8 rows because the cell uses flex-center.
                 slots={finalColumn.top.map((slot) => ({
                   ...slot,
                   rowSpan: 8,
                 }))}
                 isLastRound
                 hideHeader
-                footer={<ThirdPlaceCard match={thirdPlaceMatch} />}
+                predictionsByMatchId={predictionsByMatchId}
+                showPredictions={shouldShowPredictions}
+                footer={
+                  <ThirdPlaceCard
+                    match={thirdPlaceMatch}
+                    predictionsByMatchId={predictionsByMatchId}
+                    showPredictions={shouldShowPredictions}
+                  />
+                }
               />
             )}
 
@@ -1068,12 +989,11 @@ export function KnockoutBracketView({ matches }: Props) {
                   key={`right-${round}`}
                   round={round}
                   slots={column.bottom}
-                  // Every right-side round has a parent (the SF feeds
-                  // the Final). Only the Final itself is the last round,
-                  // and it's rendered as the center column separately.
                   isLastRound={false}
                   mirrored
                   hideHeader
+                  predictionsByMatchId={predictionsByMatchId}
+                  showPredictions={shouldShowPredictions}
                 />
               );
             })}

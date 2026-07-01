@@ -289,19 +289,21 @@ const liveSignals = useMemo(
         </div>
       </div>
 
-      {showBracketPreview ? (
-        <KnockoutBracketPreview
-          currentRound={currentKnockoutRound}
-          currentMatches={currentRoundMatches}
-          nextRound={nextKnockoutRound}
-          nextMatches={nextRoundMatches}
-        />
-      ) : (
-        <GroupLeadersCard
-          groups={data.groupLeaders?.groups ?? []}
-          onSeeAll={() => onNavigate("/classificacao")}
-        />
-      )}
+     {showBracketPreview ? (
+  <KnockoutBracketPreview
+    currentRound={currentKnockoutRound}
+    currentMatches={currentRoundMatches}
+    nextRound={nextKnockoutRound}
+    nextMatches={nextRoundMatches}
+    currentUserId={currentUserId}
+    knockoutPredictions={knockoutPredictions}
+  />
+) : (
+  <GroupLeadersCard
+    groups={data.groupLeaders?.groups ?? []}
+    onSeeAll={() => onNavigate("/classificacao")}
+  />
+)}
     </div>
   );
 }
