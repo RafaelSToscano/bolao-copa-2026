@@ -6,7 +6,8 @@ import { useAppShell } from "@/components/layouts/AppShell";
 import { buildDisplayKnockoutMatches } from "@/lib/knockoutDisplayMatches";
 
 export default function MataMataPage() {
-  const { games, knockoutMatches } = useAppShell();
+  const { currentUser, games, knockoutMatches, knockoutPredictions } =
+    useAppShell();
 
   const displayMatches = useMemo(
     () => buildDisplayKnockoutMatches(knockoutMatches, games),
@@ -22,7 +23,12 @@ export default function MataMataPage() {
         </p>
       </div>
 
-      <KnockoutBracketView matches={displayMatches} />
+      <KnockoutBracketView
+        matches={displayMatches}
+        knockoutPredictions={knockoutPredictions}
+        currentUserId={currentUser.id}
+        showPredictions
+      />
     </div>
   );
 }
