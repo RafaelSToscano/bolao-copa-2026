@@ -22,6 +22,10 @@ import {
   getVisibleAdminKnockoutRounds,
   sortKnockoutMatchesByDateAndNumber,
 } from "@/lib/knockoutVisibility";
+import {
+  isKnockoutMatchPredictionLocked,
+  isPredictableKnockoutRound,
+} from "@/config/knockout";
 import { Share2, List } from "lucide-react";
 
 interface AdminSectionProps {
@@ -67,7 +71,6 @@ export function AdminSection({
   onUpdateKnockoutResult,
   onApprovePlayer,
   onRejectPlayer,
-  stats,
 }: AdminSectionProps) {
   const [shareMode, setShareMode] = useState<"highlight" | "full" | null>(null);
 
@@ -90,7 +93,7 @@ export function AdminSection({
     [games]
   );
 
-   const displayKnockoutMatches = useMemo(
+  const displayKnockoutMatches = useMemo(
     () => buildDisplayKnockoutMatches(knockoutMatches, games),
     [knockoutMatches, games]
   );
@@ -119,6 +122,127 @@ export function AdminSection({
       ),
     [displayKnockoutMatches]
   );
+
+  const predictionAuditScope = useMemo(() => {
+    const approvedPlayers = players.filter(
+      (player) => player.approved && !player.is_admin
+    );
+
+    const availableKnockoutMatches = sortKnockoutMatchesByDateAndNumber(
+      displayKnockoutMatches.filter(
+        (match) =>
+          isPredictableKnockoutRound(match.round) &&
+          Boolean(match.display_home_team) &&
+          Boolean(match.display_away_team) &&
+          !isKnockoutMatchPredictionLocked(match)
+      )
+    );
+
+    const availableGroupGames = games.filter((game) => !game.locked);
+
+    if (availableKnockoutMatches.length > 0) {
+      const audit = approvedPlayers
+        .map((player) => {
+          const missingMatches = availableKnockoutMatches.filter((match) => {
+            const prediction = knockoutPredictions.find(
+              (item) =>
+                item.player_id === player.id && item.match_id === match.id
+            );
+
+            return (
+              !prediction ||
+              prediction.predicted_score_home === null ||
+              prediction.predicted_score_away === null
+            );
+          });
+
+          const total = availableKnockoutMatches.length;
+          const completed = total - missingMatches.length;
+
+          return {
+            player,
+            total,
+            completed,
+            pending: missingMatches.length,
+            completion: total > 0 ? Math.round((completed / total) * 100) : 0,
+            missingGames: missingMatches.map(
+              (match) =>
+                `${match.display_home_team} x ${match.display_away_team}`
+            ),
+          };
+        })
+        .sort((a, b) => {
+          if (a.pending !== b.pending) return b.pending - a.pending;
+          return a.player.name.localeCompare(b.player.name);
+        });
+
+      return {
+        totalGames: availableKnockoutMatches.length,
+        totalPlayers: approvedPlayers.length,
+        audit,
+      };
+    }
+
+    const audit = approvedPlayers
+      .map((player) => {
+        const missingGames = availableGroupGames.filter((game) => {
+          const prediction = predictions.find(
+            (item) => item.player_id === player.id && item.game_id === game.id
+          );
+
+          return (
+            !prediction ||
+            prediction.predicted_score_a === null ||
+            prediction.predicted_score_b === null
+          );
+        });
+
+        const total = availableGroupGames.length;
+        const completed = total - missingGames.length;
+
+        return {
+          player,
+          total,
+          completed,
+          pending: missingGames.length,
+          completion: total > 0 ? Math.round((completed / total) * 100) : 0,
+          missingGames: missingGames.map(
+            (game) => `${game.team_a} x ${game.team_b}`
+          ),
+        };
+      })
+      .sort((a, b) => {
+        if (a.pending !== b.pending) return b.pending - a.pending;
+        return a.player.name.localeCompare(b.player.name);
+      });
+
+    return {
+      totalGames: availableGroupGames.length,
+      totalPlayers: approvedPlayers.length,
+      audit,
+    };
+  }, [
+    players,
+    games,
+    predictions,
+    displayKnockoutMatches,
+    knockoutPredictions,
+  ]);
+
+  const incompletePredictionPlayers = predictionAuditScope.audit.filter(
+    (item) => item.pending > 0
+  );
+
+  const completedPredictionPlayers = predictionAuditScope.audit.filter(
+    (item) => item.total > 0 && item.pending === 0
+  ).length;
+
+  const completionRate =
+    predictionAuditScope.totalPlayers > 0
+      ? Math.round(
+          (completedPredictionPlayers / predictionAuditScope.totalPlayers) * 100
+        )
+      : 0;
 
   const knockoutPredictionAudit = useMemo(() => {
     const approvedPlayers = players.filter(
@@ -156,7 +280,7 @@ export function AdminSection({
       });
   }, [players, knockoutAuditMatches, knockoutPredictions]);
 
-    const getKnockoutDraft = (match: DisplayKnockoutMatch) =>
+  const getKnockoutDraft = (match: DisplayKnockoutMatch) =>
     knockoutDrafts[match.id] ?? {
       home: match.official_score_home?.toString() ?? "",
       away: match.official_score_away?.toString() ?? "",
@@ -183,7 +307,7 @@ export function AdminSection({
   };
 
   const handleKnockoutScoreChange = async (
-        match: DisplayKnockoutMatch,
+    match: DisplayKnockoutMatch,
     field: "home" | "away",
     value: string
   ) => {
@@ -264,7 +388,7 @@ export function AdminSection({
   };
 
   const handleKnockoutWinnerChange = async (
-   match: DisplayKnockoutMatch,
+    match: DisplayKnockoutMatch,
     winnerTeam: string
   ) => {
     const currentDraft = getKnockoutDraft(match);
@@ -447,7 +571,7 @@ export function AdminSection({
     </div>
   );
 
-   const renderKnockoutResultRow = (match: DisplayKnockoutMatch) => {
+  const renderKnockoutResultRow = (match: DisplayKnockoutMatch) => {
     const draft = getKnockoutDraft(match);
     const homeTeam = match.display_home_team ?? "Time a definir";
     const awayTeam = match.display_away_team ?? "Time a definir";
@@ -465,7 +589,7 @@ export function AdminSection({
       <div className="px-3 md:px-4 pb-3">
         <div className="flex flex-col md:flex-row md:items-center gap-2 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-3">
           <div className="text-xs font-black uppercase tracking-widest text-yellow-300 whitespace-nowrap">
-            🏆 Classificado:
+            Classificado:
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -593,6 +717,69 @@ export function AdminSection({
     );
   };
 
+  const incompletePredictionsCard = (
+    <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl shadow-2xl">
+      <CardContent className="p-4 space-y-4">
+        <div>
+          <h3 className="text-2xl font-black">
+            Jogadores com palpites incompletos
+          </h3>
+        </div>
+
+        {incompletePredictionPlayers.length === 0 ? (
+          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm font-bold text-emerald-300">
+            Todos os participantes preencheram os palpites disponíveis.
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-slate-800">
+            <table className="w-full min-w-[760px] text-sm">
+              <thead className="bg-slate-950 text-slate-300">
+                <tr className="border-b border-slate-800">
+                  <th className="px-4 py-3 text-center font-black">#</th>
+                  <th className="px-4 py-3 text-left font-black">Jogador</th>
+                  <th className="px-4 py-3 text-center font-black">Palpitados</th>
+                  <th className="px-4 py-3 text-center font-black">Pendentes</th>
+                  <th className="px-4 py-3 text-center font-black">%</th>
+                  <th className="px-4 py-3 text-left font-black">Faltam</th>
+                </tr>
+              </thead>
+              <tbody>
+                {incompletePredictionPlayers.map((item, index) => (
+                  <tr
+                    key={item.player.id}
+                    className="border-b border-slate-800 bg-slate-950/60 last:border-b-0"
+                  >
+                    <td className="px-4 py-3 text-center font-black text-slate-400">
+                      {index + 1}
+                    </td>
+                    <td className="px-4 py-3 font-bold">
+                      {item.player.name}
+                    </td>
+                    <td className="px-4 py-3 text-center font-black text-emerald-400">
+                      {item.completed}/{item.total}
+                    </td>
+                    <td className="px-4 py-3 text-center font-black text-red-400">
+                      {item.pending}
+                    </td>
+                    <td className="px-4 py-3 text-center font-black text-blue-400">
+                      {item.completion}%
+                    </td>
+                    <td className="px-4 py-3 text-slate-300">
+                      {item.missingGames.slice(0, 4).join(" | ")}
+                      {item.missingGames.length > 4
+                        ? ` | +${item.missingGames.length - 4}`
+                        : ""}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-4">
       <div className="bg-gradient-to-r from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -657,29 +844,7 @@ export function AdminSection({
               Participantes
             </div>
             <div className="text-4xl lg:text-5xl font-black text-yellow-400">
-              {stats.totalPlayers}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[120px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
-          <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
-            <div className="text-sm lg:text-lg font-bold text-slate-300">
-              Aprovados
-            </div>
-            <div className="text-4xl lg:text-5xl font-black text-emerald-400">
-              {stats.approvedPlayers}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[120px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
-          <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
-            <div className="text-sm lg:text-lg font-bold text-slate-300">
-              Pendentes
-            </div>
-            <div className="text-4xl lg:text-5xl font-black text-red-400">
-              {stats.pendingPlayers}
+              {predictionAuditScope.totalPlayers}
             </div>
           </CardContent>
         </Card>
@@ -689,8 +854,30 @@ export function AdminSection({
             <div className="text-sm lg:text-lg font-bold text-slate-300">
               Completos
             </div>
+            <div className="text-4xl lg:text-5xl font-black text-emerald-400">
+              {completedPredictionPlayers}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[120px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
+          <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
+            <div className="text-sm lg:text-lg font-bold text-slate-300">
+              Incompletos
+            </div>
+            <div className="text-4xl lg:text-5xl font-black text-red-400">
+              {incompletePredictionPlayers.length}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl min-h-[120px] lg:min-h-[130px] flex items-center justify-center shadow-2xl">
+          <CardContent className="p-5 text-center flex flex-col items-center justify-center gap-2">
+            <div className="text-sm lg:text-lg font-bold text-slate-300">
+              Conclusão
+            </div>
             <div className="text-4xl lg:text-5xl font-black text-blue-400">
-              {stats.activePlayers}
+              {completionRate}%
             </div>
           </CardContent>
         </Card>
@@ -744,13 +931,15 @@ export function AdminSection({
         </Card>
       )}
 
-         <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
+      <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
         <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide rounded-2xl">
           RESULTADOS OFICIAIS - {formatKnockoutStageSectionTitle(adminKnockoutStage)}
         </div>
 
         {adminKnockoutMatches.map(renderKnockoutResultRow)}
       </div>
+
+      {incompletePredictionsCard}
 
       <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
         <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide rounded-2xl">
