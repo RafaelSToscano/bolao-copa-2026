@@ -168,10 +168,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    if (currentUser?.id) {
-      loadData();
-    }
-  }, [currentUser?.id, loadData, pathname]);
+  if (!currentUser?.id) return;
+
+  const shouldForceReload =
+    pathname === "/" ||
+    pathname === "/palpites" ||
+    pathname === "/mata-mata";
+
+  void loadData({ force: shouldForceReload });
+}, [currentUser?.id, loadData, pathname]);
 
   const handleLogin = async (accessCode: string, password: string) => {
     const success = await login(accessCode, password);
