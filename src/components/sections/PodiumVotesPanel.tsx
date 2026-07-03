@@ -173,7 +173,7 @@ export function PodiumVotesPanel({ players, currentUserId }: PodiumVotesPanelPro
                             {voters.map((name) => {
                               const parts = name.split(" ");
                               const firstName = parts[0];
-                              const lastInitial = parts.length > 1 ? ` ${parts[parts.length - 1][0]}.` : "";
+                              const lastInitial = parts.length > 1 && parts[parts.length - 1] ? ` ${parts[parts.length - 1][0]}.` : "";
                               const isMe = name === players.find((p) => p.id === currentUserId)?.name;
                               return (
                                 <span
