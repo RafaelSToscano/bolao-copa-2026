@@ -171,7 +171,9 @@ export function PodiumVotesPanel({ players, currentUserId }: PodiumVotesPanelPro
 
                           <div className="flex flex-wrap gap-1 pl-28">
                             {voters.map((name) => {
-                              const firstName = name.split(" ")[0];
+                              const parts = name.split(" ");
+                              const firstName = parts[0];
+                              const lastInitial = parts.length > 1 ? ` ${parts[parts.length - 1][0]}.` : "";
                               const isMe = name === players.find((p) => p.id === currentUserId)?.name;
                               return (
                                 <span
@@ -182,7 +184,7 @@ export function PodiumVotesPanel({ players, currentUserId }: PodiumVotesPanelPro
                                       : "bg-slate-800 text-slate-400"
                                   }`}
                                 >
-                                  {firstName}
+                                  {firstName}{lastInitial}
                                 </span>
                               );
                             })}
