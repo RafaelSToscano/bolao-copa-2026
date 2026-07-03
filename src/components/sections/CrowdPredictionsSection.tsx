@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Flag } from "@/components/ui/Flag";
 import { formatDate } from "@/lib/formatting";
 import { getNextVisibleMatches } from "@/lib/nextVisibleMatches";
+import { PodiumVotesPanel } from "@/components/sections/PodiumVotesPanel";
 
 interface CrowdPredictionsSectionProps {
   games: Game[];
@@ -59,6 +60,8 @@ export function CrowdPredictionsSection({
           Veja os palpites dos próximos jogos e saiba quem você precisa secar. 😅
         </p>
       </div>
+
+      <PodiumVotesPanel players={players} currentUserId={currentUserId} />
 
       {nextGames.map((game) => {
         const gamePredictions = approvedPlayers.map((player) => {
