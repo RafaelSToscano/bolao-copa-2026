@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withCache } from "@/lib/server/memoryCache";
 import { cachePrivate } from "@/lib/server/cacheHeaders";
-import { playersService } from "@/services/supabase/playersService";
-import { gamesService } from "@/services/supabase/gamesService";
-import { predictionsService } from "@/services/supabase/predictionsService";
-import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
 import { projectMyStatus } from "@/services/dashboard/dashboardProjections";
+import { getDashboardRankingBaseData } from "@/services/dashboard/dashboardBaseData";
 import { getCachedLiveScores } from "@/lib/server/footballData";
 
 const TTL_SECONDS = 8;
@@ -27,33 +24,18 @@ export async function GET(req: NextRequest) {
     `dashboard:my-status:${userId}`,
     TTL_SECONDS,
     async () => {
-      // We need every player's knockout predictions, not just this
-      // user's: projectMyStatus computes the full ranking to find the
-      // user's position, and dropping other players' knockout points
-      // would inflate the user's position relative to /ranking-top.
-      const [
-        players,
-        games,
-        predictions,
-        liveScores,
-        knockoutMatches,
-        knockoutPredictions,
-      ] = await Promise.all([
-        playersService.getPublicPlayers(),
-        gamesService.getAllGames(),
-        predictionsService.getAllPredictions(),
+      const [baseData, liveScores] = await Promise.all([
+        getDashboardRankingBaseData(),
         getCachedLiveScores(),
-        knockoutPredictionsService.getKnockoutMatches(),
-        knockoutPredictionsService.getAllKnockoutPredictions(),
       ]);
       return projectMyStatus(
         userId,
-        players,
-        games,
-        predictions,
+        baseData.players,
+        baseData.games,
+        baseData.predictions,
         liveScores,
-        knockoutMatches,
-        knockoutPredictions
+        baseData.knockoutMatches,
+        baseData.knockoutPredictions
       );
     }
   );
