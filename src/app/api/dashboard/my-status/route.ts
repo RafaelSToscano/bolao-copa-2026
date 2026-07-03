@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
         knockoutMatches,
         knockoutPredictions,
       ] = await Promise.all([
-        playersService.getAllPlayers(),
+        playersService.getPublicPlayers(),
         gamesService.getAllGames(),
         predictionsService.getAllPredictions(),
         getCachedLiveScores(),

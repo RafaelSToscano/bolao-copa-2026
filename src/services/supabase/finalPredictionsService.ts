@@ -1,6 +1,8 @@
 import { getSupabaseClient } from "./supabaseClient";
 import { USE_MOCK_DATA } from "@/services/mock";
 
+const FINAL_PREDICTION_COLUMNS = "player_id, champion, runner_up, third_place, updated_at";
+
 export type FinalPrediction = {
   player_id: string;
   champion: string | null;
@@ -25,7 +27,7 @@ export const finalPredictionsService = {
 
     const { data, error } = await supabase
       .from("final_predictions")
-      .select("*")
+      .select(FINAL_PREDICTION_COLUMNS)
       .eq("player_id", playerId)
       .maybeSingle();
 
@@ -54,7 +56,7 @@ export const finalPredictionsService = {
 
     const { data, error } = await supabase
       .from("final_predictions")
-      .select("*");
+      .select(FINAL_PREDICTION_COLUMNS);
 
     if (error) {
       throw new Error(`Erro ao buscar todos os palpites finais: ${error.message}`);

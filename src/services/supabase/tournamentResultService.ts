@@ -1,5 +1,7 @@
 import { getSupabaseClient } from "./supabaseClient";
 
+const TOURNAMENT_RESULT_COLUMNS = "id, champion, runner_up, third_place";
+
 export type TournamentResult = {
   id: number;
   champion: string | null;
@@ -13,7 +15,7 @@ export const tournamentResultService = {
 
     const { data, error } = await supabase
       .from("tournament_result")
-      .select("*")
+      .select(TOURNAMENT_RESULT_COLUMNS)
       .eq("id", 1)
       .maybeSingle();
 

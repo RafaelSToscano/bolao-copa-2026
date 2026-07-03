@@ -31,19 +31,20 @@ export async function GET(req: NextRequest) {
       knockoutMatches,
       knockoutPredictions,
     ] = await Promise.all([
-      playersService.getAllPlayers(),
+      playersService.getPublicPlayers(),
       gamesService.getAllGames(),
       predictionsService.getAllPredictions(),
       getCachedLiveScores(),
       knockoutPredictionsService.getKnockoutMatches(),
       knockoutPredictionsService.getAllKnockoutPredictions(),
     ]);
-   const rankingPlayers = players.filter(
-  (player) => player.ranking_visible !== false
-);
 
-return projectRankingTop(
-  rankingPlayers,
+    const rankingPlayers = players.filter(
+      (player) => player.ranking_visible !== false
+    );
+
+    return projectRankingTop(
+      rankingPlayers,
       games,
       predictions,
       10,
@@ -54,8 +55,6 @@ return projectRankingTop(
     );
   });
 
-  // When a userId is supplied, the `currentUser` field is user-specific,
-  // so don't let a shared CDN cache a private payload.
   return NextResponse.json(payload, {
     headers: userId
       ? cachePrivate(TTL_SECONDS)
