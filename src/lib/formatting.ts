@@ -132,6 +132,53 @@ export function formatKickoffTime(value: string | null): string {
   }
 }
 
+const AUDIT_KNOCKOUT_ROUNDS = [
+  "r32",
+  "r16",
+  "qf",
+  "sf",
+  "third_place",
+  "final",
+];
+
+const AUDIT_KNOCKOUT_ROUND_ORDER: Record<string, number> = {
+  r32: 1,
+  r16: 2,
+  qf: 3,
+  sf: 4,
+  third_place: 5,
+  final: 6,
+};
+
+function formatAuditKnockoutRound(round: string): string {
+  const labels: Record<string, string> = {
+    r32: "16 avos",
+    r16: "Oitavas",
+    qf: "Quartas",
+    sf: "Semifinal",
+    third_place: "Disputa 3º lugar",
+    final: "Final",
+  };
+
+  return labels[round] ?? round;
+}
+
+function getAuditKnockoutRoundOrder(round: string): number {
+  return AUDIT_KNOCKOUT_ROUND_ORDER[round] ?? 999;
+}
+
+function isPlaceholderTeam(team: string | null | undefined): boolean {
+  if (!team) return true;
+
+  const normalized = team.trim().toLowerCase();
+
+  return (
+    normalized.startsWith("vencedor do jogo") ||
+    normalized.startsWith("perdedor do jogo") ||
+    normalized.includes("a definir")
+  );
+}
+
 /**
  * Exports audit CSV with all predictions and results
  */
@@ -151,13 +198,13 @@ export async function exportAuditCsv(
     throw new Error(`Erro ao buscar palpites finais: ${error.message}`);
   }
 
-  const { data: knockoutMatches, error: knockoutMatchesError } = await supabase
-    .from("knockout_matches")
-    .select(
-      "id, round, match_number, home_slot, away_slot, home_team, away_team, official_score_home, official_score_away, winner_team, match_date, locked"
-    )
-    .eq("round", "r32")
-    .order("match_number", { ascending: true });
+  const { data: knockoutMatchesRaw, error: knockoutMatchesError } =
+    await supabase
+      .from("knockout_matches")
+      .select(
+        "id, round, match_number, home_slot, away_slot, home_team, away_team, official_score_home, official_score_away, winner_team, match_date, locked"
+      )
+      .in("round", AUDIT_KNOCKOUT_ROUNDS);
 
   if (knockoutMatchesError) {
     throw new Error(
@@ -165,22 +212,69 @@ export async function exportAuditCsv(
     );
   }
 
-  const { data: knockoutPredictions, error: knockoutPredictionsError } =
-    await supabase
+  const knockoutMatches = (knockoutMatchesRaw ?? [])
+    .filter(
+      (match: any) =>
+        !isPlaceholderTeam(match.home_team) && !isPlaceholderTeam(match.away_team)
+    )
+    .sort((a: any, b: any) => {
+      const roundDiff =
+        getAuditKnockoutRoundOrder(a.round) -
+        getAuditKnockoutRoundOrder(b.round);
+
+      if (roundDiff !== 0) return roundDiff;
+
+      const matchNumberA = Number(a.match_number ?? a.id);
+      const matchNumberB = Number(b.match_number ?? b.id);
+
+      if (matchNumberA !== matchNumberB) return matchNumberA - matchNumberB;
+
+      return Number(a.id) - Number(b.id);
+    });
+
+  const knockoutMatchIds = knockoutMatches.map((match: any) => match.id);
+
+  let knockoutPredictions: any[] = [];
+
+if (knockoutMatchIds.length > 0) {
+  const pageSize = 1000;
+  let from = 0;
+
+  while (true) {
+    const { data, error: knockoutPredictionsError } = await supabase
       .from("knockout_predictions")
       .select(
         "player_id, match_id, predicted_score_home, predicted_score_away, predicted_winner"
-      );
+      )
+      .in("match_id", knockoutMatchIds)
+      .order("match_id", { ascending: true })
+      .range(from, from + pageSize - 1);
 
-  if (knockoutPredictionsError) {
-    throw new Error(
-      `Erro ao buscar palpites do mata-mata: ${knockoutPredictionsError.message}`
-    );
+    if (knockoutPredictionsError) {
+      throw new Error(
+        `Erro ao buscar palpites do mata-mata: ${knockoutPredictionsError.message}`
+      );
+    }
+
+    knockoutPredictions.push(...(data ?? []));
+
+    if (!data || data.length < pageSize) break;
+
+    from += pageSize;
   }
+}
 
   const finalPredictionsByPlayer = new Map(
-    (finalPredictions ?? []).map((fp: any) => [fp.player_id, fp])
+    (finalPredictions ?? []).map((fp: any) => [String(fp.player_id), fp])
   );
+
+  const knockoutPredictionsByPlayerAndMatch = new Map(
+    knockoutPredictions.map((prediction: any) => [
+      `${String(prediction.player_id)}::${String(prediction.match_id)}`,
+      prediction,
+    ])
+  );
+
   const rows: (string | number)[][] = [
     [
       "Participante",
@@ -201,8 +295,8 @@ export async function exportAuditCsv(
     ],
   ];
 
-    players.forEach((player) => {
-    const finalPrediction = finalPredictionsByPlayer.get(player.id);
+  players.forEach((player) => {
+    const finalPrediction = finalPredictionsByPlayer.get(String(player.id));
 
     games.forEach((game) => {
       const prediction = predictions.find(
@@ -230,9 +324,9 @@ export async function exportAuditCsv(
       ]);
     });
 
-    (knockoutMatches ?? []).forEach((match: any) => {
-      const prediction = (knockoutPredictions ?? []).find(
-        (p: any) => p.player_id === player.id && p.match_id === match.id
+    knockoutMatches.forEach((match: any) => {
+      const prediction = knockoutPredictionsByPlayerAndMatch.get(
+        `${String(player.id)}::${String(match.id)}`
       );
 
       const result = calculateKnockoutPredictionPoints(prediction, match);
@@ -241,7 +335,7 @@ export async function exportAuditCsv(
         player.name,
         player.access_code,
         "Mata-mata",
-        `16 avos - Jogo ${match.match_number}`,
+        `${formatAuditKnockoutRound(match.round)} - Jogo ${match.match_number}`,
         match.home_team ?? slotLabel(match.home_slot),
         prediction?.predicted_score_home?.toString() ?? "",
         prediction?.predicted_score_away?.toString() ?? "",

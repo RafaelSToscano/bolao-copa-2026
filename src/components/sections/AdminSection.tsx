@@ -426,37 +426,84 @@ export function AdminSection({
     }
   };
 
-  const handleExportKnockoutAuditCsv = () => {
+    const handleExportKnockoutAuditCsv = () => {
     const header = [
       "Participante",
+      "Fase",
+      "Jogo",
+      "Data",
+      "Mandante",
+      "Visitante",
+      "Palpite mandante",
+      "Palpite visitante",
+      "Vencedor previsto",
       "Status",
-      "Preenchidos",
-      "Total",
-      "Faltam",
-      "Jogos faltantes",
     ];
 
-    const rows = knockoutPredictionAudit.map((item) => {
-      const missingCount = item.total - item.completed;
-      const missingGames = item.missingMatches
-        .map(
-          (match) =>
-            `Jogo ${match.match_number}: ${match.display_home_team} x ${match.display_away_team}`
-        )
-        .join(" | ");
+    const approvedPlayers = players
+      .filter((player) => player.approved && !player.is_admin)
+      .sort((a, b) => a.name.localeCompare(b.name));
 
-      return [
-        item.player.name,
-        missingCount === 0 ? "Completo" : "Incompleto",
-        item.completed,
-        item.total,
-        missingCount,
-        missingGames,
-      ];
-    });
+    const displayById = new Map(
+      displayKnockoutMatches.map((match) => [match.id, match])
+    );
 
-    const escapeCsv = (value: string | number) =>
-      `"${String(value).replace(/"/g, '""')}"`;
+    const matches = [...knockoutMatches]
+      .filter((match) => {
+        if (!isPredictableKnockoutRound(match.round)) return false;
+
+        const displayMatch = displayById.get(match.id);
+        const homeTeam = displayMatch?.display_home_team ?? match.home_team;
+        const awayTeam = displayMatch?.display_away_team ?? match.away_team;
+
+        return Boolean(homeTeam && awayTeam);
+      })
+      .sort((a, b) => {
+        const dateA = a.match_date
+          ? new Date(a.match_date).getTime()
+          : Number.MAX_SAFE_INTEGER;
+        const dateB = b.match_date
+          ? new Date(b.match_date).getTime()
+          : Number.MAX_SAFE_INTEGER;
+
+        if (dateA !== dateB) return dateA - dateB;
+
+        return (a.match_number ?? a.id) - (b.match_number ?? b.id);
+      });
+
+    const rows = approvedPlayers.flatMap((player) =>
+      matches.map((match) => {
+        const displayMatch = displayById.get(match.id);
+        const homeTeam = displayMatch?.display_home_team ?? match.home_team ?? "";
+        const awayTeam = displayMatch?.display_away_team ?? match.away_team ?? "";
+
+        const prediction = knockoutPredictions.find(
+          (item) => item.player_id === player.id && item.match_id === match.id
+        );
+
+        const hasPrediction =
+          prediction?.predicted_score_home !== null &&
+          prediction?.predicted_score_home !== undefined &&
+          prediction?.predicted_score_away !== null &&
+          prediction?.predicted_score_away !== undefined;
+
+        return [
+          player.name,
+          formatKnockoutStageSectionTitle(match.round),
+          match.match_number ?? match.id,
+          formatDate(match.match_date),
+          homeTeam,
+          awayTeam,
+          prediction?.predicted_score_home ?? "",
+          prediction?.predicted_score_away ?? "",
+          prediction?.predicted_winner ?? "",
+          hasPrediction ? "Preenchido" : "Pendente",
+        ];
+      })
+    );
+
+    const escapeCsv = (value: string | number | null | undefined) =>
+      `"${String(value ?? "").replace(/"/g, '""')}"`;
 
     const csv = [header, ...rows]
       .map((row) => row.map(escapeCsv).join(";"))
@@ -469,7 +516,7 @@ export function AdminSection({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "auditoria-palpites-mata-mata.csv";
+    link.download = "auditoria-palpites-mata-mata-detalhada.csv";
     link.click();
     URL.revokeObjectURL(url);
   };
