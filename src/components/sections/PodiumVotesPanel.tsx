@@ -5,7 +5,11 @@ import { Player } from "@/types/player";
 import { FinalPrediction, finalPredictionsService } from "@/services/supabase/finalPredictionsService";
 import { Flag } from "@/components/ui/Flag";
 import { ChevronDown, ChevronUp, Trophy } from "lucide-react";
-import { readCache, writeCache, CACHE_FRESH_TTL_MS } from "@/lib/clientCache";
+import { readCache, writeCache } from "@/lib/clientCache";
+
+// Podium picks are locked before the tournament and never change
+// during gameplay — 5 min client cache is safe and cuts Supabase hits.
+const FINAL_PREDICTIONS_CLIENT_TTL_MS = 5 * 60 * 1000;
 
 const CACHE_KEY = "finalPredictions:all";
 
@@ -79,7 +83,7 @@ export function PodiumVotesPanel({ players, currentUserId }: PodiumVotesPanelPro
   useEffect(() => {
     const cached = readCache<FinalPrediction[]>(CACHE_KEY);
     const now = Date.now();
-    if (cached && now - cached.ts < CACHE_FRESH_TTL_MS) {
+    if (cached && now - cached.ts < FINAL_PREDICTIONS_CLIENT_TTL_MS) {
       setPredictions(cached.data);
       return;
     }

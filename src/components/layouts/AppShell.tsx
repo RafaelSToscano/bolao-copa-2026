@@ -170,12 +170,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
   if (!currentUser?.id) return;
 
-  const shouldForceReload =
-    pathname === "/" ||
-    pathname === "/palpites" ||
-    pathname === "/mata-mata";
-
-  void loadData({ force: shouldForceReload });
+  // Let the 60s sessionStorage TTL decide freshness on navigation.
+  // Force-reload only happens after explicit user actions (login,
+  // saving a result) to avoid direct Supabase hits on every page switch.
+  void loadData();
 }, [currentUser?.id, loadData, pathname]);
 
   const handleLogin = async (accessCode: string, password: string) => {
