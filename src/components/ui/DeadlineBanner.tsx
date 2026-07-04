@@ -108,21 +108,16 @@ export function LockedBanner({ onGoToPlayoff }: LockedBannerProps) {
     function tick() {
       const bm = computeBannerMode(Date.now());
 
-      if (!bm || bm.mode === "done") {
+      if (!bm || bm.mode !== "open") {
         setVisible(false);
         setBannerMode(null);
-        return;
-      }
-
-      if (bm.mode === "blocked" && sessionStorage.getItem(blockedDismissKey(bm.nextPhase)) === "1") {
-        setVisible(false);
-        setBannerMode(null);
+        setTimeLeft(null);
         return;
       }
 
       setBannerMode(bm);
       setVisible(true);
-      setTimeLeft(bm.mode === "open" ? getTimeLeft(bm.phase.deadline) : null);
+      setTimeLeft(getTimeLeft(bm.phase.deadline));
     }
 
     tick();
@@ -130,73 +125,44 @@ export function LockedBanner({ onGoToPlayoff }: LockedBannerProps) {
     return () => clearInterval(id);
   }, []);
 
-  const dismiss = () => {
-    if (!bannerMode || bannerMode.mode !== "blocked") return;
-    sessionStorage.setItem(blockedDismissKey(bannerMode.nextPhase), "1");
-    setVisible(false);
-  };
+  if (!visible || !bannerMode || bannerMode.mode !== "open") return null;
 
-  if (!visible || !bannerMode || bannerMode.mode === "done") return null;
-
-  if (bannerMode.mode === "open") {
-    const urgency = timeLeft ? timeLeft.days === 0 && timeLeft.hours < 1 : false;
-
-    return (
-      <div
-        className={`fixed left-0 right-0 top-[56px] md:top-0 z-30 flex items-center justify-between gap-2 px-3 md:px-4 py-2 text-white text-xs md:text-sm font-bold shadow-lg ${
-          urgency ? "bg-yellow-700/95 animate-pulse" : "bg-yellow-800/95"
-        }`}
-      >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <Trophy size={15} className="shrink-0 text-yellow-300" />
-          <span className="truncate">
-            Palpites{" "}
-            <span className="text-yellow-300">{bannerMode.phase.name}</span>{" "}
-            abertos!{" "}
-            {timeLeft && (
-              <span className="text-white/90">
-                Prazo: {bannerMode.phase.deadlineLabel} —{" "}
-                {timeLeft.days > 0 && (
-                  <span className="tabular-nums">{timeLeft.days}d </span>
-                )}
-                <span className="tabular-nums tracking-widest">
-                  {pad(timeLeft.hours)}:{pad(timeLeft.minutes)}:{pad(timeLeft.seconds)}
-                </span>
-              </span>
-            )}
-          </span>
-        </div>
-
-        {onGoToPlayoff && (
-          <button
-            onClick={onGoToPlayoff}
-            className="shrink-0 rounded-lg bg-white/20 hover:bg-white/30 px-2 md:px-3 py-1 text-[11px] md:text-xs font-black transition cursor-pointer"
-          >
-            Palpitar agora →
-          </button>
-        )}
-      </div>
-    );
-  }
+  const urgency = timeLeft ? timeLeft.days === 0 && timeLeft.hours < 1 : false;
 
   return (
-    <div className="fixed left-0 right-0 top-[56px] md:top-0 z-30 flex items-center justify-between gap-2 px-3 md:px-4 py-2 bg-slate-800/95 border-b border-slate-700 text-white text-xs md:text-sm font-bold shadow-lg">
-      <div className="flex items-center gap-2 min-w-0">
-        <Lock size={15} className="shrink-0 text-yellow-400" />
+    <div
+      className={`fixed left-0 right-0 top-[56px] md:top-0 z-30 flex items-center justify-between gap-2 px-3 md:px-4 py-2 text-white text-xs md:text-sm font-bold shadow-lg ${
+        urgency ? "bg-yellow-700/95 animate-pulse" : "bg-yellow-800/95"
+      }`}
+    >
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        <Trophy size={15} className="shrink-0 text-yellow-300" />
         <span className="truncate">
-          Palpites bloqueados —{" "}
-          <span className="text-yellow-400">
-            voltam {bannerMode.nextPhase.opensAtLabel}
-          </span>
+          Palpites{" "}
+          <span className="text-yellow-300">{bannerMode.phase.name}</span>{" "}
+          abertos!{" "}
+          {timeLeft && (
+            <span className="text-white/90">
+              Prazo: {bannerMode.phase.deadlineLabel} —{" "}
+              {timeLeft.days > 0 && (
+                <span className="tabular-nums">{timeLeft.days}d </span>
+              )}
+              <span className="tabular-nums tracking-widest">
+                {pad(timeLeft.hours)}:{pad(timeLeft.minutes)}:{pad(timeLeft.seconds)}
+              </span>
+            </span>
+          )}
         </span>
       </div>
-      <button
-        onClick={dismiss}
-        aria-label="Fechar aviso"
-        className="shrink-0 rounded-lg p-1 hover:bg-white/10 transition cursor-pointer"
-      >
-        <X size={15} />
-      </button>
+
+      {onGoToPlayoff && (
+        <button
+          onClick={onGoToPlayoff}
+          className="shrink-0 rounded-lg bg-white/20 hover:bg-white/30 px-2 md:px-3 py-1 text-[11px] md:text-xs font-black transition cursor-pointer"
+        >
+          Palpitar agora →
+        </button>
+      )}
     </div>
   );
 }
