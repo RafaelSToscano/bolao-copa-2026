@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withCache } from "@/lib/server/memoryCache";
 import { cachePublic } from "@/lib/server/cacheHeaders";
-import { gamesService } from "@/services/supabase/gamesService";
-import { predictionsService } from "@/services/supabase/predictionsService";
-import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
+import { getDashboardRankingBaseData } from "@/services/dashboard/dashboardBaseData";
 import { projectRecent } from "@/services/dashboard/dashboardProjections";
 
-const TTL_SECONDS = 30;
-const SWR_SECONDS = 120;
-const MAX_AGE = 15;
+// 3h TTL: only admin-submitted official scores move this list. All
+// underlying reads go through the shared 3h base-data cache — no
+// direct Supabase query fires from this route under a cache miss.
+const TTL_SECONDS = 10800;
+const SWR_SECONDS = 10800;
+const MAX_AGE = 600;
 
 const UUID_OR_MOCK_ID = /^[a-zA-Z0-9-]{1,128}$/;
 
@@ -22,23 +23,23 @@ export async function GET(req: NextRequest) {
     `dashboard:recent:${userId ?? "anon"}`,
     TTL_SECONDS,
     async () => {
-      const [games, userPredictions, knockoutMatches, userKnockoutPredictions] =
-        await Promise.all([
-          gamesService.getAllGames(),
-          userId
-            ? predictionsService.getPredictionsForPlayer(userId)
-            : Promise.resolve([]),
-          knockoutPredictionsService.getKnockoutMatches(),
-          userId
-            ? knockoutPredictionsService.getKnockoutPredictionsForPlayer(userId)
-            : Promise.resolve([]),
-        ]);
+      const base = await getDashboardRankingBaseData();
+
+      // Filter the caller's rows from the cached base data instead of
+      // firing a second per-user Supabase query.
+      const userPredictions = userId
+        ? base.predictions.filter((p) => p.player_id === userId)
+        : [];
+      const userKnockoutPredictions = userId
+        ? base.knockoutPredictions.filter((p) => p.player_id === userId)
+        : [];
+
       return projectRecent(
-        games,
+        base.games,
         userPredictions,
         userId,
         5,
-        knockoutMatches,
+        base.knockoutMatches,
         userKnockoutPredictions
       );
     }

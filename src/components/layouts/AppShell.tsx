@@ -7,11 +7,11 @@ import React, {
   useEffect,
   useState,
 } from "react";
-import { usePathname } from "next/navigation";
 import { Player } from "@/types/player";
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
 import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
+import { FinalPrediction } from "@/services/supabase/finalPredictionsService";
 import { useAuth } from "@/hooks/useAuth";
 import { useData } from "@/hooks/useData";
 import { usePredictions } from "@/hooks/usePredictions";
@@ -26,6 +26,7 @@ import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { gamesService } from "@/services/supabase/gamesService";
 import { playersService } from "@/services/supabase/playersService";
 import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
+import { evictDashboardCache } from "@/lib/evictDashboardCache";
 import type { RandomPrediction } from "@/components/ui/random-predictor";
 
 type AppShellContextValue = {
@@ -35,6 +36,7 @@ type AppShellContextValue = {
   predictions: Prediction[];
   knockoutMatches: KnockoutMatchRecord[];
   knockoutPredictions: KnockoutPrediction[];
+  finalPredictions: FinalPrediction[];
   drafts: ReturnType<typeof usePredictions>["drafts"];
   setDrafts: ReturnType<typeof usePredictions>["setDrafts"];
   saveSinglePrediction: ReturnType<typeof usePredictions>["saveSinglePrediction"];
@@ -73,7 +75,7 @@ type AppShellContextValue = {
   handleClearPredictions: () => void;
 };
 
-const AppShellContext = createContext<AppShellContextValue | null>(null);
+export const AppShellContext = createContext<AppShellContextValue | null>(null);
 
 export function useAppShell() {
   const ctx = useContext(AppShellContext);
@@ -84,8 +86,6 @@ export function useAppShell() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-
   const {
     currentUser,
     isChecking,
@@ -101,20 +101,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     predictions,
     knockoutMatches,
     knockoutPredictions,
+    finalPredictions,
     loading: dataLoading,
     error: dataError,
     loadData,
     invalidateCache,
+    setPlayers,
     setPredictions,
     setGames,
     setKnockoutMatches,
   } = useData(currentUser?.id, {
-    includeAllPredictions:
-  currentUser?.is_admin === true ||
-  pathname === "/ranking" ||
-  pathname === "/simulador" ||
-  pathname === "/palpites-da-galera" ||
-  pathname === "/historico",
+    // Always request everyone's predictions once signed-in. The
+    // server payload is identical across pages (backed by the 3h
+    // base-data cache), so switching routes doesn't trigger a
+    // refetch, and the client-side snapshot key stays stable.
+    // Anonymous requests still get the own-predictions variant so
+    // logged-out visitors don't pay the extra bytes.
+    includeAllPredictions: Boolean(currentUser?.id),
     includePrivatePlayers: currentUser?.is_admin === true,
   });
 
@@ -170,11 +173,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
   if (!currentUser?.id) return;
 
-  // Let the 60s sessionStorage TTL decide freshness on navigation.
-  // Force-reload only happens after explicit user actions (login,
-  // saving a result) to avoid direct Supabase hits on every page switch.
+  // Load once when the user is known. We deliberately do NOT retrigger
+  // on route change — the bootstrap payload is identical for every
+  // page inside AppShell, and the 60s client TTL + 3h server TTL make
+  // extra fetches wasted work.
   void loadData();
-}, [currentUser?.id, loadData, pathname]);
+}, [currentUser?.id, loadData]);
 
   const handleLogin = async (accessCode: string, password: string) => {
     const success = await login(accessCode, password);
@@ -224,13 +228,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       setKnockoutMatches(updatedKnockoutMatches);
 
-      if (currentUser?.id) {
-        void fetch("/api/dashboard/cache/evict", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: currentUser.id }),
-        }).catch(() => {});
-      }
+      evictDashboardCache(currentUser?.id);
 
       window.dispatchEvent(new Event("knockout-matches-updated"));
 
@@ -272,13 +270,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const updatedMatches = await knockoutPredictionsService.getKnockoutMatches();
       setKnockoutMatches(updatedMatches);
 
-      if (currentUser?.id) {
-        void fetch("/api/dashboard/cache/evict", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: currentUser.id }),
-        }).catch(() => {});
-      }
+      evictDashboardCache(currentUser?.id);
 
       window.dispatchEvent(new Event("knockout-matches-updated"));
 
@@ -322,14 +314,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const handleApprovePlayer = async (playerId: string) => {
     await playersService.approvePlayer(playerId);
+    // Optimistic local update — avoids an immediate re-hydration
+    // round-trip after the server evict. The next natural refetch
+    // (from any viewer, including this tab on next mount) will
+    // rebuild the server cache once from Supabase.
+    setPlayers((prev) =>
+      prev.map((p) => (p.id === playerId ? { ...p, approved: true } : p))
+    );
     invalidateCache();
-    await loadData({ force: true });
+    evictDashboardCache(currentUser?.id);
   };
 
   const handleRejectPlayer = async (playerId: string) => {
     await playersService.rejectPlayer(playerId);
+    setPlayers((prev) => prev.filter((p) => p.id !== playerId));
     invalidateCache();
-    await loadData({ force: true });
+    evictDashboardCache(currentUser?.id);
   };
 
   const handleClearPredictions = () => {
@@ -372,6 +372,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     predictions,
     knockoutMatches,
     knockoutPredictions,
+    finalPredictions,
     drafts,
     setDrafts,
     saveSinglePrediction,

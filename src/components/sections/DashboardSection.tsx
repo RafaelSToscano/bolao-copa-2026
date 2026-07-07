@@ -111,6 +111,10 @@ const baseLiveSignals = useMemo(
 );
 
 const data = useDashboardData(currentUserId, baseLiveSignals);
+const refetchRef = useRef(data.refetch);
+useEffect(() => {
+  refetchRef.current = data.refetch;
+}, [data.refetch]);
 
   const heroPool = useMemo(() => {
   const recentFromPayload = data.recent?.items?.[0]?.game ?? null;
@@ -224,6 +228,11 @@ const liveSignals = useMemo(
     if (!team) return;
 
     setGoalTrigger(team + ":" + Date.now());
+
+    // A goal moves the provisional ranking. useDashboardData no
+    // longer polls on a timer, so this is the only refetch signal
+    // for a mid-match goal that lands on a mapped Game.
+    void refetchRef.current();
 
     if (modalTimerRef.current) clearTimeout(modalTimerRef.current);
 

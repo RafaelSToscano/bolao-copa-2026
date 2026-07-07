@@ -7,6 +7,8 @@ import { playersService } from "@/services/supabase/playersService";
 import { gamesService } from "@/services/supabase/gamesService";
 import { predictionsService } from "@/services/supabase/predictionsService";
 import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
+import { finalPredictionsService, FinalPrediction } from "@/services/supabase/finalPredictionsService";
+import { fetchJson } from "@/lib/fetchJson";
 import {
   readCache,
   writeCache,
@@ -27,11 +29,22 @@ type CachedAppData = {
   predictions: Prediction[];
   knockoutMatches: KnockoutMatchRecord[];
   knockoutPredictions: KnockoutPrediction[];
+  finalPredictions: FinalPrediction[];
+};
+
+const EMPTY_DATA: CachedAppData = {
+  players: [],
+  games: [],
+  predictions: [],
+  knockoutMatches: [],
+  knockoutPredictions: [],
+  finalPredictions: [],
 };
 
 // Hydrate from sessionStorage so the dashboard renders with data on
 // the very first paint after a route change inside the same tab. The
-// supabase round-trip still runs in the background to revalidate.
+// server round-trip (or Supabase, for the admin private variant) still
+// runs in the background to revalidate.
 
 export function useData(
   playerId?: string,
@@ -67,6 +80,9 @@ export function useData(
   const [knockoutPredictions, setKnockoutPredictions] = useState<KnockoutPrediction[]>(
     initialSnapshot?.data.knockoutPredictions ?? []
   );
+  const [finalPredictions, setFinalPredictions] = useState<FinalPrediction[]>(
+    initialSnapshot?.data.finalPredictions ?? []
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastLoadedAtRef = useRef<number | null>(initialSnapshot?.ts ?? null);
@@ -83,44 +99,65 @@ export function useData(
     }
 
     fetchInFlightRef.current = (async () => {
-      const [
-        playersData,
-        gamesData,
-        predictionsData,
-        knockoutMatchesData,
-        knockoutPredictionsData,
-      ] = await Promise.all([
-        includePrivatePlayers
-          ? playersService.getAllPlayers()
-          : playersService.getPublicPlayers(),
-        gamesService.getAllGames(),
-        includeAllPredictions
-          ? predictionsService.getAllPredictions()
-          : playerId
-            ? predictionsService.getPredictionsForPlayer(playerId)
-            : Promise.resolve([]),
-        knockoutPredictionsService.getKnockoutMatches(),
-        includeAllPredictions
-          ? knockoutPredictionsService.getAllKnockoutPredictions()
-          : playerId
-            ? knockoutPredictionsService.getKnockoutPredictionsForPlayer(playerId)
-            : Promise.resolve([]),
-      ]);
+      // The private-players variant needs access codes (admin only) —
+      // those must NOT be cached at the CDN or in shared server memory,
+      // so we keep this path on direct Supabase. Everything else goes
+      // through /api/bootstrap, which shares the 3h server-side
+      // ranking base-data cache and is evicted by admin writes.
+      let next: CachedAppData;
 
-    const next: CachedAppData = {
-      players: playersData,
-      games: gamesData,
-      predictions: predictionsData,
-      knockoutMatches: knockoutMatchesData,
-      knockoutPredictions: knockoutPredictionsData,
-    };
-    const now = Date.now();
+      if (includePrivatePlayers) {
+        const [
+          playersData,
+          gamesData,
+          predictionsData,
+          knockoutMatchesData,
+          knockoutPredictionsData,
+          finalPredictionsData,
+        ] = await Promise.all([
+          playersService.getAllPlayers(),
+          gamesService.getAllGames(),
+          includeAllPredictions
+            ? predictionsService.getAllPredictions()
+            : playerId
+              ? predictionsService.getPredictionsForPlayer(playerId)
+              : Promise.resolve([]),
+          knockoutPredictionsService.getKnockoutMatches(),
+          includeAllPredictions
+            ? knockoutPredictionsService.getAllKnockoutPredictions()
+            : playerId
+              ? knockoutPredictionsService.getKnockoutPredictionsForPlayer(playerId)
+              : Promise.resolve([]),
+          finalPredictionsService.getAll(),
+        ]);
+
+        next = {
+          players: playersData,
+          games: gamesData,
+          predictions: predictionsData,
+          knockoutMatches: knockoutMatchesData,
+          knockoutPredictions: knockoutPredictionsData,
+          finalPredictions: finalPredictionsData,
+        };
+      } else {
+        const params = new URLSearchParams();
+        if (playerId) params.set("userId", playerId);
+        if (includeAllPredictions) params.set("all", "1");
+        const qs = params.toString();
+        const payload = await fetchJson<CachedAppData>(
+          `/api/bootstrap${qs ? `?${qs}` : ""}`
+        );
+        next = payload ?? EMPTY_DATA;
+      }
+
+      const now = Date.now();
 
       setPlayers(next.players);
       setGames(next.games);
       setPredictions(next.predictions);
       setKnockoutMatches(next.knockoutMatches);
       setKnockoutPredictions(next.knockoutPredictions);
+      setFinalPredictions(next.finalPredictions ?? []);
 
       writeCache<CachedAppData>(cacheKey, next, now);
       lastLoadedAtRef.current = now;
@@ -154,6 +191,7 @@ export function useData(
           setPredictions(cached.data.predictions);
           setKnockoutMatches(cached.data.knockoutMatches ?? []);
           setKnockoutPredictions(cached.data.knockoutPredictions ?? []);
+          setFinalPredictions(cached.data.finalPredictions ?? []);
           lastLoadedAtRef.current = cached.ts;
           wasHydratedRef.current = true;
           loadedCacheKeyRef.current = cacheKey;
@@ -209,6 +247,7 @@ useEffect(() => {
     predictions,
     knockoutMatches,
     knockoutPredictions,
+    finalPredictions,
     loading,
     error,
     loadData,
@@ -218,5 +257,6 @@ useEffect(() => {
     setPredictions,
     setKnockoutMatches,
     setKnockoutPredictions,
+    setFinalPredictions,
   };
 }

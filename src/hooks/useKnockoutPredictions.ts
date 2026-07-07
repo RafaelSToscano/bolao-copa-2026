@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useContext, useState, useCallback, useMemo } from "react";
 import {
   KnockoutMatchRecord,
   KnockoutPrediction,
@@ -6,6 +6,7 @@ import {
 } from "@/types/knockout";
 import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
 import { isKnockoutMatchPredictionLocked } from "@/config/knockout";
+import { AppShellContext } from "@/components/layouts/AppShell";
 
 const EMPTY_DRAFT: DraftKnockoutPrediction = {
   predicted_score_home: "",
@@ -21,48 +22,67 @@ function draftFromPrediction(prediction: KnockoutPrediction): DraftKnockoutPredi
   };
 }
 
+/**
+ * Read the knockout bracket + the caller's knockout predictions out
+ * of the shared AppShell cache (fed by /api/bootstrap, TTL 3h, purged
+ * on admin writes). This hook never touches Supabase for reads — the
+ * only DB access is the upsert triggered by savePrediction.
+ *
+ * Data is derived directly from the cached snapshot each render;
+ * `pendingOverrides` holds the user's optimistic writes until the
+ * bootstrap cache rehydrates. This avoids the react-hooks
+ * set-state-in-effect anti-pattern that a copy-in-state approach
+ * would produce.
+ */
 export function useKnockoutPredictions(playerId: string | undefined) {
-  const [matches, setMatches] = useState<KnockoutMatchRecord[]>([]);
-  const [predictions, setPredictions] = useState<KnockoutPrediction[]>([]);
-  const [drafts, setDrafts] = useState<Record<number, DraftKnockoutPrediction>>({});
-  const [isLoading, setIsLoading] = useState(false);
+  // Read directly from context so this hook can be used in tests
+  // that render components outside AppShell — falls back to empty
+  // data instead of throwing. Under normal app usage the shell is
+  // always mounted so this is equivalent to useAppShell().
+  const shell = useContext(AppShellContext);
+  const matches: KnockoutMatchRecord[] = useMemo(
+    () => shell?.knockoutMatches ?? [],
+    [shell?.knockoutMatches]
+  );
+  const cachedPredictions: KnockoutPrediction[] = useMemo(
+    () => shell?.knockoutPredictions ?? [],
+    [shell?.knockoutPredictions]
+  );
+
+  const cachedForPlayer = useMemo(
+    () =>
+      playerId
+        ? cachedPredictions.filter((p) => p.player_id === playerId)
+        : [],
+    [cachedPredictions, playerId]
+  );
+
+  // Optimistic overrides for the current player: match_id ->
+  // freshly-saved prediction. Merged over `cachedForPlayer` so the
+  // input reflects the user's latest keystroke without waiting on the
+  // shared cache to rehydrate.
+  const [pendingOverrides, setPendingOverrides] = useState<
+    Record<number, KnockoutPrediction>
+  >({});
+  const [pendingDrafts, setPendingDrafts] = useState<
+    Record<number, DraftKnockoutPrediction>
+  >({});
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  const predictions = useMemo(() => {
+    const overrideIds = new Set(
+      Object.keys(pendingOverrides).map((k) => Number(k))
+    );
+    const kept = cachedForPlayer.filter((p) => !overrideIds.has(p.match_id));
+    return [...kept, ...Object.values(pendingOverrides)];
+  }, [cachedForPlayer, pendingOverrides]);
 
-    async function load() {
-      setIsLoading(true);
-      try {
-        const [matchData, predictionData] = await Promise.all([
-          knockoutPredictionsService.getKnockoutMatches(),
-          playerId
-            ? knockoutPredictionsService.getKnockoutPredictionsForPlayer(playerId)
-            : Promise.resolve([]),
-        ]);
-
-        if (cancelled) return;
-
-        setMatches(matchData);
-        setPredictions(predictionData);
-        setDrafts(
-          Object.fromEntries(
-            predictionData.map((p) => [p.match_id, draftFromPrediction(p)])
-          )
-        );
-      } catch (err) {
-        console.error("Failed to load knockout predictions:", err);
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    }
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [playerId]);
+  const drafts = useMemo<Record<number, DraftKnockoutPrediction>>(() => {
+    const base = Object.fromEntries(
+      cachedForPlayer.map((p) => [p.match_id, draftFromPrediction(p)])
+    );
+    return { ...base, ...pendingDrafts };
+  }, [cachedForPlayer, pendingDrafts]);
 
   const isLocked = useCallback(
     (matchId: number) => {
@@ -86,16 +106,18 @@ export function useKnockoutPredictions(playerId: string | undefined) {
         predicted_winner: null,
       };
 
-      setDrafts((prev) => ({ ...prev, [matchId]: draft }));
-      setPredictions((prev) =>
-        prev
-          .filter((p) => !(p.player_id === playerId && p.match_id === matchId))
-          .concat(updatedPrediction)
-      );
+      setPendingDrafts((prev) => ({ ...prev, [matchId]: draft }));
+      setPendingOverrides((prev) => ({ ...prev, [matchId]: updatedPrediction }));
 
       setIsSaving(true);
       try {
         await knockoutPredictionsService.upsertKnockoutPrediction(updatedPrediction);
+        // Signal useData so the shared snapshot rehydrates (bootstrap
+        // returns the new value; the eviction on admin writes covers
+        // the ranking side). Once the cache refreshes, `cachedForPlayer`
+        // supplies the value and the override becomes redundant — we
+        // could clear it here, but leaving it in place is harmless
+        // since the derived predictions merge favors the override.
         window.dispatchEvent(new Event("knockout-predictions-updated"));
       } catch (err) {
         console.error("Failed to save knockout prediction:", err);
@@ -111,6 +133,9 @@ export function useKnockoutPredictions(playerId: string | undefined) {
     (matchId: number) => drafts[matchId] ?? EMPTY_DRAFT,
     [drafts]
   );
+
+  // Data is always ready synchronously from the shared cache.
+  const isLoading = false;
 
   return {
     matches,

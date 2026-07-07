@@ -4,6 +4,12 @@ import { __resetMemoryCacheForTests } from "@/lib/server/memoryCache";
 vi.mock("@/services/supabase/playersService", () => ({
   playersService: {
     getAllPlayers: vi.fn(async () => []),
+    getPublicPlayers: vi.fn(async () => []),
+  },
+}));
+vi.mock("@/services/supabase/finalPredictionsService", () => ({
+  finalPredictionsService: {
+    getAll: vi.fn(async () => []),
   },
 }));
 vi.mock("@/services/supabase/gamesService", () => ({

@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Game } from "@/types/game";
 import {
   finalPredictionsService,
   FinalPrediction,
 } from "@/services/supabase/finalPredictionsService";
+import { AppShellContext } from "@/components/layouts/AppShell";
+import { evictDashboardCache } from "@/lib/evictDashboardCache";
 
 interface Props {
   playerId: string;
@@ -14,18 +16,54 @@ interface Props {
   disabled?: boolean;
 }
 
+type Draft = {
+  champion: string;
+  runnerUp: string;
+  thirdPlace: string;
+};
+
+const EMPTY_DRAFT: Draft = { champion: "", runnerUp: "", thirdPlace: "" };
+
+function draftFrom(row: FinalPrediction | null | undefined): Draft {
+  if (!row) return EMPTY_DRAFT;
+  return {
+    champion: row.champion ?? "",
+    runnerUp: row.runner_up ?? "",
+    thirdPlace: row.third_place ?? "",
+  };
+}
+
 export function FinalPredictionsCard({
   playerId,
   games,
   disabled = false,
 }: Props) {
-  const [champion, setChampion] = useState("");
-  const [runnerUp, setRunnerUp] = useState("");
-  const [thirdPlace, setThirdPlace] = useState("");
+  // Read via context so this card can render outside AppShell (tests).
+  // In production the shell is always mounted.
+  const shell = useContext(AppShellContext);
+  const finalPredictions: FinalPrediction[] = useMemo(
+    () => shell?.finalPredictions ?? [],
+    [shell?.finalPredictions]
+  );
+
+  // Seed inputs from the cached bootstrap snapshot. `userDraft` holds
+  // the user's typed value once they interact; before that we render
+  // straight from cache with no effect-driven state sync (which would
+  // trip the react-hooks/set-state-in-effect rule).
+  const cachedDraft: Draft = useMemo(() => {
+    const mine =
+      finalPredictions.find((p: FinalPrediction) => p.player_id === playerId) ??
+      null;
+    return draftFrom(mine);
+  }, [finalPredictions, playerId]);
+
+  const [userDraft, setUserDraft] = useState<Draft | null>(null);
+  const draft = userDraft ?? cachedDraft;
+  const { champion, runnerUp, thirdPlace } = draft;
+
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  const hasLoadedRef = useRef(false);
   const userChangedRef = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -35,32 +73,6 @@ export function FinalPredictionsCard({
   }, [games]);
 
   useEffect(() => {
-    async function load() {
-      if (!playerId) return;
-
-      hasLoadedRef.current = false;
-      userChangedRef.current = false;
-
-      try {
-        const data = await finalPredictionsService.getByPlayer(playerId);
-
-        if (data) {
-          setChampion(data.champion || "");
-          setRunnerUp(data.runner_up || "");
-          setThirdPlace(data.third_place || "");
-        }
-      } catch {
-        setMessage("Erro ao carregar palpites finais.");
-      } finally {
-        hasLoadedRef.current = true;
-      }
-    }
-
-    load();
-  }, [playerId]);
-
-  useEffect(() => {
-    if (!hasLoadedRef.current) return;
     if (!userChangedRef.current) return;
     if (disabled) return;
     if (!playerId) return;
@@ -94,6 +106,10 @@ export function FinalPredictionsCard({
         };
 
         await finalPredictionsService.upsert(payload);
+        // The cached bootstrap payload just went stale — evict so the
+        // next request rehydrates from Supabase once, and every other
+        // viewer reads the fresh row from cache.
+        evictDashboardCache(playerId);
         setMessage("Palpites finais salvos automaticamente.");
       } catch (err) {
         setMessage(
@@ -113,17 +129,17 @@ export function FinalPredictionsCard({
 
   const handleChampionChange = (value: string) => {
     userChangedRef.current = true;
-    setChampion(value);
+    setUserDraft({ ...draft, champion: value });
   };
 
   const handleRunnerUpChange = (value: string) => {
     userChangedRef.current = true;
-    setRunnerUp(value);
+    setUserDraft({ ...draft, runnerUp: value });
   };
 
   const handleThirdPlaceChange = (value: string) => {
     userChangedRef.current = true;
-    setThirdPlace(value);
+    setUserDraft({ ...draft, thirdPlace: value });
   };
 
   return (

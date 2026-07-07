@@ -1,14 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { renderHook } from "@testing-library/react";
-import {
-  useDashboardData,
-  shouldPollFast,
-  computePollIntervalMs,
-  POLL_LIVE_MS,
-  POLL_BASELINE_MS,
-} from "@/hooks/useDashboardData";
+import { renderHook, act } from "@testing-library/react";
+import { useDashboardData } from "@/hooks/useDashboardData";
+import { LiveSignals } from "@/lib/liveSignals";
+import { Game } from "@/types/game";
+import { LiveScoreMatch } from "@/hooks/useLiveScores";
 
-const baselineSignals = {
+const baselineSignals: LiveSignals = {
   liveGames: [],
   unmatchedLiveScores: [],
   secondsUntilNextKickoff: null,
@@ -27,61 +24,17 @@ const baseResponses = () => ({
   "/api/dashboard/group-leaders": { groups: [] },
 });
 
-describe("polling cadence pure logic", () => {
-  it("baseline when no live signals", () => {
-    expect(computePollIntervalMs(null)).toBe(POLL_BASELINE_MS);
+function stubFetch() {
+  const responses = baseResponses();
+  const fetchMock = vi.fn(async (...args: unknown[]) => {
+    const url = String(args[0] ?? "");
+    const path = url.split("?")[0];
+    const body = responses[path as keyof typeof responses] ?? null;
+    return { ok: true, json: async () => body } as Response;
   });
-
-  it("fast when liveGames > 0", () => {
-    expect(
-      computePollIntervalMs({
-        liveGames: [{} as never],
-              unmatchedLiveScores: [],
-        secondsUntilNextKickoff: 9999,
-      })
-    ).toBe(POLL_LIVE_MS);
-  });
-
-  it("fast when there is an unmatched live upstream row", () => {
-    expect(
-      computePollIntervalMs({
-        liveGames: [],
-              unmatchedLiveScores: [{} as never],
-        secondsUntilNextKickoff: null,
-      })
-    ).toBe(POLL_LIVE_MS);
-  });
-
-  it("baseline when next kickoff is within 60s but nothing is live", () => {
-    expect(
-      computePollIntervalMs({
-        liveGames: [],
-              unmatchedLiveScores: [],
-        secondsUntilNextKickoff: 30,
-      })
-    ).toBe(POLL_BASELINE_MS);
-  });
-
-  it("baseline when next kickoff far away", () => {
-    expect(
-      computePollIntervalMs({
-        liveGames: [],
-              unmatchedLiveScores: [],
-        secondsUntilNextKickoff: 3600,
-      })
-    ).toBe(POLL_BASELINE_MS);
-  });
-
-  it("baseline when secondsUntilNextKickoff is null and no live games", () => {
-    expect(
-      shouldPollFast({
-        liveGames: [],
-              unmatchedLiveScores: [],
-        secondsUntilNextKickoff: null,
-      })
-    ).toBe(false);
-  });
-});
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
 
 describe("useDashboardData", () => {
   afterEach(() => {
@@ -91,135 +44,66 @@ describe("useDashboardData", () => {
   });
 
   it("performs an initial fetch of all five endpoints", async () => {
-    const responses = baseResponses();
-    const fetchMock = vi.fn(async (url: string) => {
-      const path = url.split("?")[0];
-      const body = responses[path as keyof typeof responses] ?? null;
-      return { ok: true, json: async () => body } as Response;
-    });
-    vi.stubGlobal("fetch", fetchMock);
+    const fetchMock = stubFetch();
 
     renderHook(() => useDashboardData("user-1", baselineSignals));
 
     await vi.waitFor(() => {
       const seen = new Set(
-        fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0])
+        fetchMock.mock.calls.map((c) => String(c[0] ?? "").split("?")[0])
       );
       expect(seen.size).toBe(5);
     });
   });
 
   it("never calls /api/dashboard/live", async () => {
-    const responses = baseResponses();
-    const fetchMock = vi.fn(async (url: string) => {
-      const path = url.split("?")[0];
-      const body = responses[path as keyof typeof responses] ?? null;
-      return { ok: true, json: async () => body } as Response;
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
+    const fetchMock = stubFetch();
     renderHook(() => useDashboardData("u1", baselineSignals));
 
-    await vi.waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
-    });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
 
-    const paths = fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0]);
+    const paths = fetchMock.mock.calls.map((c) => String(c[0] ?? "").split("?")[0]);
     expect(paths).not.toContain("/api/dashboard/live");
   });
 
   it("forwards userId on ranking-top so the server can attach the user's row", async () => {
-    const responses = baseResponses();
-    const fetchMock = vi.fn(async (url: string) => {
-      const path = url.split("?")[0];
-      const body = responses[path as keyof typeof responses] ?? null;
-      return { ok: true, json: async () => body } as Response;
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
+    const fetchMock = stubFetch();
     renderHook(() => useDashboardData("user-42", baselineSignals));
 
-    await vi.waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
-    });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
 
     const rankingCalls = fetchMock.mock.calls
-      .map((c) => c[0] as string)
+      .map((c) => String(c[0] ?? ""))
       .filter((url) => url.startsWith("/api/dashboard/ranking-top"));
     expect(rankingCalls.length).toBeGreaterThan(0);
     expect(rankingCalls.every((url) => url.includes("userId=user-42"))).toBe(true);
   });
 
   it("does not call my-status when no userId is provided", async () => {
-    const responses = baseResponses();
-    const fetchMock = vi.fn(async (url: string) => {
-      const path = url.split("?")[0];
-      const body = responses[path as keyof typeof responses] ?? null;
-      return { ok: true, json: async () => body } as Response;
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
+    const fetchMock = stubFetch();
     renderHook(() => useDashboardData(undefined, baselineSignals));
 
-    await vi.waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
-    });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
 
-    const paths = fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0]);
+    const paths = fetchMock.mock.calls.map((c) => String(c[0] ?? "").split("?")[0]);
     expect(paths).not.toContain("/api/dashboard/my-status");
   });
 
-  it("calls fast and slow endpoints on mount in distinct groups", async () => {
-    const responses = baseResponses();
-    const fetchMock = vi.fn(async (url: string) => {
-      const path = url.split("?")[0];
-      const body = responses[path as keyof typeof responses] ?? null;
-      return { ok: true, json: async () => body } as Response;
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    renderHook(() => useDashboardData("u1", baselineSignals));
-
-    await vi.waitFor(() => {
-      const seen = new Set(
-        fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0])
-      );
-      expect(seen.size).toBe(5);
-    });
-
-    const paths = fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0]);
-    // Fast group: ranking-top, my-status
-    expect(paths).toContain("/api/dashboard/ranking-top");
-    expect(paths).toContain("/api/dashboard/my-status");
-    // Slow group: upcoming, recent, group-leaders
-    expect(paths).toContain("/api/dashboard/upcoming");
-    expect(paths).toContain("/api/dashboard/recent");
-    expect(paths).toContain("/api/dashboard/group-leaders");
-  });
-
   it("slow group refetches when the tab regains focus", async () => {
-    const responses = baseResponses();
-    const fetchMock = vi.fn(async (url: string) => {
-      const path = url.split("?")[0];
-      const body = responses[path as keyof typeof responses] ?? null;
-      return { ok: true, json: async () => body } as Response;
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
+    const fetchMock = stubFetch();
     renderHook(() => useDashboardData("u1", baselineSignals));
 
     await vi.waitFor(() => {
       const seen = new Set(
-        fetchMock.mock.calls.map((c) => (c[0] as string).split("?")[0])
+        fetchMock.mock.calls.map((c) => String(c[0] ?? "").split("?")[0])
       );
       expect(seen.size).toBe(5);
     });
 
     const upcomingBefore = fetchMock.mock.calls.filter((c) =>
-      (c[0] as string).startsWith("/api/dashboard/upcoming")
+      String(c[0] ?? "").startsWith("/api/dashboard/upcoming")
     ).length;
 
-    // Simulate tab focus return — visibilitychange to "visible".
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
       get: () => "visible",
@@ -228,9 +112,84 @@ describe("useDashboardData", () => {
 
     await vi.waitFor(() => {
       const upcomingAfter = fetchMock.mock.calls.filter((c) =>
-        (c[0] as string).startsWith("/api/dashboard/upcoming")
+        String(c[0] ?? "").startsWith("/api/dashboard/upcoming")
       ).length;
       expect(upcomingAfter).toBeGreaterThan(upcomingBefore);
     });
   });
+
+  it("fast group refetches when the live-signal fingerprint changes", async () => {
+    const fetchMock = stubFetch();
+
+    const initial: LiveSignals = { ...baselineSignals };
+
+    const { rerender } = renderHook(
+      (signals: LiveSignals) => useDashboardData("u1", signals),
+      { initialProps: initial }
+    );
+
+    await vi.waitFor(() => {
+      expect(
+        fetchMock.mock.calls.filter((c) =>
+          String(c[0] ?? "").startsWith("/api/dashboard/ranking-top")
+        ).length
+      ).toBeGreaterThan(0);
+    });
+
+    const rankingBefore = fetchMock.mock.calls.filter((c) =>
+      String(c[0] ?? "").startsWith("/api/dashboard/ranking-top")
+    ).length;
+
+    const liveGame = { id: "g1" } as Game;
+    const nextSignals: LiveSignals = {
+      liveGames: [liveGame],
+      unmatchedLiveScores: [],
+      secondsUntilNextKickoff: null,
+    };
+
+    await act(async () => {
+      rerender(nextSignals);
+    });
+
+    await vi.waitFor(() => {
+      const rankingAfter = fetchMock.mock.calls.filter((c) =>
+        String(c[0] ?? "").startsWith("/api/dashboard/ranking-top")
+      ).length;
+      expect(rankingAfter).toBeGreaterThan(rankingBefore);
+    });
+  });
+
+  it("does NOT poll on a timer while no live signal is present", async () => {
+    vi.useFakeTimers();
+    const fetchMock = stubFetch();
+
+    renderHook(() => useDashboardData("u1", baselineSignals));
+
+    // Initial burst: 5 endpoints. Advance a full minute — no polling
+    // means no extra ranking-top calls beyond the initial one.
+    await vi.waitFor(() => {
+      expect(
+        fetchMock.mock.calls.filter((c) =>
+          String(c[0] ?? "").startsWith("/api/dashboard/ranking-top")
+        ).length
+      ).toBeGreaterThanOrEqual(1);
+    });
+
+    const rankingAfterInitial = fetchMock.mock.calls.filter((c) =>
+      String(c[0] ?? "").startsWith("/api/dashboard/ranking-top")
+    ).length;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120_000);
+    });
+
+    const rankingAfterMinute = fetchMock.mock.calls.filter((c) =>
+      String(c[0] ?? "").startsWith("/api/dashboard/ranking-top")
+    ).length;
+
+    expect(rankingAfterMinute).toBe(rankingAfterInitial);
+  });
 });
+
+// Type-only import guard — silence unused-import if the file evolves.
+void ({} as LiveScoreMatch);

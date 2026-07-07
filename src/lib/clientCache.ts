@@ -12,7 +12,14 @@
 
 const CACHE_VERSION = 1;
 const CACHE_KEY_PREFIX = "bolao_cache_v" + CACHE_VERSION + ":";
-const FRESH_TTL_MS = 60_000;
+// 3h freshness window mirroring the server-side base-data cache. Every
+// admin write path calls /api/dashboard/cache/evict AND useData.invalidateCache
+// clears this sessionStorage entry locally, so the freshness ceiling is
+// upper-bounded by admin actions in the current tab. Cross-tab evictions
+// still require the browser to reload before the local cache clears,
+// which is the same behavior as before — a longer TTL just means more
+// same-tab navigation reads served from memory instead of round-tripping.
+const FRESH_TTL_MS = 3 * 60 * 60 * 1000;
 
 type CacheEntry<T> = {
   ts: number;

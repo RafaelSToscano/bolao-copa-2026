@@ -5,6 +5,9 @@ import { projectRankingTop } from "@/services/dashboard/dashboardProjections";
 import { getDashboardRankingBaseData } from "@/services/dashboard/dashboardBaseData";
 import { getCachedLiveScores } from "@/lib/server/footballData";
 
+// Short projection TTL is fine — the DB reads live behind the 60-min
+// base-data cache. Only the live-score overlay (also 8s cache, no DB)
+// touches upstream on each miss.
 const PRIVATE_TTL_SECONDS = 8;
 const PUBLIC_TTL_SECONDS = 15;
 const SWR_SECONDS = 60;
