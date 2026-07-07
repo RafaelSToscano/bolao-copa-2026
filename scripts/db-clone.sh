@@ -6,7 +6,8 @@
 # Reads ORIGIN_DB_URL and DESTINATION_DB_URL from scripts/.env.clone
 # (see scripts/.env.clone.example). Both must be Postgres connection
 # strings — Supabase dashboard → Project settings → Database →
-# Connection string → Direct connection (port 5432).
+# Connection string → Session pooler (NOT Direct, NOT Transaction).
+# See docs/db-clone.md for the full setup walkthrough.
 #
 # The dump is written to ./backups/latest/ and overwritten on each run,
 # so old dumps don't pile up. Copy that folder aside if you want to keep it.
