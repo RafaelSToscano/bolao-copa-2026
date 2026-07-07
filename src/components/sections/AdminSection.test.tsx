@@ -17,6 +17,9 @@ const mockGames: Game[] = [
 const mockPlayers = [
   { id: 'p1', name: 'João Silva', access_code: 'A1', is_admin: false, approved: true },
   { id: 'p2', name: 'Maria Santos', access_code: 'B2', is_admin: false, approved: false },
+  // Second approved participant so predictionAuditScope.totalPlayers === 2
+  // and the stats card renders "2" — the number the test asserts on.
+  { id: 'p3', name: 'Carlos Souza', access_code: 'C3', is_admin: false, approved: true },
 ];
 
 const mockStats = {

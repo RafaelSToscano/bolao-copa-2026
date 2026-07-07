@@ -1,26 +1,25 @@
 import { NextResponse } from "next/server";
 import { withCache } from "@/lib/server/memoryCache";
 import { cachePublic } from "@/lib/server/cacheHeaders";
-import { gamesService } from "@/services/supabase/gamesService";
-import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
+import { getDashboardRankingBaseData } from "@/services/dashboard/dashboardBaseData";
 import { projectUpcoming } from "@/services/dashboard/dashboardProjections";
 import { isKnockoutMatchPredictionLocked, isPredictableKnockoutRound } from "@/config/knockout";
 import { Game } from "@/types/game";
 
-const TTL_SECONDS = 120;
-const SWR_SECONDS = 600;
-const MAX_AGE = 60;
+// 3h TTL. Under a projection cache miss we still read exclusively
+// from the shared 3h base-data cache — no direct Supabase query
+// fires from this route unless the base cache itself is missing.
+const TTL_SECONDS = 10800;
+const SWR_SECONDS = 10800;
+const MAX_AGE = 600;
 
 export async function GET() {
   const payload = await withCache(
     "dashboard:upcoming",
     TTL_SECONDS,
     async () => {
-      const [games, knockoutMatches] = await Promise.all([
-        gamesService.getAllGames(),
-        knockoutPredictionsService.getKnockoutMatches(),
-      ]);
-      const knockoutGames: Game[] = knockoutMatches
+      const base = await getDashboardRankingBaseData();
+      const knockoutGames: Game[] = base.knockoutMatches
         .filter(
           (match) =>
             isPredictableKnockoutRound(match.round) &&
@@ -39,7 +38,7 @@ export async function GET() {
           locked: isKnockoutMatchPredictionLocked(match),
         }));
 
-      return projectUpcoming([...games, ...knockoutGames], 5);
+      return projectUpcoming([...base.games, ...knockoutGames], 5);
     }
   );
 

@@ -1,74 +1,63 @@
-import { useState, useCallback, useEffect } from "react";
+import { useContext, useState, useCallback, useMemo } from "react";
 import { Game } from "@/types/game";
 import { KnockoutMatchRecord } from "@/types/knockout";
 import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
+import { evictDashboardCache } from "@/lib/evictDashboardCache";
+import { AppShellContext } from "@/components/layouts/AppShell";
 
-export function useKnockoutAdmin() {
-  const [matches, setMatches] = useState<KnockoutMatchRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+/**
+ * Admin knockout mutations. Reads come from the shared AppShell cache
+ * (bootstrap payload, TTL 3h, evicted on admin writes) — no DB round
+ * trip on mount or on refresh. Writes still hit Supabase (that's the
+ * whole point), then fire the eviction so every viewer's next request
+ * repopulates the 3h cache once from the DB.
+ *
+ * The optimistic `matches` state is merged over the shared cache so
+ * the admin sees their write instantly, without a rehydration
+ * round-trip.
+ */
+export function useKnockoutAdmin(currentUserId?: string) {
+  const shell = useContext(AppShellContext);
+  const cachedMatches: KnockoutMatchRecord[] = useMemo(
+    () => shell?.knockoutMatches ?? [],
+    [shell?.knockoutMatches]
+  );
+
+  const [override, setOverride] = useState<KnockoutMatchRecord[] | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const matches = override ?? cachedMatches;
 
-    try {
-      const data = await knockoutPredictionsService.getKnockoutMatches();
-      setMatches(data);
-    } catch (err) {
-      console.error("Failed to load knockout matches:", err);
-      setError(err instanceof Error ? err.message : "Erro ao carregar mata-mata.");
-    } finally {
-      setIsLoading(false);
-    }
+  // Kept for API compatibility. The bootstrap cache always has the
+  // data ready, so a manual refresh is a no-op that just clears any
+  // optimistic override so the cached snapshot takes over again.
+  const refresh = useCallback(async () => {
+    setOverride(null);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setIsLoading(true);
+  const syncRound32 = useCallback(
+    async (games: Game[]) => {
+      setIsSaving(true);
       setError(null);
 
       try {
-        const data = await knockoutPredictionsService.getKnockoutMatches();
-        if (!cancelled) setMatches(data);
+        const updatedMatches =
+          await knockoutPredictionsService.syncRound32FromGroups(games);
+
+        setOverride(updatedMatches);
+        evictDashboardCache(currentUserId);
+        window.dispatchEvent(new Event("knockout-matches-updated"));
       } catch (err) {
-        console.error("Failed to load knockout matches:", err);
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Erro ao carregar mata-mata.");
-        }
+        const message =
+          err instanceof Error ? err.message : "Erro ao sincronizar 16 avos.";
+        setError(message);
       } finally {
-        if (!cancelled) setIsLoading(false);
+        setIsSaving(false);
       }
-    }
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const syncRound32 = useCallback(async (games: Game[]) => {
-    setIsSaving(true);
-    setError(null);
-
-    try {
-      const updatedMatches =
-        await knockoutPredictionsService.syncRound32FromGroups(games);
-
-      setMatches(updatedMatches);
-      window.dispatchEvent(new Event("knockout-matches-updated"));
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Erro ao sincronizar 16 avos.";
-      setError(message);
-    } finally {
-      setIsSaving(false);
-    }
-  }, []);
+    },
+    [currentUserId]
+  );
 
   const recordResult = useCallback(
     async (
@@ -86,7 +75,19 @@ export function useKnockoutAdmin() {
           scoreAway
         );
 
-        await refresh();
+        setOverride((prev) => {
+          const base = prev ?? cachedMatches;
+          return base.map((m) =>
+            m.id === matchId
+              ? {
+                  ...m,
+                  official_score_home: scoreHome,
+                  official_score_away: scoreAway,
+                }
+              : m
+          );
+        });
+        evictDashboardCache(currentUserId);
         window.dispatchEvent(new Event("knockout-matches-updated"));
       } catch (err) {
         const message =
@@ -96,7 +97,7 @@ export function useKnockoutAdmin() {
         setIsSaving(false);
       }
     },
-    [refresh]
+    [cachedMatches, currentUserId]
   );
 
   const setMatchTeams = useCallback(
@@ -111,7 +112,15 @@ export function useKnockoutAdmin() {
           awayTeam
         );
 
-        await refresh();
+        setOverride((prev) => {
+          const base = prev ?? cachedMatches;
+          return base.map((m) =>
+            m.id === matchId
+              ? { ...m, home_team: homeTeam, away_team: awayTeam }
+              : m
+          );
+        });
+        evictDashboardCache(currentUserId);
         window.dispatchEvent(new Event("knockout-matches-updated"));
       } catch (err) {
         const message =
@@ -121,7 +130,7 @@ export function useKnockoutAdmin() {
         setIsSaving(false);
       }
     },
-    [refresh]
+    [cachedMatches, currentUserId]
   );
 
   const setMatchLocked = useCallback(
@@ -131,7 +140,11 @@ export function useKnockoutAdmin() {
 
       try {
         await knockoutPredictionsService.setMatchLocked(matchId, locked);
-        await refresh();
+        setOverride((prev) => {
+          const base = prev ?? cachedMatches;
+          return base.map((m) => (m.id === matchId ? { ...m, locked } : m));
+        });
+        evictDashboardCache(currentUserId);
         window.dispatchEvent(new Event("knockout-matches-updated"));
       } catch (err) {
         const message =
@@ -141,7 +154,7 @@ export function useKnockoutAdmin() {
         setIsSaving(false);
       }
     },
-    [refresh]
+    [cachedMatches, currentUserId]
   );
 
   const clearAllResults = useCallback(async () => {
@@ -150,7 +163,8 @@ export function useKnockoutAdmin() {
 
     try {
       await knockoutPredictionsService.clearAllOfficialResults();
-      await refresh();
+      setOverride([]);
+      evictDashboardCache(currentUserId);
       window.dispatchEvent(new Event("knockout-matches-updated"));
     } catch (err) {
       const message =
@@ -159,7 +173,10 @@ export function useKnockoutAdmin() {
     } finally {
       setIsSaving(false);
     }
-  }, [refresh]);
+  }, [currentUserId]);
+
+  // Data is always ready synchronously from the shared cache.
+  const isLoading = false;
 
   return {
     matches,

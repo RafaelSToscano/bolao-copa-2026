@@ -9,15 +9,19 @@ import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
 import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 
-// During a live game none of this data changes — predictions are locked,
-// players and schedule are fixed. Only live scores (separate cache, 8s)
-// actually move. 60s here cuts ~87% of Supabase calls during peak load.
-const DASHBOARD_RANKING_BASE_TTL_SECONDS = 60;
+// 3-hour TTL. Nothing in this snapshot changes without an admin
+// action, and every admin write path calls
+// /api/dashboard/cache/evict (evictByPrefix "dashboard:") which drops
+// this key immediately. The projection endpoints, the ranking
+// recompute for live matches, and the /api/bootstrap payload all
+// share this cache — during a normal live match window the DB is
+// touched exactly once, then every subsequent viewer hits memory.
+const DASHBOARD_RANKING_BASE_TTL_SECONDS = 10800;
 
 // Final predictions (podium picks) are locked before the tournament
-// and never change during gameplay. Cache them independently with a
-// longer TTL so they don't pollute the base-data invalidation cycle.
-const FINAL_PREDICTIONS_TTL_SECONDS = 300;
+// and never change during gameplay. Same 3h ceiling; the evict
+// endpoint clears this key too on admin writes.
+const FINAL_PREDICTIONS_TTL_SECONDS = 10800;
 
 export type DashboardRankingBaseData = {
   players: Player[];

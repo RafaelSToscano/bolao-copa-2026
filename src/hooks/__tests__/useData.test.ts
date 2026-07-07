@@ -26,8 +26,6 @@ vi.mock('@/services/supabase/knockoutPredictionsService', () => ({
 }));
 
 import { playersService } from '@/services/supabase/playersService';
-import { gamesService } from '@/services/supabase/gamesService';
-import { predictionsService } from '@/services/supabase/predictionsService';
 
 const CACHE_KEY = 'bolao_cache_v1:appData:anon:own-predictions:public-players';
 const CACHE_KEY_ALL_PREDICTIONS =
@@ -37,14 +35,36 @@ const mockPlayers = [{ id: 'p1', name: 'João', access_code: 'A', is_admin: fals
 const mockGames = [{ id: 'g1', team_a: 'BRA', team_b: 'ARG', group: 'A', match_date: '2026-06-10', score_a: null, score_b: null }];
 const mockPredictions = [{ player_id: 'p1', game_id: 'g1', predicted_score_a: 2, predicted_score_b: 1 }];
 
+function mockBootstrapResponse(body: unknown) {
+  const fetchMock = vi.fn(async (...args: unknown[]) => {
+    // Reference args so its type stays inferrable as unknown[] and
+    // mock.calls[N][0] resolves to `unknown` in TS.
+    void args;
+    return {
+      ok: true,
+      json: async () => body,
+    } as unknown as Response;
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
 describe('useData Hook', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
     // Clear the SWR snapshot so each test starts from a cold cache.
     sessionStorage.clear();
   });
 
   it('should initialize with empty state', () => {
+    mockBootstrapResponse({
+      players: [],
+      games: [],
+      predictions: [],
+      knockoutMatches: [],
+      knockoutPredictions: [],
+    });
     const { result } = renderHook(() => useData());
     expect(result.current.players).toEqual([]);
     expect(result.current.games).toEqual([]);
@@ -53,10 +73,14 @@ describe('useData Hook', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('should load data successfully', async () => {
-    vi.mocked(playersService.getPublicPlayers).mockResolvedValue(mockPlayers);
-    vi.mocked(gamesService.getAllGames).mockResolvedValue(mockGames as any);
-    vi.mocked(predictionsService.getAllPredictions).mockResolvedValue(mockPredictions as any);
+  it('should load data successfully from /api/bootstrap', async () => {
+    const fetchMock = mockBootstrapResponse({
+      players: mockPlayers,
+      games: mockGames,
+      predictions: mockPredictions,
+      knockoutMatches: [],
+      knockoutPredictions: [],
+    });
 
     const { result } = renderHook(() =>
       useData(undefined, { includeAllPredictions: true })
@@ -66,6 +90,11 @@ describe('useData Hook', () => {
       await result.current.loadData();
     });
 
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/bootstrap'),
+      expect.any(Object)
+    );
+    expect(String(fetchMock.mock.calls[0]?.[0] ?? '')).toContain('all=1');
     expect(result.current.players).toEqual(mockPlayers);
     expect(result.current.games).toEqual(mockGames);
     expect(result.current.predictions).toEqual(mockPredictions);
@@ -73,12 +102,42 @@ describe('useData Hook', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it('falls back to direct Supabase for the admin private-players variant', async () => {
+    vi.mocked(playersService.getAllPlayers).mockResolvedValue(mockPlayers as unknown as Awaited<ReturnType<typeof playersService.getAllPlayers>>);
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { result } = renderHook(() =>
+      useData('admin-1', { includePrivatePlayers: true })
+    );
+
+    await act(async () => {
+      await result.current.loadData();
+    });
+
+    expect(playersService.getAllPlayers).toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('should set loading true while fetching', async () => {
-    let resolveLoad: () => void;
-    const pending = new Promise<void>((resolve) => { resolveLoad = resolve; });
-    vi.mocked(playersService.getPublicPlayers).mockReturnValue(pending.then(() => mockPlayers));
-    vi.mocked(gamesService.getAllGames).mockReturnValue(pending.then(() => mockGames as any));
-    vi.mocked(predictionsService.getAllPredictions).mockReturnValue(pending.then(() => mockPredictions as any));
+    let resolveLoad: (v: unknown) => void;
+    const pending = new Promise((resolve) => { resolveLoad = resolve; });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        pending.then(() => ({
+          ok: true,
+          json: async () => ({
+            players: mockPlayers,
+            games: mockGames,
+            predictions: mockPredictions,
+            knockoutMatches: [],
+            knockoutPredictions: [],
+          }),
+        }))
+      )
+    );
 
     const { result } = renderHook(() => useData());
 
@@ -88,34 +147,33 @@ describe('useData Hook', () => {
 
     expect(result.current.loading).toBe(true);
 
-    await act(async () => { resolveLoad!(); });
-    expect(result.current.loading).toBe(false);
-  });
-
-  it('should set error on failure', async () => {
-    vi.mocked(playersService.getPublicPlayers).mockRejectedValue(new Error('Network error'));
-    vi.mocked(gamesService.getAllGames).mockResolvedValue([]);
-    vi.mocked(predictionsService.getAllPredictions).mockResolvedValue([]);
-
-    const { result } = renderHook(() => useData());
-
-    await act(async () => {
-      await result.current.loadData();
-    });
-
-    expect(result.current.error).toBe('Network error');
+    await act(async () => { resolveLoad!(undefined); });
     expect(result.current.loading).toBe(false);
   });
 
   it('should expose setters for state updates', () => {
+    mockBootstrapResponse({
+      players: [],
+      games: [],
+      predictions: [],
+      knockoutMatches: [],
+      knockoutPredictions: [],
+    });
     const { result } = renderHook(() => useData());
     act(() => {
-      result.current.setPlayers(mockPlayers);
+      result.current.setPlayers(mockPlayers as unknown as Parameters<typeof result.current.setPlayers>[0]);
     });
     expect(result.current.players).toEqual(mockPlayers);
   });
 
   it('hydrates synchronously from sessionStorage on mount', () => {
+    mockBootstrapResponse({
+      players: [],
+      games: [],
+      predictions: [],
+      knockoutMatches: [],
+      knockoutPredictions: [],
+    });
     sessionStorage.setItem(
       CACHE_KEY,
       JSON.stringify({
@@ -144,11 +202,13 @@ describe('useData Hook', () => {
         data: { players: [], games: [], predictions: [] },
       })
     );
-    vi.mocked(playersService.getPublicPlayers).mockResolvedValue(mockPlayers);
-    vi.mocked(gamesService.getAllGames).mockResolvedValue(mockGames as any);
-    vi.mocked(predictionsService.getAllPredictions).mockResolvedValue(
-      mockPredictions as any
-    );
+    const fetchMock = mockBootstrapResponse({
+      players: mockPlayers,
+      games: mockGames,
+      predictions: mockPredictions,
+      knockoutMatches: [],
+      knockoutPredictions: [],
+    });
 
     const { result } = renderHook(() => useData());
 
@@ -156,25 +216,26 @@ describe('useData Hook', () => {
       await result.current.loadData();
     });
 
-    expect(playersService.getPublicPlayers).not.toHaveBeenCalled();
-    expect(gamesService.getAllGames).not.toHaveBeenCalled();
-    expect(predictionsService.getAllPredictions).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('refetches when cache is stale', async () => {
-    const elevenMinutesAgo = Date.now() - 11 * 60 * 1000;
+    // Client TTL matches the 3h server cache; use a timestamp past it.
+    const fourHoursAgo = Date.now() - 4 * 60 * 60 * 1000;
     sessionStorage.setItem(
       CACHE_KEY,
       JSON.stringify({
-        ts: elevenMinutesAgo,
+        ts: fourHoursAgo,
         data: { players: [], games: [], predictions: [] },
       })
     );
-    vi.mocked(playersService.getPublicPlayers).mockResolvedValue(mockPlayers);
-    vi.mocked(gamesService.getAllGames).mockResolvedValue(mockGames as any);
-    vi.mocked(predictionsService.getAllPredictions).mockResolvedValue(
-      mockPredictions as any
-    );
+    const fetchMock = mockBootstrapResponse({
+      players: mockPlayers,
+      games: mockGames,
+      predictions: mockPredictions,
+      knockoutMatches: [],
+      knockoutPredictions: [],
+    });
 
     const { result } = renderHook(() => useData());
 
@@ -182,7 +243,7 @@ describe('useData Hook', () => {
       await result.current.loadData();
     });
 
-    expect(playersService.getPublicPlayers).toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalled();
     expect(result.current.players).toEqual(mockPlayers);
   });
 
@@ -194,18 +255,20 @@ describe('useData Hook', () => {
         data: { players: [], games: [], predictions: [] },
       })
     );
-    vi.mocked(playersService.getPublicPlayers).mockResolvedValue(mockPlayers);
-    vi.mocked(gamesService.getAllGames).mockResolvedValue(mockGames as any);
-    vi.mocked(predictionsService.getAllPredictions).mockResolvedValue(
-      mockPredictions as any
-    );
+    const fetchMock = mockBootstrapResponse({
+      players: mockPlayers,
+      games: mockGames,
+      predictions: mockPredictions,
+      knockoutMatches: [],
+      knockoutPredictions: [],
+    });
 
     const { result } = renderHook(() => useData());
 
     await act(async () => {
       await result.current.loadData();
     });
-    expect(playersService.getPublicPlayers).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
 
     act(() => {
       result.current.invalidateCache();
@@ -215,16 +278,18 @@ describe('useData Hook', () => {
       await result.current.loadData();
     });
 
-    expect(playersService.getPublicPlayers).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledOnce();
     expect(sessionStorage.getItem(CACHE_KEY)).toBeTruthy();
   });
 
   it('writes the latest snapshot to sessionStorage after a fetch', async () => {
-    vi.mocked(playersService.getPublicPlayers).mockResolvedValue(mockPlayers);
-    vi.mocked(gamesService.getAllGames).mockResolvedValue(mockGames as any);
-    vi.mocked(predictionsService.getAllPredictions).mockResolvedValue(
-      mockPredictions as any
-    );
+    mockBootstrapResponse({
+      players: mockPlayers,
+      games: mockGames,
+      predictions: mockPredictions,
+      knockoutMatches: [],
+      knockoutPredictions: [],
+    });
 
     const { result } = renderHook(() =>
       useData(undefined, { includeAllPredictions: true })

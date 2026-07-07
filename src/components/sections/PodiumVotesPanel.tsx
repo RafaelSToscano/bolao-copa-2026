@@ -1,17 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useContext, useState } from "react";
 import { Player } from "@/types/player";
-import { FinalPrediction, finalPredictionsService } from "@/services/supabase/finalPredictionsService";
+import { FinalPrediction } from "@/services/supabase/finalPredictionsService";
 import { Flag } from "@/components/ui/Flag";
 import { ChevronDown, ChevronUp, Trophy } from "lucide-react";
-import { readCache, writeCache } from "@/lib/clientCache";
-
-// Podium picks are locked before the tournament and never change
-// during gameplay — 5 min client cache is safe and cuts Supabase hits.
-const FINAL_PREDICTIONS_CLIENT_TTL_MS = 5 * 60 * 1000;
-
-const CACHE_KEY = "finalPredictions:all";
+import { AppShellContext } from "@/components/layouts/AppShell";
 
 type PositionKey = "champion" | "runner_up" | "third_place";
 
@@ -76,22 +70,13 @@ interface PodiumVotesPanelProps {
 
 export function PodiumVotesPanel({ players, currentUserId }: PodiumVotesPanelProps) {
   const [open, setOpen] = useState(false);
-  const [predictions, setPredictions] = useState<FinalPrediction[]>(
-    () => readCache<FinalPrediction[]>(CACHE_KEY)?.data ?? []
-  );
-
-  useEffect(() => {
-    const cached = readCache<FinalPrediction[]>(CACHE_KEY);
-    const now = Date.now();
-    if (cached && now - cached.ts < FINAL_PREDICTIONS_CLIENT_TTL_MS) {
-      setPredictions(cached.data);
-      return;
-    }
-    finalPredictionsService.getAll().then((data) => {
-      setPredictions(data);
-      writeCache(CACHE_KEY, data, now);
-    }).catch(() => {});
-  }, []);
+  // Read the shared cached snapshot from AppShell context (fed by
+  // /api/bootstrap, cached server-side for 3h and purged on admin
+  // writes). Zero direct DB access from this component. useContext
+  // (not the useAppShell hook) is used so the panel can render in
+  // tests without a shell provider.
+  const shell = useContext(AppShellContext);
+  const predictions: FinalPrediction[] = shell?.finalPredictions ?? [];
 
   const approvedIds = new Set(players.filter((p) => p.approved).map((p) => p.id));
   const approvedPredictions = predictions.filter((p) => approvedIds.has(p.player_id));

@@ -11,27 +11,6 @@ import {
 import { LiveSignals } from "@/lib/liveSignals";
 import { fetchJson } from "@/lib/fetchJson";
 
-export const POLL_LIVE_MS = 10_000;
-export const POLL_BASELINE_MS = 60_000;
-
-/**
- * Fast cadence runs ONLY while at least one match is live (or a live
- * upstream row hasn't been matched to a Game). Imminent kickoffs and
- * recently-finished games no longer trigger fast polling — the
- * ranking section only needs to move when scores are actually
- * changing.
- */
-export function shouldPollFast(signals: LiveSignals | null): boolean {
-  if (!signals) return false;
-  if (signals.liveGames.length > 0) return true;
-  if (signals.unmatchedLiveScores.length > 0) return true;
-  return false;
-}
-
-export function computePollIntervalMs(signals: LiveSignals | null): number {
-  return shouldPollFast(signals) ? POLL_LIVE_MS : POLL_BASELINE_MS;
-}
-
 export interface DashboardData {
   rankingTop: DashboardRankingTopPayload | null;
   upcoming: DashboardUpcomingPayload | null;
@@ -53,29 +32,26 @@ const initialState: DashboardData = {
 };
 
 /**
- * Polls the dashboard endpoints in two cadences:
+ * Fetches the dashboard endpoints without polling. With 60-min server
+ * TTLs (invalidated by admin-write eviction) plus a live-scores feed
+ * that updates independently, timer-based polling adds no signal —
+ * it only spins the edge cache.
  *
- * - Fast group (timer-driven, 10s when a live signal says so / 60s
- *   otherwise): `/api/dashboard/{ranking-top,my-status}` — payloads
- *   that move with live scores. The "is anything live / when's the
- *   next kickoff" signal is read from the football-data feed via
- *   `useLiveScores` instead of a dedicated server route.
- *
- * - Slow group (event-driven, no timer): `/api/dashboard/{upcoming,
- *   recent,group-leaders}` — payloads that only change when a kickoff
- *   passes or the admin records an official score. Refetched on
- *   mount and whenever the tab regains focus, so a user returning to
- *   the dashboard after a long break sees fresh data.
- *
- * `refetch()` (e.g. after a mock-goal bump) refreshes BOTH groups so
- * manual refresh is always whole.
+ * Refetch triggers:
+ *  - Fast group (ranking-top, my-status): on mount and whenever a
+ *    live-score signal actually changes (goal scored, a match goes
+ *    live, or a match finishes). `deriveLiveSignals` output is stable
+ *    across ticks with no score change, so a shallow-compare on the
+ *    signal shape suffices.
+ *  - Slow group (upcoming, recent, group-leaders): on mount and on
+ *    tab visibility regain.
+ *  - `refetch()`: refreshes both, e.g. after a mock-goal bump.
  */
 export function useDashboardData(
   currentUserId: string | undefined,
   liveSignals: LiveSignals
 ) {
   const [data, setData] = useState<DashboardData>(initialState);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchFast = useCallback(async () => {
     const userParam = currentUserId
@@ -121,11 +97,11 @@ export function useDashboardData(
     }));
   }, [currentUserId]);
 
-  // Guard against overlapping refetches. A timer tick that fires
-  // while a manual refetch (e.g. mock-goal bump) is in flight would
-  // race the goal-detection effect's snapshot comparison and lose a
-  // goal. Queue exactly one follow-up so a coinciding click isn't
-  // silently dropped.
+  // Guard against overlapping refetches. A live-signal change that
+  // fires while a manual refetch (e.g. mock-goal bump) is in flight
+  // would race the goal-detection effect's snapshot comparison and
+  // lose a goal. Queue exactly one follow-up so a coinciding trigger
+  // isn't silently dropped.
   const fetchInFlightRef = useRef(false);
   const fetchQueuedRef = useRef(false);
 
@@ -146,50 +122,49 @@ export function useDashboardData(
     }
   }, [fetchFast, fetchSlow]);
 
-  // Always read the latest liveSignals inside the timer tick so the
-  // poll cadence reacts to upstream score/kick-off updates without
-  // tearing down and rebuilding the timer effect on every change.
-  const liveSignalsRef = useRef(liveSignals);
-  liveSignalsRef.current = liveSignals;
+  // Fast group refetches when the live signal changes shape:
+  // - liveGames count/ids change (a match went live or finished)
+  // - unmatched score ids change (upstream saw a fixture we don't map)
+  // - any live score value on a mapped game shifted (goal)
+  //
+  // The goal-detection lives in DashboardSection already, so here we
+  // only need to know whether the fingerprint moved.
+  const signalFingerprint = fingerprintLiveSignals(liveSignals);
 
   useEffect(() => {
     let cancelled = false;
 
-    const tick = async () => {
+    const runFast = async () => {
       if (cancelled) return;
       if (typeof document !== "undefined" && document.visibilityState === "hidden") {
         return;
       }
       await fetchFast();
-      if (cancelled) return;
-      const interval = shouldPollFast(liveSignalsRef.current)
-        ? POLL_LIVE_MS
-        : POLL_BASELINE_MS;
-      timerRef.current = setTimeout(tick, interval);
     };
 
-    // Slow group runs once on mount alongside the first fast tick;
-    // after that it only refires when the tab regains focus.
-    const initialKick = async () => {
+    void runFast();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchFast, signalFingerprint]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const runSlow = async () => {
+      if (cancelled) return;
       if (typeof document !== "undefined" && document.visibilityState === "hidden") {
         return;
       }
-      await Promise.all([fetchSlow(), tick()]);
+      await fetchSlow();
     };
-    void initialKick();
+
+    void runSlow();
 
     const onVisibility = () => {
       if (typeof document === "undefined") return;
       if (document.visibilityState === "visible") {
-        if (timerRef.current) {
-          clearTimeout(timerRef.current);
-          timerRef.current = null;
-        }
         void fetchSlow();
-        void tick();
-      } else if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
       }
     };
 
@@ -199,15 +174,30 @@ export function useDashboardData(
 
     return () => {
       cancelled = true;
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
       if (typeof document !== "undefined") {
         document.removeEventListener("visibilitychange", onVisibility);
       }
     };
-  }, [fetchFast, fetchSlow]);
+  }, [fetchSlow]);
 
   return { ...data, refetch: safeRefetch };
+}
+
+function fingerprintLiveSignals(signals: LiveSignals): string {
+  // liveGames only carry the DB-side Game shape (no score), so score
+  // changes on mapped games are captured via unmatchedLiveScores'
+  // sibling set. DashboardSection derives liveSignals from the raw
+  // liveScores list, which includes every live match — including the
+  // ones that DID match a Game. That means score movements on mapped
+  // games surface as changes to `liveGames.length` transitions
+  // (kickoff/finish) but NOT for mid-match goals.
+  //
+  // For mid-match goal refetches we depend on the caller's manual
+  // `refetch()` from the goal-detection effect in DashboardSection.
+  const liveIds = signals.liveGames.map((g) => g.id).sort().join(",");
+  const unmatchedIds = signals.unmatchedLiveScores
+    .map((m) => `${m.id}:${m.homeScore}-${m.awayScore}`)
+    .sort()
+    .join(",");
+  return `${liveIds}|${unmatchedIds}`;
 }
