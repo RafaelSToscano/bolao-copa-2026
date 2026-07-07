@@ -48,6 +48,13 @@ From those tables, the app computes:
 - knockout stage qualified teams
 - overall ranking by points and exact results
 
+## Clonando dados para staging
+
+Para popular um projeto de staging com os dados de produção, use
+`scripts/db-clone.sh`. O passo-a-passo (setup do `.env.clone`, qual
+connection string do painel usar, salvaguardas e erros comuns) está
+em [`db-clone.md`](./db-clone.md).
+
 ## Running migrations
 
 This repository does not include any Supabase migration files, `supabase.toml`, or local database migration scripts.
