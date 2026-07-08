@@ -19,6 +19,12 @@ export interface DashboardData {
   groupLeaders: DashboardGroupLeadersPayload | null;
   lastUpdated: number | null;
   error: string | null;
+  // True until BOTH the fast (ranking-top, my-status) and slow
+  // (upcoming, recent, group-leaders) initial fetches have completed
+  // at least once. Consumers use this to render a page-level loader
+  // instead of empty cards. Live-score-driven refetches do not flip
+  // this back to true.
+  isLoading: boolean;
 }
 
 const initialState: DashboardData = {
@@ -29,6 +35,7 @@ const initialState: DashboardData = {
   groupLeaders: null,
   lastUpdated: null,
   error: null,
+  isLoading: true,
 };
 
 /**
@@ -53,6 +60,19 @@ export function useDashboardData(
 ) {
   const [data, setData] = useState<DashboardData>(initialState);
 
+  // Track which of the two initial fetch groups has completed. Once
+  // both flip to true, `isLoading` becomes false and stays false —
+  // subsequent live-score refetches don't reintroduce a full-page
+  // spinner over stale-but-usable content.
+  const fastLoadedRef = useRef(false);
+  const slowLoadedRef = useRef(false);
+
+  const markLoadedIfBothReady = useCallback(() => {
+    if (fastLoadedRef.current && slowLoadedRef.current) {
+      setData((prev) => (prev.isLoading ? { ...prev, isLoading: false } : prev));
+    }
+  }, []);
+
   const fetchFast = useCallback(async () => {
     const userParam = currentUserId
       ? `?userId=${encodeURIComponent(currentUserId)}`
@@ -76,7 +96,9 @@ export function useDashboardData(
       lastUpdated: Date.now(),
       error: null,
     }));
-  }, [currentUserId]);
+    fastLoadedRef.current = true;
+    markLoadedIfBothReady();
+  }, [currentUserId, markLoadedIfBothReady]);
 
   const fetchSlow = useCallback(async () => {
     const userParam = currentUserId
@@ -95,7 +117,9 @@ export function useDashboardData(
       recent,
       groupLeaders,
     }));
-  }, [currentUserId]);
+    slowLoadedRef.current = true;
+    markLoadedIfBothReady();
+  }, [currentUserId, markLoadedIfBothReady]);
 
   // Guard against overlapping refetches. A live-signal change that
   // fires while a manual refetch (e.g. mock-goal bump) is in flight
