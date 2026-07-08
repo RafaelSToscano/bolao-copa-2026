@@ -10,7 +10,11 @@
 // feel like cruft in localStorage. Cleared automatically on tab
 // close, which matches the "freshness window" we actually want.
 
-const CACHE_VERSION = 1;
+// Bumped to invalidate v1 snapshots keyed as `appData:anon:...` that
+// existing browsers hold from a login-race bug (login triggered a fetch
+// before currentUser?.id resolved, so the anon-scoped empty predictions
+// payload was cached and later reads short-circuited on it).
+const CACHE_VERSION = 2;
 const CACHE_KEY_PREFIX = "bolao_cache_v" + CACHE_VERSION + ":";
 // 3h freshness window mirroring the server-side base-data cache. Every
 // admin write path calls /api/dashboard/cache/evict AND useData.invalidateCache
