@@ -24,8 +24,9 @@ import { selectHero } from "@/lib/heroSelection";
 import { DashboardLiveCard } from "./dashboard/DashboardLiveCard";
 import { NextGameBanner } from "@/components/ui/NextGameBanner";
 import { RankingTopTen } from "./dashboard/RankingTopTen";
-import { UpcomingMatchesCard } from "./dashboard/UpcomingMatchesCard";
-import { RecentResultsCard } from "./dashboard/RecentResultsCard";
+// UpcomingMatchesCard + RecentResultsCard hidden intentionally — they
+// duplicate info already surfaced by the Mata-mata bracket preview.
+// Keep imports off entirely so the components stay tree-shaken.
 import { MyStatusCard } from "./dashboard/MyStatusCard";
 import { GroupLeadersCard } from "./dashboard/GroupLeadersCard";
 import { KnockoutBracketPreview } from "./dashboard/KnockoutNextRoundCard";
@@ -269,33 +270,20 @@ const liveSignals = useMemo(
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div className="space-y-6">
-            <RankingTopTen
-            top={data.rankingTop?.top ?? []}
-            lanterna={data.rankingTop?.lanterna ?? null}
-            relegationZone={data.rankingTop?.relegationZone ?? []}
-            currentUser={data.rankingTop?.currentUser ?? null}
-            currentUserId={currentUserId}
-            provisional={data.rankingTop?.provisional ?? false}
-            onSeeAll={() => onNavigate("/ranking")}
-          />
+        <RankingTopTen
+          top={data.rankingTop?.top ?? []}
+          lanterna={data.rankingTop?.lanterna ?? null}
+          relegationZone={data.rankingTop?.relegationZone ?? []}
+          currentUser={data.rankingTop?.currentUser ?? null}
+          currentUserId={currentUserId}
+          provisional={data.rankingTop?.provisional ?? false}
+          onSeeAll={() => onNavigate("/ranking")}
+        />
 
-          <MyStatusCard
-            myStatus={data.myStatus}
-            onSeeAll={() => onNavigate("/palpites")}
-          />
-        </div>
-
-        <div className="space-y-6">
-          <UpcomingMatchesCard
-            games={data.upcoming?.games ?? []}
-            predictions={myPredictions ?? []}
-            knockoutPredictions={knockoutPredictions}
-            currentUserId={currentUserId}
-          />
-
-          <RecentResultsCard items={data.recent?.items ?? []} />
-        </div>
+        <MyStatusCard
+          myStatus={data.myStatus}
+          onSeeAll={() => onNavigate("/palpites")}
+        />
       </div>
 
      {showBracketPreview ? (
