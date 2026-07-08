@@ -3,6 +3,7 @@ import { Player } from "@/types/player";
 import { Game } from "@/types/game";
 import { Prediction, DraftPrediction } from "@/types/prediction";
 import { predictionsService } from "@/services/supabase/predictionsService";
+import { evictDashboardCache } from "@/lib/evictDashboardCache";
 
 export function usePredictions(
   playerId: string | undefined,
@@ -52,6 +53,7 @@ export function usePredictions(
       // Save to Supabase
       try {
         await predictionsService.upsertPrediction(updatedPrediction);
+        evictDashboardCache(playerId, { scope: "user-predictions" });
       } catch (err) {
         console.error("Failed to save prediction:", err);
       }
@@ -66,6 +68,7 @@ export function usePredictions(
       setIsSaving(true);
       try {
         await predictionsService.upsertPredictions(newPredictions);
+        evictDashboardCache(playerId, { scope: "user-predictions" });
 
         // Update local state
         const updatedPredictions = predictions.filter(
@@ -92,6 +95,7 @@ const clearPlayerPredictions = useCallback(async () => {
 
   try {
     await predictionsService.deletePredictionsForPlayer(playerId);
+    evictDashboardCache(playerId, { scope: "user-predictions" });
 
     setPredictions(
       predictions.filter((p) => p.player_id !== playerId)

@@ -7,6 +7,7 @@ import {
 import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
 import { isKnockoutMatchPredictionLocked } from "@/config/knockout";
 import { AppShellContext } from "@/components/layouts/AppShell";
+import { evictDashboardCache } from "@/lib/evictDashboardCache";
 
 const EMPTY_DRAFT: DraftKnockoutPrediction = {
   predicted_score_home: "",
@@ -112,12 +113,12 @@ export function useKnockoutPredictions(playerId: string | undefined) {
       setIsSaving(true);
       try {
         await knockoutPredictionsService.upsertKnockoutPrediction(updatedPrediction);
-        // Signal useData so the shared snapshot rehydrates (bootstrap
-        // returns the new value; the eviction on admin writes covers
-        // the ranking side). Once the cache refreshes, `cachedForPlayer`
-        // supplies the value and the override becomes redundant — we
-        // could clear it here, but leaving it in place is harmless
-        // since the derived predictions merge favors the override.
+        // Purge the shared server-side base-data / bootstrap caches
+        // (3h TTL) so the next bootstrap fetch returns the new value.
+        // Without this the pendingOverride would carry the fresh pick
+        // in the UI while /bootstrap kept serving the pre-save row.
+        evictDashboardCache(playerId, { scope: "user-predictions" });
+        // Signal useData so the shared snapshot rehydrates now.
         window.dispatchEvent(new Event("knockout-predictions-updated"));
       } catch (err) {
         console.error("Failed to save knockout prediction:", err);

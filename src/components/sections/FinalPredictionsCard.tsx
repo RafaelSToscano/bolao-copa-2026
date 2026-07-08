@@ -108,8 +108,9 @@ export function FinalPredictionsCard({
         await finalPredictionsService.upsert(payload);
         // The cached bootstrap payload just went stale — evict so the
         // next request rehydrates from Supabase once, and every other
-        // viewer reads the fresh row from cache.
-        evictDashboardCache(playerId);
+        // viewer reads the fresh row from cache. Uses the user-scoped
+        // eviction path since regular players (non-admin) trigger this.
+        evictDashboardCache(playerId, { scope: "user-predictions" });
         setMessage("Palpites finais salvos automaticamente.");
       } catch (err) {
         setMessage(

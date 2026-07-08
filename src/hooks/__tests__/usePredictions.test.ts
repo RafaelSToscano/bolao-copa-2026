@@ -11,7 +11,12 @@ vi.mock('@/services/supabase/predictionsService', () => ({
   },
 }));
 
+vi.mock('@/lib/evictDashboardCache', () => ({
+  evictDashboardCache: vi.fn(),
+}));
+
 import { predictionsService } from '@/services/supabase/predictionsService';
+import { evictDashboardCache } from '@/lib/evictDashboardCache';
 
 const mockGames = [
   { id: 'g1', team_a: 'BRA', team_b: 'ARG', group: 'A', match_date: '2026-06-10', score_a: null, score_b: null },
@@ -100,6 +105,38 @@ describe('usePredictions Hook', () => {
     expect(predictionsService.upsertPredictions).toHaveBeenCalledWith(batch);
     expect(setPredictions).toHaveBeenCalled();
     expect(result.current.isSaving).toBe(false);
+  });
+
+  it('requests a server-side cache evict after saving a single prediction', async () => {
+    const setPredictions = vi.fn();
+    const { result } = renderHook(() =>
+      usePredictions('p1', mockGames, initialPredictions, setPredictions)
+    );
+
+    await act(async () => {
+      await result.current.saveSinglePrediction('g1', 'predicted_score_a', '3');
+    });
+
+    expect(evictDashboardCache).toHaveBeenCalledWith('p1', {
+      scope: 'user-predictions',
+    });
+  });
+
+  it('requests a server-side cache evict after saving a batch', async () => {
+    const setPredictions = vi.fn();
+    const { result } = renderHook(() =>
+      usePredictions('p1', mockGames, initialPredictions, setPredictions)
+    );
+
+    await act(async () => {
+      await result.current.saveBatchPredictions([
+        { player_id: 'p1', game_id: 'g2', predicted_score_a: 1, predicted_score_b: 0 },
+      ]);
+    });
+
+    expect(evictDashboardCache).toHaveBeenCalledWith('p1', {
+      scope: 'user-predictions',
+    });
   });
 
   it('should clear player predictions', async () => {
