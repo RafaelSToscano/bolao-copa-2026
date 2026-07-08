@@ -9,6 +9,7 @@ import {
   BRACKET_GEOMETRY,
   BracketColumn,
   BracketRound,
+  BracketSlot,
   buildRoundSlots,
 } from "@/components/sections/KnockoutBracketView";
 import { StickySectionHeader } from "./StickySectionHeader";
@@ -20,6 +21,17 @@ interface KnockoutBracketPreviewProps {
   nextMatches: DisplayKnockoutMatch[];
   currentUserId?: string;
   knockoutPredictions?: KnockoutPrediction[];
+}
+
+// The shared BRACKET_ROUND_SPAN is calibrated for the full 16-row grid
+// used on /mata-mata, so a single-round preview inherits 16 rows of
+// vertical padding it doesn't need. Renormalize to just enough rows to
+// vertically center the next-round column beside the current column.
+function compactSlots(
+  slots: BracketSlot[],
+  slotsPerRow: number
+): BracketSlot[] {
+  return slots.map((slot) => ({ ...slot, rowSpan: slotsPerRow }));
 }
 
 export function KnockoutBracketPreview({
@@ -46,6 +58,19 @@ export function KnockoutBracketPreview({
 
   if (!currentRound && !nextRound) return null;
 
+  const currentSlots = currentRound
+    ? compactSlots(buildRoundSlots(currentRound, currentMatches), 1)
+    : [];
+  const nextSlots = nextRound
+    ? compactSlots(buildRoundSlots(nextRound, nextMatches), 2)
+    : [];
+
+  // Grid rows = the current column's slot count (each takes 1 row) OR
+  // the next column's slot-count × 2 — both always equal since a
+  // knockout bracket halves per round. Falls back to the next column
+  // when only it is present.
+  const bracketRows = currentSlots.length || nextSlots.length * 2;
+
   return (
     <div className="space-y-3">
       <StickySectionHeader>
@@ -69,12 +94,12 @@ export function KnockoutBracketPreview({
           ...BRACKET_GEOMETRY,
           ["--bracket-gap" as string]: "1.5rem",
           ["--bracket-elbow" as string]: "0.75rem",
-          // The Palpite/Resultado header row makes each card taller than
-          // the /mata-mata default, so the grid row height needs to grow
-          // in lockstep — otherwise siblings overlap. Tuned so the
-          // current-round card sits cleanly with the small header on top
-          // and the L-connectors meet the compact next-round card.
+          // Row height is calibrated for the current-round card body
+          // (date + team rows + prediction row). Slot spans are
+          // renormalized above so each row corresponds to exactly one
+          // current-round slot, no wasted vertical space.
           ["--bracket-row" as string]: "8.5rem",
+          ["--bracket-rows" as string]: String(bracketRows),
           // The next-round column is compact (flag-only), so the
           // current-round column can claim more width than the
           // /mata-mata default (14rem). clamp() lets it grow on wider
@@ -91,7 +116,7 @@ export function KnockoutBracketPreview({
             {currentRound && (
               <BracketColumn
                 round={currentRound}
-                slots={buildRoundSlots(currentRound, currentMatches)}
+                slots={currentSlots}
                 isLastRound={!nextRound}
                 predictionsByMatchId={predictionsByMatchId}
                 showPredictions={Boolean(currentUserId)}
@@ -100,7 +125,7 @@ export function KnockoutBracketPreview({
             {nextRound && (
               <BracketColumn
                 round={nextRound}
-                slots={buildRoundSlots(nextRound, nextMatches)}
+                slots={nextSlots}
                 isLastRound
                 compact
                 predictionsByMatchId={predictionsByMatchId}

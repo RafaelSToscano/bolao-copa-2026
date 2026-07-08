@@ -97,34 +97,8 @@ describe("DashboardSection", () => {
     expect(calledPaths).toContain("/api/dashboard/group-leaders");
   });
 
-  it("keeps the upcoming matches list visible while a live card is on screen", async () => {
+  it("does not render the upcoming matches or recent results lists", async () => {
     const responses = baseResponses();
-    // Game scheduled for 'now' so it matches the live score by team-pair
-    // + time proximity inside findLiveScoreForGame.
-    const liveGame = {
-      id: "g-live",
-      phase: "groups",
-      group_name: "A",
-      match_order: 1,
-      match_date: new Date().toISOString(),
-      team_a: "Brasil",
-      team_b: "Argentina",
-      official_score_a: null,
-      official_score_b: null,
-      locked: false,
-    };
-    (responses["/api/live-scores"] as { matches: unknown[] }).matches = [
-      {
-        id: 999,
-        utcDate: liveGame.match_date,
-        status: "IN_PLAY",
-        homeTeam: "Brasil",
-        awayTeam: "Argentina",
-        homeScore: 0,
-        awayScore: 0,
-      },
-    ];
-
     const fetchMock = vi.fn(async (url: string) => {
       const path = url.split("?")[0];
       const body = responses[path as keyof typeof responses] ?? null;
@@ -132,19 +106,15 @@ describe("DashboardSection", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    render(
-      <DashboardSection
-        currentUserId="u1"
-        games={[liveGame]}
-        onNavigate={() => {}}
-      />
-    );
+    render(<DashboardSection currentUserId="u1" onNavigate={() => {}} />);
 
     await vi.waitFor(() => {
-      // Live card is on screen AND the upcoming matches list still
-      // renders alongside it — the live card replaces the next-match
-      // banner, not the right-column list.
-      expect(screen.getByText("Próximos jogos")).toBeInTheDocument();
+      expect(screen.getByText("Top Player")).toBeInTheDocument();
     });
+
+    // Both list sections are intentionally hidden in favor of the
+    // Mata-mata bracket preview which already surfaces this info.
+    expect(screen.queryByText("Próximos jogos")).not.toBeInTheDocument();
+    expect(screen.queryByText("Resultados recentes")).not.toBeInTheDocument();
   });
 });
