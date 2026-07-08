@@ -68,6 +68,34 @@ describe("DashboardSection", () => {
     vi.unstubAllGlobals();
   });
 
+  it("shows a loading spinner until the initial fetches complete", async () => {
+    const responses = baseResponses();
+    // Delay every response so the loading state is observable before
+    // children mount. Awaited by vi.waitFor below.
+    const fetchMock = vi.fn(
+      (url: string) =>
+        new Promise<Response>((resolve) => {
+          const path = url.split("?")[0];
+          const body = responses[path as keyof typeof responses] ?? null;
+          setTimeout(
+            () =>
+              resolve({ ok: true, json: async () => body } as Response),
+            30
+          );
+        })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DashboardSection currentUserId="u1" onNavigate={() => {}} />);
+
+    expect(screen.getByText("Carregando...")).toBeInTheDocument();
+
+    await vi.waitFor(() => {
+      expect(screen.queryByText("Carregando...")).not.toBeInTheDocument();
+      expect(screen.getByText("Top Player")).toBeInTheDocument();
+    });
+  });
+
   it("renders all panels driven by /api/dashboard/* responses", async () => {
     const responses = baseResponses();
     const fetchMock = vi.fn(async (url: string) => {

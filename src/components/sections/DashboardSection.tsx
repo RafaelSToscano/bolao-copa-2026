@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { Prediction } from "@/types/prediction";
 import { Game } from "@/types/game";
@@ -241,6 +242,15 @@ const liveSignals = useMemo(
       modalTimerRef.current = null;
     }, MODAL_DELAY_MS);
   }, [liveSignals, liveScores]);
+
+  if (data.isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-3 text-slate-500">
+        <Loader2 size={28} className="animate-spin" />
+        <span className="text-sm font-semibold">Carregando...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
