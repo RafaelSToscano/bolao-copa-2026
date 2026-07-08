@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withCache } from "@/lib/server/memoryCache";
-import { cachePrivate, cachePublic } from "@/lib/server/cacheHeaders";
 import { getDashboardRankingBaseData } from "@/services/dashboard/dashboardBaseData";
 
 const UUID_OR_MOCK_ID = /^[a-zA-Z0-9-]{1,128}$/;
 
-// 3h TTL. Every admin write path calls /api/dashboard/cache/evict,
-// which evictByPrefix("dashboard:") — that clears this endpoint's
-// projections AND the base-data cache underneath. Between admin
-// writes, none of this data changes: predictions are locked, games
-// and knockout brackets only mutate on admin action.
+// 3h TTL on the SERVER-side memory cache only. Every write path
+// (admin or player) hits /api/dashboard/cache/evict, which drops
+// the matching `dashboard:bootstrap:*` keys.
+//
+// Response Cache-Control is `no-store`: browsers must never keep this
+// payload in the HTTP cache. Otherwise a same-tab refresh after a
+// user save would replay a pre-save response for up to max-age
+// seconds, and no amount of server-side eviction can reach it.
 const TTL_SECONDS = 10800;
-const SWR_SECONDS = 10800;
-const MAX_AGE = 600;
 
 /**
  * Server-cached snapshot of the top-level app data used by useData
@@ -86,8 +86,6 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json(payload, {
-    headers: all || !userId
-      ? cachePublic(TTL_SECONDS, SWR_SECONDS, MAX_AGE)
-      : cachePrivate(TTL_SECONDS),
+    headers: { "Cache-Control": "no-store" },
   });
 }
