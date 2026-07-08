@@ -182,15 +182,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const handleLogin = async (accessCode: string, password: string) => {
     const success = await login(accessCode, password);
-    if (success) {
-      try {
-        const savedUser = localStorage.getItem("bolao_user");
-        if (savedUser) JSON.parse(savedUser);
-      } catch {
-        localStorage.removeItem("bolao_user");
-      }
-      await loadData({ force: true });
+    if (!success) return;
+    try {
+      const savedUser = localStorage.getItem("bolao_user");
+      if (savedUser) JSON.parse(savedUser);
+    } catch {
+      localStorage.removeItem("bolao_user");
     }
+    // Do NOT call loadData() here: `loadData` is the closure captured
+    // when currentUser was still undefined, so its fetch would hit
+    // /api/bootstrap without a userId and receive an empty predictions
+    // payload. The effect on line 173 fires on the next render (once
+    // currentUser?.id resolves) and runs a userId-scoped fetch.
   };
 
   const handleRequestAccess = async (

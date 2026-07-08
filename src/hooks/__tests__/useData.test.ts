@@ -27,9 +27,9 @@ vi.mock('@/services/supabase/knockoutPredictionsService', () => ({
 
 import { playersService } from '@/services/supabase/playersService';
 
-const CACHE_KEY = 'bolao_cache_v1:appData:anon:own-predictions:public-players';
+const CACHE_KEY = 'bolao_cache_v2:appData:anon:own-predictions:public-players';
 const CACHE_KEY_ALL_PREDICTIONS =
-  'bolao_cache_v1:appData:anon:all-predictions:public-players';
+  'bolao_cache_v2:appData:anon:all-predictions:public-players';
 
 const mockPlayers = [{ id: 'p1', name: 'João', access_code: 'A', is_admin: false, approved: true }];
 const mockGames = [{ id: 'g1', team_a: 'BRA', team_b: 'ARG', group: 'A', match_date: '2026-06-10', score_a: null, score_b: null }];
