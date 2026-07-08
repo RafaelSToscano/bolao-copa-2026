@@ -64,6 +64,58 @@ export function CrowdPredictionsSection({
       <PodiumVotesPanel players={players} currentUserId={currentUserId} />
 
       {nextGames.map((game) => {
+        // Hide picks/aggregates while the match's prediction deadline
+        // hasn't passed — otherwise users could copy each other. We
+        // still render the card header so users know which game is
+        // next.
+        if (game.predictionsOpen) {
+          return (
+            <Card
+              key={`${game.type}-${game.id}`}
+              className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <CardContent className="p-5 lg:p-6 space-y-5">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                  <div>
+                    <div className="text-sm text-slate-400 font-bold">
+                      {formatDate(game.matchDate)}
+                    </div>
+
+                    <div className="flex items-center gap-4 mt-2">
+                      <div className="flex items-center gap-2">
+                        <Flag team={game.teamA} />
+                        <span className="font-black text-lg">{game.teamA}</span>
+                      </div>
+
+                      <span className="text-yellow-400 font-black">x</span>
+
+                      <div className="flex items-center gap-2">
+                        <Flag team={game.teamB} />
+                        <span className="font-black text-lg">{game.teamB}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {game.label && (
+                    <div className="text-xs text-slate-400 font-bold uppercase">
+                      {game.label}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-6 text-center">
+                  <div className="text-yellow-400 font-black text-lg">
+                    Palpites ainda em aberto
+                  </div>
+                  <div className="text-slate-300 text-sm mt-2">
+                    Os palpites da galera serão liberados após o fechamento das apostas para esta partida.
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        }
+
         const gamePredictions = approvedPlayers.map((player) => {
           const prediction =
             game.type === "group"
