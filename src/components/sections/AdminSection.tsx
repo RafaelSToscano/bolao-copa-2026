@@ -103,15 +103,18 @@ export function AdminSection({
     [displayKnockoutMatches]
   );
 
-  const adminKnockoutMatches = useMemo(() => {
-    const visibleRounds = new Set(
-      getVisibleAdminKnockoutRounds(displayKnockoutMatches)
-    );
-
-    return sortKnockoutMatchesByDateAndNumber(
-      displayKnockoutMatches.filter((match) => visibleRounds.has(match.round))
-    );
-  }, [displayKnockoutMatches]);
+      const adminKnockoutMatches = useMemo(
+    () =>
+      sortKnockoutMatchesByDateAndNumber(
+        displayKnockoutMatches.filter(
+          (match) =>
+            isPredictableKnockoutRound(match.round) &&
+            Boolean(match.display_home_team) &&
+            Boolean(match.display_away_team)
+        )
+      ),
+    [displayKnockoutMatches]
+  );
 
   const knockoutAuditMatches = useMemo(
     () =>
@@ -980,7 +983,7 @@ export function AdminSection({
 
       <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
         <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide rounded-2xl">
-          RESULTADOS OFICIAIS - {formatKnockoutStageSectionTitle(adminKnockoutStage)}
+        RESULTADOS OFICIAIS - MATA-MATA
         </div>
 
         {adminKnockoutMatches.map(renderKnockoutResultRow)}
