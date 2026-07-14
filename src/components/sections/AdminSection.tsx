@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
 import { Player } from "@/types/player";
@@ -36,6 +36,14 @@ type FinalResultDraft = {
   runner_up: Semifinalist | "";
   third_place: Semifinalist | "";
 };
+
+function getFinalResultSignature(result: {
+  champion: string | null | "";
+  runner_up: string | null | "";
+  third_place: string | null | "";
+}) {
+  return [result.champion ?? "", result.runner_up ?? "", result.third_place ?? ""].join("|");
+}
 
 interface AdminSectionProps {
   games: Game[];
@@ -89,6 +97,9 @@ export function AdminSection({
 }: AdminSectionProps) {
   const [shareMode, setShareMode] = useState<"highlight" | "full" | null>(null);
   const [isSavingFinalResult, setIsSavingFinalResult] = useState(false);
+  const [finalResultStatus, setFinalResultStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [finalResultError, setFinalResultError] = useState<string | null>(null);
+  const finalResultRequestSignatureRef = useRef<string | null>(null);
   const [finalResultDraft, setFinalResultDraft] = useState<FinalResultDraft>({
     champion: "",
     runner_up: "",
@@ -122,22 +133,34 @@ export function AdminSection({
   const adminKnockoutMatches = useMemo(
     () =>
       sortKnockoutMatchesByDateAndNumber(
-        displayKnockoutMatches.filter(
-          (match) =>
-            isPredictableKnockoutRound(match.round) &&
-            Boolean(match.display_home_team) &&
-            Boolean(match.display_away_team)
+        displayKnockoutMatches.filter((match) =>
+          isPredictableKnockoutRound(match.round)
         )
       ),
     [displayKnockoutMatches]
   );
 
+  const semifinalKnockoutMatches = useMemo(
+    () => adminKnockoutMatches.filter((match) => match.round === "sf"),
+    [adminKnockoutMatches]
+  );
+
+  const remainingAdminKnockoutMatches = useMemo(
+    () => adminKnockoutMatches.filter((match) => match.round !== "sf"),
+    [adminKnockoutMatches]
+  );
+
   useEffect(() => {
-    setFinalResultDraft({
+    const persistedDraft: FinalResultDraft = {
       champion: (tournamentResult?.champion as Semifinalist | null) ?? "",
       runner_up: (tournamentResult?.runner_up as Semifinalist | null) ?? "",
       third_place: (tournamentResult?.third_place as Semifinalist | null) ?? "",
-    });
+    };
+
+    setFinalResultDraft(persistedDraft);
+    finalResultRequestSignatureRef.current = getFinalResultSignature(persistedDraft);
+    setFinalResultError(null);
+    setFinalResultStatus("idle");
   }, [tournamentResult]);
 
   const selectedFinalists = [
@@ -158,31 +181,92 @@ export function AdminSection({
     Boolean(finalResultDraft.third_place) &&
     !hasDuplicateFinalists;
 
+  const isFinalResultEmpty =
+    !finalResultDraft.champion &&
+    !finalResultDraft.runner_up &&
+    !finalResultDraft.third_place;
+
+  const hasPersistedFinalResult = Boolean(
+    tournamentResult?.champion ||
+      tournamentResult?.runner_up ||
+      tournamentResult?.third_place
+  );
+
   const hasFinalResultChanges =
     finalResultDraft.champion !== (tournamentResult?.champion ?? "") ||
     finalResultDraft.runner_up !== (tournamentResult?.runner_up ?? "") ||
     finalResultDraft.third_place !== (tournamentResult?.third_place ?? "");
 
-  const handleSaveFinalResult = async () => {
-    if (!isFinalResultComplete) return;
-
-    const confirmed = window.confirm(
-      `Confirmar classificação final?\n\nCampeão: ${finalResultDraft.champion}\nVice: ${finalResultDraft.runner_up}\nTerceiro: ${finalResultDraft.third_place}`
-    );
-
-    if (!confirmed) return;
-
-    try {
-      setIsSavingFinalResult(true);
-      await onUpdateTournamentResult({
-        champion: finalResultDraft.champion,
-        runner_up: finalResultDraft.runner_up,
-        third_place: finalResultDraft.third_place,
-      });
-    } finally {
-      setIsSavingFinalResult(false);
+  useEffect(() => {
+    if (hasDuplicateFinalists) {
+      setFinalResultStatus("error");
+      setFinalResultError("A mesma seleção não pode ocupar mais de uma posição.");
+      return;
     }
-  };
+
+    if (!hasFinalResultChanges) {
+      setFinalResultError(null);
+      setFinalResultStatus(hasPersistedFinalResult ? "saved" : "idle");
+      return;
+    }
+
+    const shouldSaveComplete = isFinalResultComplete;
+    const shouldClearPersisted = isFinalResultEmpty && hasPersistedFinalResult;
+
+    if (!shouldSaveComplete && !shouldClearPersisted) {
+      setFinalResultError(null);
+      setFinalResultStatus("idle");
+      return;
+    }
+
+    const signature = getFinalResultSignature(finalResultDraft);
+
+    if (finalResultRequestSignatureRef.current === signature) {
+      return;
+    }
+
+    const timeout = window.setTimeout(async () => {
+      try {
+        setIsSavingFinalResult(true);
+        setFinalResultStatus("saving");
+        setFinalResultError(null);
+        finalResultRequestSignatureRef.current = signature;
+
+        if (shouldSaveComplete) {
+          await onUpdateTournamentResult({
+            champion: finalResultDraft.champion || null,
+            runner_up: finalResultDraft.runner_up || null,
+            third_place: finalResultDraft.third_place || null,
+          } as TournamentResultInput);
+        } else {
+          await onUpdateTournamentResult({
+            champion: null,
+            runner_up: null,
+            third_place: null,
+          } as TournamentResultInput);
+        }
+
+        setFinalResultStatus("saved");
+      } catch (error) {
+        console.error(error);
+        finalResultRequestSignatureRef.current = null;
+        setFinalResultStatus("error");
+        setFinalResultError("Não foi possível salvar a classificação final.");
+      } finally {
+        setIsSavingFinalResult(false);
+      }
+    }, 700);
+
+    return () => window.clearTimeout(timeout);
+  }, [
+    finalResultDraft,
+    hasDuplicateFinalists,
+    hasFinalResultChanges,
+    hasPersistedFinalResult,
+    isFinalResultComplete,
+    isFinalResultEmpty,
+    onUpdateTournamentResult,
+  ]);
 
   const knockoutAuditMatches = useMemo(
     () =>
@@ -1001,19 +1085,29 @@ export function AdminSection({
         </Card>
       </div>
 
+      {semifinalKnockoutMatches.length > 0 && (
+        <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
+          <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide rounded-2xl">
+            RESULTADOS OFICIAIS - SEMIFINAIS
+          </div>
+
+          {semifinalKnockoutMatches.map(renderKnockoutResultRow)}
+        </div>
+      )}
+
       <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl shadow-2xl">
-        <CardContent className="p-6 space-y-6">
+        <CardContent className="p-5 lg:p-6 space-y-5">
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
             <div>
-              <h3 className="text-3xl lg:text-4xl font-black tracking-tight">
+              <h3 className="text-2xl lg:text-3xl font-black tracking-tight">
                 Classificação final da Copa
               </h3>
-              <p className="text-slate-300 text-base lg:text-lg mt-2 font-semibold">
+              <p className="text-slate-300 text-sm lg:text-base mt-2 font-semibold">
                 Defina as posições oficiais para aplicar os pontos dos palpites finais.
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-2 text-sm lg:text-base font-black">
+            <div className="flex flex-wrap gap-2 text-xs lg:text-sm font-black">
               <span className="rounded-full bg-yellow-400/15 border border-yellow-400/30 px-4 py-2 text-yellow-300">
                 Campeão: 40 pts
               </span>
@@ -1043,10 +1137,10 @@ export function AdminSection({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="font-black text-2xl lg:text-3xl leading-tight">
+                      <div className="font-black text-xl lg:text-2xl leading-tight">
                         {label}
                       </div>
-                      <div className="text-sm lg:text-base font-bold text-slate-400 mt-1">
+                      <div className="text-xs lg:text-sm font-bold text-slate-400 mt-1">
                         {points}
                       </div>
                     </div>
@@ -1060,7 +1154,7 @@ export function AdminSection({
                           [field]: "",
                         }))
                       }
-                      disabled={!selectedTeam}
+                      disabled={!selectedTeam || isSavingFinalResult}
                       className="border-slate-600 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white font-black disabled:opacity-40"
                     >
                       Limpar
@@ -1075,7 +1169,7 @@ export function AdminSection({
                         [field]: event.target.value as Semifinalist | "",
                       }))
                     }
-                    className="h-14 w-full rounded-xl border border-[#2A398D] bg-slate-950 px-4 text-base lg:text-lg font-bold text-white outline-none focus:ring-2 focus:ring-blue-500"
+                    className="h-12 w-full rounded-xl border border-[#2A398D] bg-slate-950 px-4 text-sm lg:text-base font-bold text-white outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">-- Nenhum / limpar seleção --</option>
                     {SEMIFINALISTS.map((team) => {
@@ -1091,12 +1185,12 @@ export function AdminSection({
                   </select>
 
                   {selectedTeam ? (
-                    <div className="flex items-center gap-2 text-base lg:text-lg font-black text-slate-200">
+                    <div className="flex items-center gap-2 text-sm lg:text-base font-black text-slate-200">
                       <Flag team={selectedTeam} />
                       {selectedTeam}
                     </div>
                   ) : (
-                    <div className="text-sm lg:text-base font-bold text-slate-500">
+                    <div className="text-sm font-bold text-slate-500">
                       Nenhuma seleção escolhida.
                     </div>
                   )}
@@ -1106,46 +1200,56 @@ export function AdminSection({
           </div>
 
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 rounded-2xl border border-slate-700 bg-slate-950/70 p-5">
-            <div>
-              <div className="text-sm font-black uppercase tracking-widest text-slate-400">
-                Quarto colocado automático
-              </div>
-              {fourthPlace && isFinalResultComplete ? (
-                <div className="mt-3 flex items-center gap-2 text-lg lg:text-xl font-black text-white">
-                  <Flag team={fourthPlace} />
-                  {fourthPlace}
-                  <span className="text-sm font-bold text-slate-500">sem pontuação</span>
+            <div className="space-y-3">
+              <div>
+                <div className="text-sm font-black uppercase tracking-widest text-slate-400">
+                  Quarto colocado automático
                 </div>
-              ) : (
-                <div className="mt-3 text-base font-bold text-slate-500">
-                  Será definido pela seleção restante quando os três campos forem preenchidos.
+                {fourthPlace && isFinalResultComplete ? (
+                  <div className="mt-3 flex items-center gap-2 text-base lg:text-lg font-black text-white">
+                    <Flag team={fourthPlace} />
+                    {fourthPlace}
+                    <span className="text-sm font-bold text-slate-500">sem pontuação</span>
+                  </div>
+                ) : (
+                  <div className="mt-3 text-sm lg:text-base font-bold text-slate-500">
+                    Será definido pela seleção restante quando os três campos forem preenchidos.
+                  </div>
+                )}
+              </div>
+
+              {hasDuplicateFinalists && (
+                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm font-bold text-red-300">
+                  A mesma seleção não pode ocupar mais de uma posição.
+                </div>
+              )}
+
+              {finalResultError && !hasDuplicateFinalists && (
+                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm font-bold text-red-300">
+                  {finalResultError}
                 </div>
               )}
             </div>
 
-            <Button
-              type="button"
-              onClick={handleSaveFinalResult}
-              disabled={
-                !isFinalResultComplete ||
-                !hasFinalResultChanges ||
-                isSavingFinalResult
-              }
-              className="min-w-[240px] h-12 bg-yellow-500 hover:bg-yellow-400 text-slate-950 text-base lg:text-lg font-black disabled:opacity-40"
-            >
-              {isSavingFinalResult
-                ? "Salvando..."
-                : hasFinalResultChanges
-                  ? "Salvar classificação final"
-                  : "Classificação salva"}
-            </Button>
-          </div>
-
-          {hasDuplicateFinalists && (
-            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-base font-bold text-red-300">
-              A mesma seleção não pode ocupar mais de uma posição.
+            <div className="min-w-[260px] rounded-2xl border border-slate-700 bg-slate-900/70 p-4 text-left lg:text-right">
+              <div className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
+                Salvamento automático
+              </div>
+              <div className="mt-2 text-sm lg:text-base font-bold text-slate-200">
+                {hasDuplicateFinalists
+                  ? "Corrija as seleções repetidas para continuar."
+                  : isSavingFinalResult || finalResultStatus === "saving"
+                    ? "Salvando alterações..."
+                    : isFinalResultComplete && !hasFinalResultChanges
+                      ? "Classificação salva automaticamente."
+                      : isFinalResultEmpty && !hasPersistedFinalResult
+                        ? "Nenhuma classificação final salva."
+                        : isFinalResultEmpty && hasPersistedFinalResult
+                          ? "Apagando classificação salva..."
+                          : "Preencha os 3 campos para salvar automaticamente."}
+              </div>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
 
@@ -1197,13 +1301,15 @@ export function AdminSection({
         </Card>
       )}
 
-      <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
-        <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide rounded-2xl">
-          RESULTADOS OFICIAIS - MATA-MATA
-        </div>
+      {remainingAdminKnockoutMatches.length > 0 && (
+        <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
+          <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide rounded-2xl">
+            RESULTADOS OFICIAIS - MATA-MATA
+          </div>
 
-        {adminKnockoutMatches.map(renderKnockoutResultRow)}
-      </div>
+          {remainingAdminKnockoutMatches.map(renderKnockoutResultRow)}
+        </div>
+      )}
 
       {incompletePredictionsCard}
 
