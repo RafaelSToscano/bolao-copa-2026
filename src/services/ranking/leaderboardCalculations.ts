@@ -4,6 +4,9 @@ import { Prediction, PlayerScore } from "@/types/prediction";
 import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 import { calculatePredictionPoints } from "../predictions/predictionCalculations";
 import { calculateKnockoutPredictionPoints } from "../scoring/knockoutPredictionScoring";
+import { calculateFinalPredictionPoints } from "../scoring/finalPredictionScoring";
+import { FinalPrediction } from "../supabase/finalPredictionsService";
+import { TournamentResult } from "../supabase/tournamentResultService";
 
 function getLastScoredDate(
   games: Game[],
@@ -39,7 +42,9 @@ export function calculateRanking(
   games: Game[],
   predictions: Prediction[],
   knockoutMatches: KnockoutMatchRecord[] = [],
-  knockoutPredictions: KnockoutPrediction[] = []
+  knockoutPredictions: KnockoutPrediction[] = [],
+  finalPredictions: FinalPrediction[] = [],
+  tournamentResult: TournamentResult | null = null
 ): (Player & { total: number; exacts: number; position: number })[] {
   const predMap = new Map<string, Prediction>();
   for (const p of predictions) {
@@ -49,6 +54,11 @@ export function calculateRanking(
   const knockoutPredMap = new Map<string, KnockoutPrediction>();
   for (const p of knockoutPredictions) {
     knockoutPredMap.set(`${p.player_id}-${p.match_id}`, p);
+  }
+
+  const finalPredMap = new Map<string, FinalPrediction>();
+  for (const prediction of finalPredictions) {
+    finalPredMap.set(prediction.player_id, prediction);
   }
 
   const ranking = players
@@ -70,6 +80,11 @@ export function calculateRanking(
         exacts += result.exact;
       }
 
+      total += calculateFinalPredictionPoints(
+        finalPredMap.get(player.id),
+        tournamentResult
+      );
+
       return {
         ...player,
         total,
@@ -81,7 +96,7 @@ export function calculateRanking(
       return b.exacts - a.exacts;
     });
 
-    let currentPosition = 0;
+  let currentPosition = 0;
   let previousTotal: number | null = null;
 
   return ranking.map((player, index) => {
@@ -107,7 +122,9 @@ export function calculatePositionChanges(
   predictions: Prediction[],
   players: Player[],
   knockoutMatches: KnockoutMatchRecord[] = [],
-  knockoutPredictions: KnockoutPrediction[] = []
+  knockoutPredictions: KnockoutPrediction[] = [],
+  finalPredictions: FinalPrediction[] = [],
+  tournamentResult: TournamentResult | null = null
 ): Map<string, number> {
   const lastDate = getLastScoredDate(games, knockoutMatches);
   if (!lastDate) return new Map();
@@ -128,7 +145,9 @@ export function calculatePositionChanges(
     gamesWithoutLastRound,
     predictions,
     knockoutMatchesWithoutLastRound,
-    knockoutPredictions
+    knockoutPredictions,
+    finalPredictions,
+    tournamentResult
   );
   const prevPositions = new Map(prevRanking.map((p) => [p.id, p.position]));
 

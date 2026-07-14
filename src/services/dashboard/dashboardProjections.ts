@@ -3,6 +3,8 @@ import { Player } from "@/types/player";
 import { Prediction } from "@/types/prediction";
 import { LiveScoreMatch } from "@/hooks/useLiveScores";
 import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
+import { FinalPrediction } from "@/services/supabase/finalPredictionsService";
+import { TournamentResult } from "@/services/supabase/tournamentResultService";
 import {
   DashboardGroupLeadersPayload,
   DashboardMyStatusPayload,
@@ -105,7 +107,9 @@ export function projectRankingTop(
   liveScores: LiveScoreMatch[] = [],
   knockoutMatches: KnockoutMatchRecord[] = [],
   knockoutPredictions: KnockoutPrediction[] = [],
-  userId: string | null = null
+  userId: string | null = null,
+  finalPredictions: FinalPrediction[] = [],
+  tournamentResult: TournamentResult | null = null
 ): DashboardRankingTopPayload {
   // Compute the OFFICIAL ranking (source of truth — finished games
   // only) AND the live ranking (with in-progress scores folded in).
@@ -123,14 +127,24 @@ export function projectRankingTop(
     mergedGames,
     predictions,
     mergedKnockoutMatches,
-    knockoutPredictions
+    knockoutPredictions,
+    finalPredictions,
+    tournamentResult
   );
   // The OFFICIAL ranking must use the un-merged arrays so live
   // in-progress scores do NOT leak into it — that's the whole point of
   // shipping a separate officialTotal/officialPosition pair alongside the
   // provisional live ranking.
   const officialRanking = provisional
-    ? calculateRanking(players, games, predictions, knockoutMatches, knockoutPredictions)
+    ? calculateRanking(
+        players,
+        games,
+        predictions,
+        knockoutMatches,
+        knockoutPredictions,
+        finalPredictions,
+        tournamentResult
+      )
     : liveRanking;
 
   const officialPositionByPlayerId = new Map(
@@ -150,7 +164,9 @@ export function projectRankingTop(
     predictions,
     players,
     knockoutMatches,
-    knockoutPredictions
+    knockoutPredictions,
+    finalPredictions,
+    tournamentResult
   );
 
   const decorate = (row: (typeof liveRanking)[number]) => ({
@@ -160,7 +176,7 @@ export function projectRankingTop(
     lastRoundDelta: lastRoundDeltas.get(row.id) ?? 0,
   });
 
-    const top = liveRanking.slice(0, topN).map(decorate);
+  const top = liveRanking.slice(0, topN).map(decorate);
   const relegationZone = liveRanking.slice(-5).map(decorate);
 
   const lanternaRow =
@@ -288,7 +304,9 @@ export function projectMyStatus(
   predictions: Prediction[],
   liveScores: LiveScoreMatch[] = [],
   knockoutMatches: KnockoutMatchRecord[] = [],
-  knockoutPredictions: KnockoutPrediction[] = []
+  knockoutPredictions: KnockoutPrediction[] = [],
+  finalPredictions: FinalPrediction[] = [],
+  tournamentResult: TournamentResult | null = null
 ): DashboardMyStatusPayload {
   const { games: mergedGames, provisional: groupProvisional } =
     applyLiveScoresToGames(games, liveScores);
@@ -301,7 +319,9 @@ export function projectMyStatus(
     mergedGames,
     predictions,
     mergedKnockoutMatches,
-    knockoutPredictions
+    knockoutPredictions,
+    finalPredictions,
+    tournamentResult
   );
   const me = ranking.find((p) => p.id === userId);
 

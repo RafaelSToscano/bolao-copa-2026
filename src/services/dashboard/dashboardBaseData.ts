@@ -3,7 +3,14 @@ import { playersService } from "@/services/supabase/playersService";
 import { gamesService } from "@/services/supabase/gamesService";
 import { predictionsService } from "@/services/supabase/predictionsService";
 import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
-import { finalPredictionsService, FinalPrediction } from "@/services/supabase/finalPredictionsService";
+import {
+  finalPredictionsService,
+  FinalPrediction,
+} from "@/services/supabase/finalPredictionsService";
+import {
+  tournamentResultService,
+  TournamentResult,
+} from "@/services/supabase/tournamentResultService";
 import { Player } from "@/types/player";
 import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
@@ -22,6 +29,7 @@ const DASHBOARD_RANKING_BASE_TTL_SECONDS = 10800;
 // and never change during gameplay. Same 3h ceiling; the evict
 // endpoint clears this key too on admin writes.
 const FINAL_PREDICTIONS_TTL_SECONDS = 10800;
+const TOURNAMENT_RESULT_TTL_SECONDS = 10800;
 
 export type DashboardRankingBaseData = {
   players: Player[];
@@ -30,10 +38,11 @@ export type DashboardRankingBaseData = {
   knockoutMatches: KnockoutMatchRecord[];
   knockoutPredictions: KnockoutPrediction[];
   finalPredictions: FinalPrediction[];
+  tournamentResult: TournamentResult | null;
 };
 
 export async function getDashboardRankingBaseData(): Promise<DashboardRankingBaseData> {
-  const [baseData, finalPredictions] = await Promise.all([
+  const [baseData, finalPredictions, tournamentResult] = await Promise.all([
     withCache(
       "dashboard:ranking-base-data",
       DASHBOARD_RANKING_BASE_TTL_SECONDS,
@@ -52,7 +61,13 @@ export async function getDashboardRankingBaseData(): Promise<DashboardRankingBas
           knockoutPredictionsService.getAllKnockoutPredictions(),
         ]);
 
-        return { players, games, predictions, knockoutMatches, knockoutPredictions };
+        return {
+          players,
+          games,
+          predictions,
+          knockoutMatches,
+          knockoutPredictions,
+        };
       }
     ),
     withCache(
@@ -60,7 +75,24 @@ export async function getDashboardRankingBaseData(): Promise<DashboardRankingBas
       FINAL_PREDICTIONS_TTL_SECONDS,
       () => finalPredictionsService.getAll()
     ),
+    withCache(
+      "dashboard:tournament-result",
+      TOURNAMENT_RESULT_TTL_SECONDS,
+      async () => {
+        try {
+          return await tournamentResultService.get();
+        } catch (error) {
+          // Ranking, próximos jogos and standings must remain available even
+          // if this optional bonus-result read fails. The admin save path does
+          // not use this fallback and will still surface write/read errors.
+          if (process.env.NODE_ENV !== "test") {
+            console.error("Failed to load tournament result:", error);
+          }
+          return null;
+        }
+      }
+    ),
   ]);
 
-  return { ...baseData, finalPredictions };
+  return { ...baseData, finalPredictions, tournamentResult };
 }

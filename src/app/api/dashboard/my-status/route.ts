@@ -35,7 +35,9 @@ export async function GET(req: NextRequest) {
         baseData.predictions,
         liveScores,
         baseData.knockoutMatches,
-        baseData.knockoutPredictions
+        baseData.knockoutPredictions,
+        baseData.finalPredictions,
+        baseData.tournamentResult ?? null
       );
     }
   );

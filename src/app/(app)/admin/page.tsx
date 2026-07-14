@@ -16,8 +16,10 @@ export default function AdminPage() {
     knockoutPredictions,
     players,
     ranking,
+    tournamentResult,
     handleUpdateOfficialResult,
     handleUpdateKnockoutOfficialResult,
+    handleUpdateTournamentResult,
     handleApprovePlayer,
     handleRejectPlayer,
     stats,
@@ -39,8 +41,10 @@ export default function AdminPage() {
       knockoutPredictions={knockoutPredictions}
       players={players}
       ranking={ranking}
+      tournamentResult={tournamentResult}
       onUpdateResult={handleUpdateOfficialResult}
       onUpdateKnockoutResult={handleUpdateKnockoutOfficialResult}
+      onUpdateTournamentResult={handleUpdateTournamentResult}
       onApprovePlayer={handleApprovePlayer}
       onRejectPlayer={handleRejectPlayer}
       stats={{

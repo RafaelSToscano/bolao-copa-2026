@@ -15,21 +15,11 @@ const UUID_OR_MOCK_ID = /^[a-zA-Z0-9-]{1,128}$/;
 const TTL_SECONDS = 10800;
 
 /**
- * Server-cached snapshot of the top-level app data used by useData
- * (players, games, predictions, knockout_matches, knockout_predictions,
- * final_predictions).
+ * Server-cached snapshot of the top-level app data used by useData.
  *
- * Every read this endpoint performs goes through the shared 3h
- * base-data cache, so a cache hit does zero DB work; a cache miss
- * performs the shared Supabase fanout that every other dashboard
- * endpoint reuses. Force-evicted on admin writes via /api/dashboard/
- * cache/evict.
- *
- * `all=1` returns everyone's predictions (needed by /ranking,
- * /simulador, /palpites-da-galera); otherwise only the caller's
- * predictions are returned. The admin `includePrivatePlayers` path
- * still hits Supabase directly from the client since access codes
- * must not be cached at the CDN.
+ * `all=1` returns everyone's predictions; otherwise only the caller's
+ * predictions are returned. The tournament result is included in both
+ * variants so the client never needs a second direct Supabase request.
  */
 export async function GET(req: NextRequest) {
   const rawUserId = req.nextUrl.searchParams.get("userId");
@@ -41,9 +31,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
   }
 
-  // all=1 payload doesn't depend on userId — cache once for every
-  // signed-in viewer instead of per-user. Own-predictions variant
-  // stays keyed per player because it filters to the caller's rows.
   const cacheKey = all
     ? "dashboard:bootstrap:all"
     : `dashboard:bootstrap:own:${userId ?? "anon"}`;
@@ -59,16 +46,17 @@ export async function GET(req: NextRequest) {
         knockoutMatches: base.knockoutMatches,
         knockoutPredictions: base.knockoutPredictions,
         finalPredictions: base.finalPredictions,
+        tournamentResult: base.tournamentResult,
       };
     }
 
-    // Filter the caller's rows from the cached base data instead of
-    // firing a second Supabase query.
     const ownPredictions = userId
-      ? base.predictions.filter((p) => p.player_id === userId)
+      ? base.predictions.filter((prediction) => prediction.player_id === userId)
       : [];
     const ownKnockoutPredictions = userId
-      ? base.knockoutPredictions.filter((p) => p.player_id === userId)
+      ? base.knockoutPredictions.filter(
+          (prediction) => prediction.player_id === userId
+        )
       : [];
 
     return {
@@ -77,11 +65,8 @@ export async function GET(req: NextRequest) {
       predictions: ownPredictions,
       knockoutMatches: base.knockoutMatches,
       knockoutPredictions: ownKnockoutPredictions,
-      // Everyone's podium picks. They're one row per player, locked
-      // pre-tournament — safe to ship in full to every viewer, and
-      // consumers (PodiumVotesPanel, FinalPredictionsCard) already
-      // filter client-side.
       finalPredictions: base.finalPredictions,
+      tournamentResult: base.tournamentResult,
     };
   });
 

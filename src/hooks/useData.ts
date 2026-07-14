@@ -7,7 +7,14 @@ import { playersService } from "@/services/supabase/playersService";
 import { gamesService } from "@/services/supabase/gamesService";
 import { predictionsService } from "@/services/supabase/predictionsService";
 import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
-import { finalPredictionsService, FinalPrediction } from "@/services/supabase/finalPredictionsService";
+import {
+  finalPredictionsService,
+  FinalPrediction,
+} from "@/services/supabase/finalPredictionsService";
+import {
+  tournamentResultService,
+  TournamentResult,
+} from "@/services/supabase/tournamentResultService";
 import { fetchJson } from "@/lib/fetchJson";
 import {
   readCache,
@@ -30,6 +37,7 @@ type CachedAppData = {
   knockoutMatches: KnockoutMatchRecord[];
   knockoutPredictions: KnockoutPrediction[];
   finalPredictions: FinalPrediction[];
+  tournamentResult: TournamentResult | null;
 };
 
 const EMPTY_DATA: CachedAppData = {
@@ -39,6 +47,7 @@ const EMPTY_DATA: CachedAppData = {
   knockoutMatches: [],
   knockoutPredictions: [],
   finalPredictions: [],
+  tournamentResult: null,
 };
 
 // Hydrate from sessionStorage so the dashboard renders with data on
@@ -83,6 +92,9 @@ export function useData(
   const [finalPredictions, setFinalPredictions] = useState<FinalPrediction[]>(
     initialSnapshot?.data.finalPredictions ?? []
   );
+  const [tournamentResult, setTournamentResult] = useState<TournamentResult | null>(
+    initialSnapshot?.data.tournamentResult ?? null
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastLoadedAtRef = useRef<number | null>(initialSnapshot?.ts ?? null);
@@ -91,7 +103,7 @@ export function useData(
     initialSnapshot ? cacheKey : null
   );
 
-    const fetchInFlightRef = useRef<Promise<void> | null>(null);
+  const fetchInFlightRef = useRef<Promise<void> | null>(null);
 
   const fetchAndStore = useCallback(async () => {
     if (fetchInFlightRef.current) {
@@ -114,6 +126,7 @@ export function useData(
           knockoutMatchesData,
           knockoutPredictionsData,
           finalPredictionsData,
+          tournamentResultData,
         ] = await Promise.all([
           playersService.getAllPlayers(),
           gamesService.getAllGames(),
@@ -129,6 +142,7 @@ export function useData(
               ? knockoutPredictionsService.getKnockoutPredictionsForPlayer(playerId)
               : Promise.resolve([]),
           finalPredictionsService.getAll(),
+          tournamentResultService.get(),
         ]);
 
         next = {
@@ -138,16 +152,29 @@ export function useData(
           knockoutMatches: knockoutMatchesData,
           knockoutPredictions: knockoutPredictionsData,
           finalPredictions: finalPredictionsData,
+          tournamentResult: tournamentResultData,
         };
       } else {
         const params = new URLSearchParams();
         if (playerId) params.set("userId", playerId);
         if (includeAllPredictions) params.set("all", "1");
         const qs = params.toString();
-        const payload = await fetchJson<CachedAppData>(
+        const payload = await fetchJson<Partial<CachedAppData>>(
           `/api/bootstrap${qs ? `?${qs}` : ""}`
         );
-        next = payload ?? EMPTY_DATA;
+
+        // Keep backward compatibility with older cached/test payloads that
+        // do not include tournamentResult yet. The bootstrap route now ships
+        // it, so no second browser-side Supabase request is necessary.
+        next = {
+          players: payload?.players ?? [],
+          games: payload?.games ?? [],
+          predictions: payload?.predictions ?? [],
+          knockoutMatches: payload?.knockoutMatches ?? [],
+          knockoutPredictions: payload?.knockoutPredictions ?? [],
+          finalPredictions: payload?.finalPredictions ?? [],
+          tournamentResult: payload?.tournamentResult ?? null,
+        };
       }
 
       const now = Date.now();
@@ -158,6 +185,7 @@ export function useData(
       setKnockoutMatches(next.knockoutMatches);
       setKnockoutPredictions(next.knockoutPredictions);
       setFinalPredictions(next.finalPredictions ?? []);
+      setTournamentResult(next.tournamentResult ?? null);
 
       writeCache<CachedAppData>(cacheKey, next, now);
       lastLoadedAtRef.current = now;
@@ -192,6 +220,7 @@ export function useData(
           setKnockoutMatches(cached.data.knockoutMatches ?? []);
           setKnockoutPredictions(cached.data.knockoutPredictions ?? []);
           setFinalPredictions(cached.data.finalPredictions ?? []);
+          setTournamentResult(cached.data.tournamentResult ?? null);
           lastLoadedAtRef.current = cached.ts;
           wasHydratedRef.current = true;
           loadedCacheKeyRef.current = cacheKey;
@@ -223,23 +252,17 @@ export function useData(
     lastLoadedAtRef.current = null;
     loadedCacheKeyRef.current = null;
   }, [cacheKey]);
-useEffect(() => {
-  const reload = () => {
+  useEffect(() => {
+    const reload = () => {
     loadData({ force: true });
   };
 
-  window.addEventListener(
-    "knockout-predictions-updated",
-    reload
-  );
+    window.addEventListener("knockout-predictions-updated", reload);
 
-  return () => {
-    window.removeEventListener(
-      "knockout-predictions-updated",
-      reload
-    );
-  };
-}, [loadData]);
+    return () => {
+      window.removeEventListener("knockout-predictions-updated", reload);
+    };
+  }, [loadData]);
 
   return {
     players,
@@ -248,6 +271,7 @@ useEffect(() => {
     knockoutMatches,
     knockoutPredictions,
     finalPredictions,
+    tournamentResult,
     loading,
     error,
     loadData,
@@ -258,5 +282,6 @@ useEffect(() => {
     setKnockoutMatches,
     setKnockoutPredictions,
     setFinalPredictions,
+    setTournamentResult,
   };
 }

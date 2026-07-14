@@ -12,6 +12,11 @@ import { Game } from "@/types/game";
 import { Prediction } from "@/types/prediction";
 import { KnockoutMatchRecord, KnockoutPrediction } from "@/types/knockout";
 import { FinalPrediction } from "@/services/supabase/finalPredictionsService";
+import {
+  tournamentResultService,
+  TournamentResult,
+  TournamentResultInput,
+} from "@/services/supabase/tournamentResultService";
 import { useAuth } from "@/hooks/useAuth";
 import { useData } from "@/hooks/useData";
 import { usePredictions } from "@/hooks/usePredictions";
@@ -37,6 +42,7 @@ type AppShellContextValue = {
   knockoutMatches: KnockoutMatchRecord[];
   knockoutPredictions: KnockoutPrediction[];
   finalPredictions: FinalPrediction[];
+  tournamentResult: TournamentResult | null;
   drafts: ReturnType<typeof usePredictions>["drafts"];
   setDrafts: ReturnType<typeof usePredictions>["setDrafts"];
   saveSinglePrediction: ReturnType<typeof usePredictions>["saveSinglePrediction"];
@@ -60,13 +66,16 @@ type AppShellContextValue = {
     value: string
   ) => Promise<void>;
   handleUpdateKnockoutOfficialResult: (
-  matchId: number,
-  scoreHome: number | null,
-  scoreAway: number | null,
-  winnerTeam?: string | null,
-  homeTeam?: string | null,
-  awayTeam?: string | null
-) => Promise<void>;
+    matchId: number,
+    scoreHome: number | null,
+    scoreAway: number | null,
+    winnerTeam?: string | null,
+    homeTeam?: string | null,
+    awayTeam?: string | null
+  ) => Promise<void>;
+  handleUpdateTournamentResult: (
+    result: TournamentResultInput
+  ) => Promise<void>;
   handleApprovePlayer: (playerId: string) => Promise<void>;
   handleRejectPlayer: (playerId: string) => Promise<void>;
   handleApplySingleRandomPrediction: (
@@ -102,6 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     knockoutMatches,
     knockoutPredictions,
     finalPredictions,
+    tournamentResult,
     loading: dataLoading,
     error: dataError,
     loadData,
@@ -110,6 +120,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setPredictions,
     setGames,
     setKnockoutMatches,
+    setTournamentResult,
   } = useData(currentUser?.id, {
     // Always request everyone's predictions once signed-in. The
     // server payload is identical across pages (backed by the 3h
@@ -158,7 +169,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     games,
     predictions,
     knockoutMatches,
-    knockoutPredictions
+    knockoutPredictions,
+    finalPredictions,
+    tournamentResult
   );
 
   const stats = useAppStats(
@@ -171,14 +184,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-  if (!currentUser?.id) return;
+    if (!currentUser?.id) return;
 
   // Load once when the user is known. We deliberately do NOT retrigger
   // on route change — the bootstrap payload is identical for every
   // page inside AppShell, and the 60s client TTL + 3h server TTL make
   // extra fetches wasted work.
-  void loadData();
-}, [currentUser?.id, loadData]);
+    void loadData();
+  }, [currentUser?.id, loadData]);
 
   const handleLogin = async (accessCode: string, password: string) => {
     const success = await login(accessCode, password);
@@ -245,13 +258,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const handleUpdateKnockoutOfficialResult = async (
-  matchId: number,
-  scoreHome: number | null,
-  scoreAway: number | null,
-  winnerTeam?: string | null,
-  homeTeam?: string | null,
-  awayTeam?: string | null
-) => {
+    matchId: number,
+    scoreHome: number | null,
+    scoreAway: number | null,
+    winnerTeam?: string | null,
+    homeTeam?: string | null,
+    awayTeam?: string | null
+  ) => {
     try {
       if (homeTeam && awayTeam) {
         await knockoutPredictionsService.updateKnockoutMatchTeams(
@@ -262,11 +275,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       }
 
       await knockoutPredictionsService.updateKnockoutMatchResult(
-  matchId,
-  scoreHome,
-  scoreAway,
-  winnerTeam ?? null
-);
+        matchId,
+        scoreHome,
+        scoreAway,
+        winnerTeam ?? null
+      );
 
       invalidateCache();
 
@@ -285,6 +298,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ? err.message
           : "Erro ao atualizar resultado do mata-mata."
       );
+    }
+  };
+
+  const handleUpdateTournamentResult = async (
+    result: TournamentResultInput
+  ) => {
+    try {
+      const updatedResult = await tournamentResultService.update(result);
+
+      invalidateCache();
+      setTournamentResult(updatedResult);
+      evictDashboardCache(currentUser?.id);
+
+      setMessage("Classificação final atualizada com sucesso!");
+      setTimeout(() => setMessage(""), 3000);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Erro ao atualizar a classificação final.";
+      setMessage(message);
+      throw err;
     }
   };
 
@@ -376,6 +411,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     knockoutMatches,
     knockoutPredictions,
     finalPredictions,
+    tournamentResult,
     drafts,
     setDrafts,
     saveSinglePrediction,
@@ -395,6 +431,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     logout,
     handleUpdateOfficialResult,
     handleUpdateKnockoutOfficialResult,
+    handleUpdateTournamentResult,
     handleApprovePlayer,
     handleRejectPlayer,
     handleApplySingleRandomPrediction,
