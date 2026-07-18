@@ -152,39 +152,35 @@ export function AdminSection({
     [adminKnockoutMatches]
   );
 
-  const remainingAdminKnockoutMatches = useMemo(() => {
-  const roundPriority: Record<string, number> = {
-    final: 0,
-    third_place: 1,
-    "3rd": 1,
-    f: 0,
-  };
+  const isFinalRound = (round: string) =>
+    round === "final" || round === "f";
 
-  return adminKnockoutMatches
-    .filter((match) => match.round !== "sf")
-    .sort((a, b) => {
-      const priorityA = roundPriority[a.round] ?? 10;
-      const priorityB = roundPriority[b.round] ?? 10;
+  const isThirdPlaceRound = (round: string) =>
+    round === "third_place" || round === "3rd";
 
-      if (priorityA !== priorityB) {
-        return priorityA - priorityB;
-      }
+  const finalKnockoutMatches = useMemo(
+    () => adminKnockoutMatches.filter((match) => isFinalRound(match.round)),
+    [adminKnockoutMatches]
+  );
 
-      const dateA = a.match_date
-        ? new Date(a.match_date).getTime()
-        : Number.MAX_SAFE_INTEGER;
+  const thirdPlaceKnockoutMatches = useMemo(
+    () =>
+      adminKnockoutMatches.filter((match) =>
+        isThirdPlaceRound(match.round)
+      ),
+    [adminKnockoutMatches]
+  );
 
-      const dateB = b.match_date
-        ? new Date(b.match_date).getTime()
-        : Number.MAX_SAFE_INTEGER;
-
-      if (dateA !== dateB) {
-        return dateA - dateB;
-      }
-
-      return (a.match_number ?? a.id) - (b.match_number ?? b.id);
-    });
-}, [adminKnockoutMatches]);
+  const previousAdminKnockoutMatches = useMemo(
+    () =>
+      adminKnockoutMatches.filter(
+        (match) =>
+          match.round !== "sf" &&
+          !isFinalRound(match.round) &&
+          !isThirdPlaceRound(match.round)
+      ),
+    [adminKnockoutMatches]
+  );
 
   useEffect(() => {
     const persistedDraft: FinalResultDraft = {
@@ -1193,23 +1189,88 @@ export function AdminSection({
         </Card>
       </div>
 
-      {semifinalKnockoutMatches.length > 0 && (
-        <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
-          <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide rounded-2xl">
-            RESULTADOS OFICIAIS - SEMIFINAIS
+      <div className="space-y-6 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 lg:p-6 shadow-2xl">
+        <div className="bg-gradient-to-r from-[#2A398D] via-blue-900 to-slate-900 text-white rounded-2xl p-5 lg:p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <div className="text-xs font-black uppercase tracking-[0.3em] text-blue-200">
+                Encerramento do torneio
+              </div>
+              <h3 className="mt-2 text-2xl lg:text-3xl font-black tracking-tight">
+                🏆 Reta Final da Copa
+              </h3>
+              <p className="mt-2 text-sm lg:text-base font-semibold text-slate-200">
+                Lance os resultados decisivos e, em seguida, confirme a classificação final.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/15 bg-slate-950/30 px-4 py-3 text-sm font-bold text-slate-200">
+              Fluxo: 3º lugar → Final → Classificação
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-orange-400/30 bg-orange-400/10 text-xl">
+              🥉
+            </div>
+            <div>
+              <h4 className="text-xl lg:text-2xl font-black text-white">
+                Disputa de 3º lugar
+              </h4>
+              <p className="text-sm font-semibold text-slate-400">
+                Preencha primeiro o resultado que define o terceiro colocado.
+              </p>
+            </div>
           </div>
 
-          {semifinalKnockoutMatches.map(renderKnockoutResultRow)}
+          {thirdPlaceKnockoutMatches.length > 0 ? (
+            thirdPlaceKnockoutMatches.map(renderKnockoutResultRow)
+          ) : (
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">
+              A disputa de 3º lugar ainda não está disponível.
+            </div>
+          )}
         </div>
-      )}
 
-      <Card className="bg-gradient-to-br from-slate-900 to-slate-950 border-slate-800 text-white rounded-3xl shadow-2xl">
-        <CardContent className="p-5 lg:p-6 space-y-5">
+        <div className="h-px bg-slate-800" />
+
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-yellow-400/30 bg-yellow-400/10 text-xl">
+              🏆
+            </div>
+            <div>
+              <h4 className="text-xl lg:text-2xl font-black text-white">
+                Final
+              </h4>
+              <p className="text-sm font-semibold text-slate-400">
+                Lance o placar oficial da decisão do título.
+              </p>
+            </div>
+          </div>
+
+          {finalKnockoutMatches.length > 0 ? (
+            finalKnockoutMatches.map(renderKnockoutResultRow)
+          ) : (
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4 text-sm font-bold text-slate-500">
+              A final ainda não está disponível.
+            </div>
+          )}
+        </div>
+
+        <div className="h-px bg-slate-800" />
+
+        <div className="space-y-5">
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
             <div>
-              <h3 className="text-2xl lg:text-3xl font-black tracking-tight">
-                Classificação final da Copa
-              </h3>
+              <div className="text-xs font-black uppercase tracking-[0.25em] text-yellow-300">
+                Etapa final
+              </div>
+              <h4 className="mt-2 text-2xl lg:text-3xl font-black tracking-tight text-white">
+                🥇 Classificação final da Copa
+              </h4>
               <p className="text-slate-300 text-sm lg:text-base mt-2 font-semibold">
                 Defina as posições oficiais para aplicar os pontos dos palpites finais.
               </p>
@@ -1227,6 +1288,41 @@ export function AdminSection({
               </span>
             </div>
           </div>
+
+          {selectedFinalists.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {(
+                [
+                  ["champion", "🏆", "Campeão"],
+                  ["runner_up", "🥈", "Vice-campeão"],
+                  ["third_place", "🥉", "Terceiro colocado"],
+                ] as const
+              ).map(([field, medal, label]) => {
+                const team = finalResultDraft[field];
+
+                return (
+                  <div
+                    key={`summary-${field}`}
+                    className="rounded-2xl border border-slate-700 bg-slate-950/70 px-4 py-3"
+                  >
+                    <div className="text-xs font-black uppercase tracking-widest text-slate-500">
+                      {medal} {label}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 font-black text-white">
+                      {team ? (
+                        <>
+                          <Flag team={team} />
+                          {team}
+                        </>
+                      ) : (
+                        <span className="text-slate-600">A definir</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {(
@@ -1358,8 +1454,26 @@ export function AdminSection({
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        {semifinalKnockoutMatches.length > 0 && (
+          <details className="group rounded-2xl border border-slate-800 bg-slate-950/50">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-black text-slate-300 hover:text-white">
+              <span>Semifinais concluídas — consultar resultados</span>
+              <span className="text-xs font-black uppercase tracking-widest text-slate-500 group-open:hidden">
+                Exibir
+              </span>
+              <span className="hidden text-xs font-black uppercase tracking-widest text-slate-500 group-open:inline">
+                Ocultar
+              </span>
+            </summary>
+
+            <div className="space-y-3 border-t border-slate-800 p-4">
+              {semifinalKnockoutMatches.map(renderKnockoutResultRow)}
+            </div>
+          </details>
+        )}
+      </div>
 
       {players.filter((player) => !player.is_admin && !player.approved).length >
         0 && (
@@ -1409,14 +1523,22 @@ export function AdminSection({
         </Card>
       )}
 
-      {remainingAdminKnockoutMatches.length > 0 && (
-        <div className="space-y-5 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-[28px] p-5 shadow-2xl">
-          <div className="bg-gradient-to-r from-[#2A398D] to-slate-900 text-white text-center font-black text-base lg:text-lg py-4 tracking-wide rounded-2xl">
-            RESULTADOS OFICIAIS - MATA-MATA
-          </div>
+      {previousAdminKnockoutMatches.length > 0 && (
+        <details className="group rounded-[28px] border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 shadow-2xl">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 font-black text-slate-300 hover:text-white">
+            <span>Resultados anteriores do mata-mata</span>
+            <span className="text-xs font-black uppercase tracking-widest text-slate-500 group-open:hidden">
+              Exibir
+            </span>
+            <span className="hidden text-xs font-black uppercase tracking-widest text-slate-500 group-open:inline">
+              Ocultar
+            </span>
+          </summary>
 
-          {remainingAdminKnockoutMatches.map(renderKnockoutResultRow)}
-        </div>
+          <div className="space-y-3 border-t border-slate-800 p-5">
+            {previousAdminKnockoutMatches.map(renderKnockoutResultRow)}
+          </div>
+        </details>
       )}
 
       {incompletePredictionsCard}
