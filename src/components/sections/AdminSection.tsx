@@ -152,10 +152,39 @@ export function AdminSection({
     [adminKnockoutMatches]
   );
 
-  const remainingAdminKnockoutMatches = useMemo(
-    () => adminKnockoutMatches.filter((match) => match.round !== "sf"),
-    [adminKnockoutMatches]
-  );
+  const remainingAdminKnockoutMatches = useMemo(() => {
+  const roundPriority: Record<string, number> = {
+    final: 0,
+    third_place: 1,
+    "3rd": 1,
+    f: 0,
+  };
+
+  return adminKnockoutMatches
+    .filter((match) => match.round !== "sf")
+    .sort((a, b) => {
+      const priorityA = roundPriority[a.round] ?? 10;
+      const priorityB = roundPriority[b.round] ?? 10;
+
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB;
+      }
+
+      const dateA = a.match_date
+        ? new Date(a.match_date).getTime()
+        : Number.MAX_SAFE_INTEGER;
+
+      const dateB = b.match_date
+        ? new Date(b.match_date).getTime()
+        : Number.MAX_SAFE_INTEGER;
+
+      if (dateA !== dateB) {
+        return dateA - dateB;
+      }
+
+      return (a.match_number ?? a.id) - (b.match_number ?? b.id);
+    });
+}, [adminKnockoutMatches]);
 
   useEffect(() => {
     const persistedDraft: FinalResultDraft = {
