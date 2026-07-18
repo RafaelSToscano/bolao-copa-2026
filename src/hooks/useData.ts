@@ -16,6 +16,7 @@ import {
   TournamentResult,
 } from "@/services/supabase/tournamentResultService";
 import { fetchJson } from "@/lib/fetchJson";
+import { appSettingsService, AppSettings } from "@/services/supabase/appSettingsService";
 import {
   readCache,
   writeCache,
@@ -38,6 +39,7 @@ type CachedAppData = {
   knockoutPredictions: KnockoutPrediction[];
   finalPredictions: FinalPrediction[];
   tournamentResult: TournamentResult | null;
+  appSettings: AppSettings | null;
 };
 
 const EMPTY_DATA: CachedAppData = {
@@ -48,6 +50,7 @@ const EMPTY_DATA: CachedAppData = {
   knockoutPredictions: [],
   finalPredictions: [],
   tournamentResult: null,
+  appSettings: null,
 };
 
 // Hydrate from sessionStorage so the dashboard renders with data on
@@ -95,6 +98,9 @@ export function useData(
   const [tournamentResult, setTournamentResult] = useState<TournamentResult | null>(
     initialSnapshot?.data.tournamentResult ?? null
   );
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(
+    initialSnapshot?.data.appSettings ?? null
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastLoadedAtRef = useRef<number | null>(initialSnapshot?.ts ?? null);
@@ -127,6 +133,7 @@ export function useData(
           knockoutPredictionsData,
           finalPredictionsData,
           tournamentResultData,
+          appSettingsData,
         ] = await Promise.all([
           playersService.getAllPlayers(),
           gamesService.getAllGames(),
@@ -143,6 +150,7 @@ export function useData(
               : Promise.resolve([]),
           finalPredictionsService.getAll(),
           tournamentResultService.get(),
+          appSettingsService.get(),
         ]);
 
         next = {
@@ -153,15 +161,19 @@ export function useData(
           knockoutPredictions: knockoutPredictionsData,
           finalPredictions: finalPredictionsData,
           tournamentResult: tournamentResultData,
+          appSettings: appSettingsData,
         };
       } else {
         const params = new URLSearchParams();
         if (playerId) params.set("userId", playerId);
         if (includeAllPredictions) params.set("all", "1");
         const qs = params.toString();
-        const payload = await fetchJson<Partial<CachedAppData>>(
-          `/api/bootstrap${qs ? `?${qs}` : ""}`
-        );
+        const [payload, appSettingsData] = await Promise.all([
+          fetchJson<Partial<CachedAppData>>(
+            `/api/bootstrap${qs ? `?${qs}` : ""}`
+          ),
+          appSettingsService.get(),
+        ]);
 
         // Keep backward compatibility with older cached/test payloads that
         // do not include tournamentResult yet. The bootstrap route now ships
@@ -174,6 +186,7 @@ export function useData(
           knockoutPredictions: payload?.knockoutPredictions ?? [],
           finalPredictions: payload?.finalPredictions ?? [],
           tournamentResult: payload?.tournamentResult ?? null,
+          appSettings: appSettingsData,
         };
       }
 
@@ -186,6 +199,7 @@ export function useData(
       setKnockoutPredictions(next.knockoutPredictions);
       setFinalPredictions(next.finalPredictions ?? []);
       setTournamentResult(next.tournamentResult ?? null);
+      setAppSettings(next.appSettings ?? null);
 
       writeCache<CachedAppData>(cacheKey, next, now);
       lastLoadedAtRef.current = now;
@@ -221,6 +235,7 @@ export function useData(
           setKnockoutPredictions(cached.data.knockoutPredictions ?? []);
           setFinalPredictions(cached.data.finalPredictions ?? []);
           setTournamentResult(cached.data.tournamentResult ?? null);
+          setAppSettings(cached.data.appSettings ?? null);
           lastLoadedAtRef.current = cached.ts;
           wasHydratedRef.current = true;
           loadedCacheKeyRef.current = cacheKey;
@@ -272,6 +287,7 @@ export function useData(
     knockoutPredictions,
     finalPredictions,
     tournamentResult,
+    appSettings,
     loading,
     error,
     loadData,
@@ -283,5 +299,6 @@ export function useData(
     setKnockoutPredictions,
     setFinalPredictions,
     setTournamentResult,
+    setAppSettings,
   };
 }

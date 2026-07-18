@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { DeadlineBanner, LockedBanner } from "@/components/ui/DeadlineBanner";
+import { SuspenseModeScreen } from "@/components/ui/SuspenseModeScreen";
 
 interface MenuItem {
   href: string;
@@ -32,6 +33,8 @@ interface AppLayoutProps {
   onLogout: () => void;
   children: React.ReactNode;
   userCompletion: number;
+  suspenseMode?: boolean;
+  suspenseMessage?: string | null;
 }
 
 export function AppLayout({
@@ -39,10 +42,27 @@ export function AppLayout({
   onLogout,
   children,
   userCompletion,
+  suspenseMode = false,
+  suspenseMessage = null,
 }: AppLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const blockedRoutes = new Set([
+    "/",
+    "/ranking",
+    "/historico",
+    "/simulador",
+    "/classificacao",
+  ]);
+  const suspenseActive =
+    suspenseMode && !currentUser.is_admin && blockedRoutes.has(pathname);
+  const pageContent = suspenseActive ? (
+    <SuspenseModeScreen message={suspenseMessage} />
+  ) : (
+    children
+  );
+
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -186,7 +206,10 @@ export function AppLayout({
                     }`}
                   >
                     <Icon size={18} />
-                    {item.label}
+                    <span className="flex-1">{item.label}</span>
+                    {suspenseMode && !currentUser.is_admin && blockedRoutes.has(item.href) && (
+                      <Lock size={14} className="opacity-70" />
+                    )}
                   </Link>
                 );
               })}
@@ -273,7 +296,10 @@ export function AppLayout({
                     }`}
                   >
                     <Icon size={18} />
-                    {item.label}
+                    <span className="flex-1">{item.label}</span>
+                    {suspenseMode && !currentUser.is_admin && blockedRoutes.has(item.href) && (
+                      <Lock size={14} className="opacity-70" />
+                    )}
                   </Link>
                 );
               })}
@@ -291,12 +317,12 @@ export function AppLayout({
         </aside>
 
         <main className="lg:hidden max-w-7xl mx-auto p-4 md:p-6 space-y-6">
-          {children}
+          {pageContent}
         </main>
 
         <main className="hidden lg:block ml-72 w-[calc(100%-18rem)] min-h-screen">
           <div className="pt-14 p-8 space-y-6 max-w-[1600px] mx-auto">
-            {children}
+            {pageContent}
           </div>
         </main>
       </div>

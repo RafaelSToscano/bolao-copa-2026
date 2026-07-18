@@ -24,7 +24,7 @@ import {
   isKnockoutMatchPredictionLocked,
   isPredictableKnockoutRound,
 } from "@/config/knockout";
-import { Share2, List } from "lucide-react";
+import { Share2, List, Eye, EyeOff } from "lucide-react";
 import type { TournamentResult, TournamentResultInput } from "@/services/supabase/tournamentResultService";
 
 const SEMIFINALISTS = ["França", "Espanha", "Inglaterra", "Argentina"] as const;
@@ -53,6 +53,8 @@ interface AdminSectionProps {
   players: Player[];
   ranking: (Player & { total: number; exacts: number; position: number })[];
   tournamentResult?: TournamentResult | null;
+  suspenseMode?: boolean;
+  suspenseMessage?: string | null;
   onUpdateResult: (
     gameId: string,
     field: "official_score_a" | "official_score_b",
@@ -69,6 +71,7 @@ interface AdminSectionProps {
   onUpdateTournamentResult?: (
     result: TournamentResultInput
   ) => Promise<void>;
+  onUpdateSuspenseMode?: (enabled: boolean) => Promise<void>;
   onApprovePlayer: (playerId: string) => void;
   onRejectPlayer: (playerId: string) => void;
   stats: {
@@ -89,13 +92,17 @@ export function AdminSection({
   players,
   ranking,
   tournamentResult = null,
+  suspenseMode = false,
+  suspenseMessage = null,
   onUpdateResult,
   onUpdateKnockoutResult,
   onUpdateTournamentResult = async () => {},
+  onUpdateSuspenseMode = async () => {},
   onApprovePlayer,
   onRejectPlayer,
 }: AdminSectionProps) {
   const [shareMode, setShareMode] = useState<"highlight" | "full" | null>(null);
+  const [isUpdatingSuspense, setIsUpdatingSuspense] = useState(false);
   const [isSavingFinalResult, setIsSavingFinalResult] = useState(false);
   const [finalResultStatus, setFinalResultStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [finalResultError, setFinalResultError] = useState<string | null>(null);
@@ -982,6 +989,24 @@ export function AdminSection({
     </Card>
   );
 
+  const handleSuspenseToggle = async () => {
+    const nextEnabled = !suspenseMode;
+    const confirmed = window.confirm(
+      nextEnabled
+        ? "Ativar o Modo Suspense? Ranking, histórico, simulador e classificação serão ocultados para os participantes."
+        : "Revelar o resultado? As áreas bloqueadas voltarão a ficar visíveis imediatamente para todos."
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setIsUpdatingSuspense(true);
+      await onUpdateSuspenseMode(nextEnabled);
+    } finally {
+      setIsUpdatingSuspense(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="bg-gradient-to-r from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 shadow-2xl flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -1027,6 +1052,60 @@ export function AdminSection({
           </Button>
         </div>
       </div>
+
+      <Card className={`rounded-3xl border text-white shadow-2xl ${
+        suspenseMode
+          ? "border-red-400/30 bg-gradient-to-br from-red-950/70 to-slate-950"
+          : "border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950"
+      }`}>
+        <CardContent className="p-5 lg:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${
+                suspenseMode
+                  ? "border-red-400/30 bg-red-400/10 text-red-300"
+                  : "border-yellow-400/30 bg-yellow-400/10 text-yellow-300"
+              }`}>
+                {suspenseMode ? <EyeOff size={24} /> : <Eye size={24} />}
+              </div>
+
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-2xl font-black">Modo Suspense</h3>
+                  <span className={`rounded-full px-3 py-1 text-xs font-black uppercase tracking-wider ${
+                    suspenseMode
+                      ? "bg-red-400/15 text-red-300"
+                      : "bg-emerald-400/15 text-emerald-300"
+                  }`}>
+                    {suspenseMode ? "Ativado" : "Desativado"}
+                  </span>
+                </div>
+                <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-slate-300">
+                  {suspenseMode
+                    ? suspenseMessage || "Ranking, histórico, simulador e classificação estão ocultos para os participantes. Palpites e Palpites da Galera seguem disponíveis."
+                    : "Ao ativar, as áreas que revelam a classificação ficam ocultas para os participantes. Administradores continuam vendo tudo normalmente."}
+                </p>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleSuspenseToggle}
+              disabled={isUpdatingSuspense}
+              className={`h-12 min-w-[230px] rounded-2xl font-black ${
+                suspenseMode
+                  ? "bg-yellow-400 text-slate-950 hover:bg-yellow-300"
+                  : "bg-red-600 text-white hover:bg-red-500"
+              }`}
+            >
+              {isUpdatingSuspense
+                ? "Atualizando..."
+                : suspenseMode
+                  ? "Desativar e revelar resultado"
+                  : "Ativar Modo Suspense"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {shareMode !== null && (
         <RankingShareModal

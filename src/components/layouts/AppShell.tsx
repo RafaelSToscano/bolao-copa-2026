@@ -33,6 +33,7 @@ import { playersService } from "@/services/supabase/playersService";
 import { knockoutPredictionsService } from "@/services/supabase/knockoutPredictionsService";
 import { evictDashboardCache } from "@/lib/evictDashboardCache";
 import type { RandomPrediction } from "@/components/ui/random-predictor";
+import { appSettingsService, AppSettings } from "@/services/supabase/appSettingsService";
 
 type AppShellContextValue = {
   currentUser: Player;
@@ -43,6 +44,8 @@ type AppShellContextValue = {
   knockoutPredictions: KnockoutPrediction[];
   finalPredictions: FinalPrediction[];
   tournamentResult: TournamentResult | null;
+  appSettings: AppSettings | null;
+  suspenseMode: boolean;
   drafts: ReturnType<typeof usePredictions>["drafts"];
   setDrafts: ReturnType<typeof usePredictions>["setDrafts"];
   saveSinglePrediction: ReturnType<typeof usePredictions>["saveSinglePrediction"];
@@ -76,6 +79,7 @@ type AppShellContextValue = {
   handleUpdateTournamentResult: (
     result: TournamentResultInput
   ) => Promise<void>;
+  handleUpdateSuspenseMode: (enabled: boolean) => Promise<void>;
   handleApprovePlayer: (playerId: string) => Promise<void>;
   handleRejectPlayer: (playerId: string) => Promise<void>;
   handleApplySingleRandomPrediction: (
@@ -112,6 +116,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     knockoutPredictions,
     finalPredictions,
     tournamentResult,
+    appSettings,
     loading: dataLoading,
     error: dataError,
     loadData,
@@ -121,6 +126,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setGames,
     setKnockoutMatches,
     setTournamentResult,
+    setAppSettings,
   } = useData(currentUser?.id, {
     // Always request everyone's predictions once signed-in. The
     // server payload is identical across pages (backed by the 3h
@@ -323,6 +329,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const handleUpdateSuspenseMode = async (enabled: boolean) => {
+    try {
+      const updatedSettings = await appSettingsService.updateSuspenseMode(enabled);
+      setAppSettings(updatedSettings);
+      invalidateCache();
+      setMessage(
+        enabled
+          ? "Modo Suspense ativado para os participantes."
+          : "Modo Suspense desativado. O resultado foi revelado."
+      );
+      setTimeout(() => setMessage(""), 3500);
+    } catch (err) {
+      const nextMessage =
+        err instanceof Error
+          ? err.message
+          : "Erro ao atualizar o Modo Suspense.";
+      setMessage(nextMessage);
+      throw err;
+    }
+  };
+
   const handleApplySingleRandomPrediction = async (
     randomPrediction: RandomPrediction
   ) => {
@@ -412,6 +439,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     knockoutPredictions,
     finalPredictions,
     tournamentResult,
+    appSettings,
+    suspenseMode: appSettings?.suspense_mode === true,
     drafts,
     setDrafts,
     saveSinglePrediction,
@@ -432,6 +461,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     handleUpdateOfficialResult,
     handleUpdateKnockoutOfficialResult,
     handleUpdateTournamentResult,
+    handleUpdateSuspenseMode,
     handleApprovePlayer,
     handleRejectPlayer,
     handleApplySingleRandomPrediction,
@@ -444,6 +474,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         currentUser={currentUser}
         onLogout={logout}
         userCompletion={stats.userCompletion}
+        suspenseMode={appSettings?.suspense_mode === true}
+        suspenseMessage={appSettings?.suspense_message}
       >
         {(dataError || message) && (
           <div

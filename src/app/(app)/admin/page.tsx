@@ -17,9 +17,12 @@ export default function AdminPage() {
     players,
     ranking,
     tournamentResult,
+    suspenseMode,
+    appSettings,
     handleUpdateOfficialResult,
     handleUpdateKnockoutOfficialResult,
     handleUpdateTournamentResult,
+    handleUpdateSuspenseMode,
     handleApprovePlayer,
     handleRejectPlayer,
     stats,
@@ -42,9 +45,12 @@ export default function AdminPage() {
       players={players}
       ranking={ranking}
       tournamentResult={tournamentResult}
+      suspenseMode={suspenseMode}
+      suspenseMessage={appSettings?.suspense_message}
       onUpdateResult={handleUpdateOfficialResult}
       onUpdateKnockoutResult={handleUpdateKnockoutOfficialResult}
       onUpdateTournamentResult={handleUpdateTournamentResult}
+      onUpdateSuspenseMode={handleUpdateSuspenseMode}
       onApprovePlayer={handleApprovePlayer}
       onRejectPlayer={handleRejectPlayer}
       stats={{

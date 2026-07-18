@@ -17,6 +17,7 @@ interface CrowdPredictionsSectionProps {
   knockoutPredictions?: KnockoutPrediction[];
   players: Player[];
   currentUserId: string;
+  suspenseMode?: boolean;
   ranking: (Player & {
     total: number;
     exacts: number;
@@ -44,6 +45,7 @@ export function CrowdPredictionsSection({
   players,
   currentUserId,
   ranking,
+  suspenseMode = false,
 }: CrowdPredictionsSectionProps) {
   const nextGames = getNextVisibleMatches(games, knockoutMatches, 2);
   const approvedPlayers = players.filter(
@@ -61,7 +63,9 @@ export function CrowdPredictionsSection({
         </p>
       </div>
 
-      <PodiumVotesPanel players={players} currentUserId={currentUserId} />
+      {!suspenseMode && (
+        <PodiumVotesPanel players={players} currentUserId={currentUserId} />
+      )}
 
       {nextGames.map((game) => {
         // Hide picks/aggregates while the match's prediction deadline
@@ -168,8 +172,14 @@ export function CrowdPredictionsSection({
                 ranking.find((r) => r.id === playerId)?.position ?? 999;
                 
             const sortedPredictions = [...gamePredictions].sort((a, b) => {
-                return getPosition(a.player.id) - getPosition(b.player.id);
+              if (suspenseMode) {
+                return a.player.name.localeCompare(b.player.name, "pt-BR", {
+                  sensitivity: "base",
                 });
+              }
+
+              return getPosition(a.player.id) - getPosition(b.player.id);
+            });
 
             return (
             <Card
@@ -250,7 +260,7 @@ export function CrowdPredictionsSection({
 
                 <div className="bg-slate-950/70 border border-slate-800 rounded-2xl overflow-hidden">
     <div className="bg-slate-900 px-4 py-3 flex justify-between text-sm font-black uppercase text-slate-300">
-        <span>Ranking</span>
+        <span>{suspenseMode ? "Participantes" : "Ranking"}</span>
         <span>Palpite</span>
     </div>
 
@@ -263,7 +273,8 @@ export function CrowdPredictionsSection({
             }`}
         >
             <div className="font-bold truncate">
-            {getPosition(item.player.id)} - {item.player.name}
+            {!suspenseMode && `${getPosition(item.player.id)} - `}
+            {item.player.name}
             {item.player.id === currentUserId ? " (você)" : ""}
             </div>
 

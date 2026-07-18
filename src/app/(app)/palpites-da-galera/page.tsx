@@ -12,6 +12,7 @@ export default function PalpitesDaGaleraPage() {
     knockoutPredictions,
     players,
     ranking,
+    suspenseMode,
   } = useAppShell();
   return (
     <CrowdPredictionsSection
@@ -22,6 +23,7 @@ export default function PalpitesDaGaleraPage() {
       players={players}
       currentUserId={currentUser.id}
       ranking={ranking}
+      suspenseMode={suspenseMode && !currentUser.is_admin}
     />
   );
 }
